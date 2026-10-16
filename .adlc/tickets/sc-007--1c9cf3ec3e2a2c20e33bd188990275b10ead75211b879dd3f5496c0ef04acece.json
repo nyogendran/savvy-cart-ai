@@ -1,0 +1,22 @@
+{
+  "body": "Approved spec: .adlc/specs/SC-001-product-vision.md. Do not edit that file or specs/001-product-vision/spec.md. Prices below are fictional and labeled source fictional. Do not call a live retailer, bank, or Gemini API in tests. Do not commit secrets. Rails stay empty; P3 freezes them later. Money is integer LKR. A percent discount is (amount * rate_bps) // 10000.\n\nAdd google-adk to pyproject.toml dependencies. Keep FastAPI.\n\nGuest page is GET / from src/savvycart/http.py. Server-rendered HTML. No frontend framework and no login.\n\nThe page must show, as visible text:\n- Sample catalog — not live shelf prices.\n- Karuppan, Saturday, Commercial Bank credit, budget about LKR 12,000. Budget, weekday, and usual store are editable. The card control is an issuer and product id, never a card number.\n- Staples from fixtures/staples.json. Rows with running_low true start checked. running_low does not affect the optimizer.\n- Buttons or controls named exactly: Use sample receipt, Extract this image, Reject swap, Approve plan, Show a basket this offer refuses.\n- Use sample receipt checks the lines in fixtures/receipt-expected.json and shows the label fixture lines for the sample path. Those extracted lines include chicken_1kg.\n- The priced basket then applies fixtures/substitutions.json, so the plan request uses chicken_budget_1kg instead of chicken_1kg until Reject swap.\n- Extract this image posts the PNG to POST /v1/receipts. Confidence below 0.6 is unchecked. On a non-200 response the sample lines stay and the page says the live extract failed.\n- Default priced lines use the substitution alternate (chicken_budget_1kg) in place of chicken_1kg. Reject swap swaps that alternate back to chicken_1kg and re-requests POST /v1/plans. No other substitute is offered.\n- Show a basket this offer refuses loads fixtures/baskets/refused.json and shows discount 0.\n- Plans show three stores. For the capped sample, Saturday legal saving is the cap and Thursday legal saving is 0. The naive percent is shown as crossed out. valid_to is visible. Cargills and SPAR discounts are 0.\n- Approve plan posts POST /v1/approve and shows No order is sent. plus MOCK.\n- After a plan request, the HTML includes the tool names catalog, offers, optimizer in that order.\n\nsrc/savvycart/agent.py defines root_agent with from google.adk.agents import Agent. Tools are plain functions that call the catalog loader, the offer loader, the optimizer, and the explain helper. If that import path is absent in the installed package, use the Agent class that package documents and name the instance root_agent. Do not add a second agent. Do not hard-code a Gemini model id; read GEMINI_MODEL from the environment when constructing the model.\n\ntests/test_guest_page.py uses TestClient. It does not call a live model. One test loads GET / and asserts the banner and the five control names. One test posts the sample plan path with a fake model client and asserts the HTML contains catalog, offers, and optimizer.\n\nAcceptance criteria:\n1. GET / contains the banner and the five control names. Verify: python -m pytest tests/test_guest_page.py::test_guest_page_has_judge_controls -q\n2. The sample plan path names the three tools. Verify: python -m pytest tests/test_guest_page.py::test_sample_plan_names_tools -q\n3. root_agent exists. Verify: python -c \"import savvycart.agent as a; assert hasattr(a, 'root_agent')\"\n",
+  "category": "feature",
+  "duration": 3,
+  "edges": [
+    {
+      "to": "SC-008"
+    },
+    {
+      "to": "SC-009"
+    }
+  ],
+  "id": "SC-007",
+  "rails": [],
+  "scope": [
+    "src/savvycart/http.py",
+    "src/savvycart/agent.py",
+    "tests/test_guest_page.py",
+    "pyproject.toml"
+  ],
+  "title": "Add the guest page and one ADK agent"
+}

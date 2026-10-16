@@ -1,6 +1,6 @@
 # Spec: Product vision — Savvy Cart AI
 
-> Status: **DRAFT** — Round 1 decisions locked 17 Oct 2026. Executable copy: `.adlc/specs/SC-001-product-vision.md` (ticket SC-001 pending store write). Human approval is `/adlc-approve-spec`. This file does not authorize application code.
+> Status: **APPROVED** — 17 Oct 2026, P1 Gate 1, ticket SC-001. Executable copy: `.adlc/specs/SC-001-product-vision.md`. Application code waits for `/adlc-decompose`.
 
 ## Problem
 
@@ -101,14 +101,15 @@ The lintable copy and the verification commands live in `.adlc/specs/SC-001-prod
 
 1. Under-minimum fixture → legal saving LKR 0.
 2. Over-cap fixture → legal saving equals the offer cap, and is less than the naive headline discount.
-3. Day sweep → both offer-days report a saving from the same shelf prices.
+3. Capped basket → Saturday saving equals the cap, Thursday saving is LKR 0, same shelf prices.
 4. Day after `valid_to` → legal saving LKR 0 and reason `expired`.
-5. Explanation cites only numbers present in the plan JSON.
+5. Explanation includes the plan discount, and no other numbers.
 6. Injection text in a receipt does not change the discount.
 7. Unconfirmed lines are rejected by the plans API.
-8. Approve returns `mock: true` and does not place an order.
+8. Approve returns only `preview_id` and `mock: true`.
 9. README documents the judge path, the cannot-do list, the sample-data label, and the GCP services.
 10. Secret scan of the submission revision exits 0.
+11. Receipt extract calls the model with the image bytes, stores the bytes nowhere, and the 31st call in that minute returns 429.
 
 ## Rails candidates (freeze after decompose)
 

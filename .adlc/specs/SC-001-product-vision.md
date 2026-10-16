@@ -1,7 +1,7 @@
 # SC-001 — Product vision and MVP acceptance criteria
 
-> Status: **DRAFT**
-> Ticket: **SC-001** (store write pending human accept of the dry-run)
+> Status: **APPROVED** (17 Oct 2026, P1 Gate 1)
+> Ticket: **SC-001**
 > Human source: `specs/001-product-vision/spec.md`
 > Locked: 17 Oct 2026
 > This spec freezes the prototype contract. It does not authorize application code. Code starts only after `/adlc-approve-spec` and `/adlc-decompose`.
@@ -76,7 +76,7 @@ Live retailer or bank APIs. Scraping. Live-price claims. PAN, CVV, full card num
 
 ## API
 
-- `POST /v1/receipts` → `{ lines: [{ raw, sku_id, qty, confidence }] }` with `sku_id` null when unmatched.
+- `POST /v1/receipts` body is the image bytes (max 4 MB) → `{ lines: [{ raw, sku_id, qty, confidence }] }` with `sku_id` null when unmatched. The handler calls the model client with those bytes and a JSON schema. It does not write the bytes to disk, object storage, or logs. The 31st extract call in the same process-minute returns **429**.
 - `POST /v1/plans` body `{ line_ids, day, card_product_id, usual_store }` → `{ baseline, plans, naive_crossed_out, day_sweep, data_label }`.
 - `POST /v1/explain` body `{ line_ids, day, card_product_id, usual_store, store_id }` → `{ text, cited_fields }`. The server runs the optimizer. Gemini receives only that plan JSON. A client-supplied discount is ignored.
 - `POST /v1/approve` body `{ line_ids, day, card_product_id, usual_store, store_id }` → `{ preview_id, mock: true }`. The response body contains no URL. Plan responses may include `source_url`. Approve responses must not.
@@ -88,7 +88,7 @@ Live retailer or bank APIs. Scraping. Live-price claims. PAN, CVV, full card num
 | File | Role |
 | --- | --- |
 | `fixtures/catalog.json` | SKUs, categories, fictional LKR prices, `observed_on`, `source: fictional` |
-| `fixtures/offers.json` | Two rules, distinct `days`, shared exclusion pattern, `min_bill_lkr`, `cap_lkr`, `valid_to`, `source_url`, `transcribed_on`, `stackable: false` |
+| `fixtures/offers.json` | Keells Saturday and Keells Thursday. On `baskets/capped.json` the Saturday discount equals `cap_lkr` and the Thursday discount is 0. Same shelf prices. Each rule has `min_bill_lkr`, `cap_lkr`, `valid_to`, `source_url`, `transcribed_on`, `stackable: false` |
 | `fixtures/staples.json` | Karuppan’s usual lines; at least one `running_low: true` |
 | `fixtures/baskets/refused.json` | Eligible subtotal under the minimum |
 | `fixtures/baskets/capped.json` | Eligible subtotal at or above the minimum and uncapped gross discount above the cap |
@@ -103,14 +103,15 @@ Prices in these files are fictional. The spec does not fix the rupee amounts exc
 
 1. Given `fixtures/baskets/refused.json` and `fixtures/offers.json`, the optimizer sets `discount` to **0** on every plan. **Verified by** `python -m pytest tests/test_optimizer.py::test_under_minimum_savings_are_zero -q`.
 2. Given `fixtures/baskets/capped.json`, the winning plan’s `discount` equals that offer’s `cap_lkr` and is strictly less than `naive_discount`. **Verified by** `python -m pytest tests/test_optimizer.py::test_cap_limits_discount -q`.
-3. Given one confirmed line list and one catalog, scoring the Saturday offer-day and the Thursday offer-day yields two `discount` figures, and both scores read the same `shelf` amounts. **Verified by** `python -m pytest tests/test_optimizer.py::test_day_sweep_reuses_shelf_prices -q`.
+3. Given `fixtures/baskets/capped.json`, the Keells Saturday `discount` equals that offer’s `cap_lkr`, the Keells Thursday `discount` is **0**, and both scores use the same `shelf` amounts. **Verified by** `python -m pytest tests/test_optimizer.py::test_day_sweep_saturday_cap_thursday_zero -q`.
 4. Given a selected day after the offer `valid_to`, `discount` is **0** and `reason` is `expired`. **Verified by** `python -m pytest tests/test_optimizer.py::test_expired_offer_saves_zero -q`.
-5. Given an optimizer plan JSON, every number in the explanation text is present in that JSON. **Verified by** `python -m pytest tests/test_explain.py::test_explanation_numbers_subset_of_plan -q`.
+5. Given an optimizer plan JSON, the explanation text contains that plan’s `discount` digits, and every number in the text is present in the JSON. **Verified by** `python -m pytest tests/test_explain.py::test_explanation_includes_discount_and_no_other_numbers -q`.
 6. Given `fixtures/receipt-injection.json` and the same lines without the injection string, both optimizer runs return the same `discount`. **Verified by** `python -m pytest tests/test_guardrail.py::test_injection_text_does_not_change_discount -q`.
 7. Given `POST /v1/plans` with `line_ids: []`, the response status is **400** and the test’s Gemini client records **0** calls. **Verified by** `python -m pytest tests/test_plans_api.py::test_empty_lines_do_not_call_the_model -q`.
-8. Given a confirmed capped basket, `POST /v1/approve` returns JSON `mock: true` and the response body contains no `http://` or `https://` URL. **Verified by** `python -m pytest tests/test_approve.py::test_approve_is_mock_and_has_no_partner_url -q`.
+8. Given a confirmed capped basket, `POST /v1/approve` returns a JSON object whose only keys are `preview_id` and `mock`, and `mock` is true. **Verified by** `python -m pytest tests/test_approve.py::test_approve_body_is_only_preview_id_and_mock -q`.
 9. `README.md` contains all of: `Use sample receipt`, `Sample catalog — not live shelf prices.`, `Why isn’t rice discounted?`, `Show a basket this offer refuses`, `No order is sent.`, `Cloud Run`, `Secret Manager`, and a heading `Cannot do`. **Verified by** `python scripts/check_judge_readme.py`.
 10. A secret scanner reports no leaks on the submission revision. **Verified by** `gitleaks detect --source . --redact` exiting 0.
+11. Given sample image bytes and a fake model client, `POST /v1/receipts` calls that client with the bytes and a JSON schema, parses the returned lines, writes the bytes nowhere, and the 31st call in that process-minute returns **429**. **Verified by** `python -m pytest tests/test_receipt_api.py::test_extract_calls_model_and_drops_image_bytes -q`.
 
 ## Approved assumptions
 
@@ -134,11 +135,12 @@ Prices in these files are fictional. The spec does not fix the rupee amounts exc
 | --- | --- |
 | Headline percent applied to excluded staples | AC 2 (`naive_discount` vs cap) and the crossed-out display |
 | Offer that does not meet the minimum still shows a saving | AC 1 |
-| Day comparison invents a second price list | AC 3 |
+| Day comparison invents a second price list, or both days show the same saving | AC 3 |
 | Expired rule still discounts | AC 4 |
-| Explanation invents a rupee figure | AC 5 |
+| Explanation omits the discount or invents a rupee figure | AC 5 |
 | Receipt text treated as instructions | AC 6 |
 | Empty cart still calls Gemini | AC 7 |
 | Approve looks like a placed order | AC 8 |
 | Judge has no path or thinks prices are live | AC 9 |
 | Secret committed with the demo | AC 10 |
+| Sample path never calls the model, or a judge upload is stored | AC 11 |

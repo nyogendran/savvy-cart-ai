@@ -1,0 +1,15 @@
+{
+  "body": "Approved spec: .adlc/specs/SC-001-product-vision.md. Do not edit that file or specs/001-product-vision/spec.md. Prices below are fictional and labeled source fictional. Do not call a live retailer, bank, or Gemini API in tests. Do not commit secrets. Rails stay empty; P3 freezes them later. Money is integer LKR. A percent discount is (amount * rate_bps) // 10000.\n\nAdd a container definition for the FastAPI app in src/savvycart/http.py. Do not deploy and do not call gcloud. The GCP project id is not in git (assumption A6).\n\nCreate:\n- Dockerfile: python:3.12-slim, install the project, run uvicorn savvycart.http:app on 0.0.0.0 port 8080.\n- .dockerignore: exclude .env, .adlc, tests, and any json key file.\n- docs/deploy.md with these flags and no secret values: service name savvy-cart, region asia-southeast1, --min-instances=0, --timeout=120, --allow-unauthenticated, port 8080. State that the first request may be slow. State that GEMINI_MODEL and the API key come from Secret Manager or the Cloud Run environment, never from the Dockerfile or this doc.\n\nAcceptance criteria:\n1. Dockerfile contains python:3.12-slim and uvicorn savvycart.http:app. Verify: python scripts/check_deploy_docs.py\n2. docs/deploy.md contains asia-southeast1, --min-instances=0, --timeout=120, and Secret Manager. Verify: python scripts/check_deploy_docs.py\n3. The checker exits 0. Verify: python scripts/check_deploy_docs.py\n\nscripts/check_deploy_docs.py is created by this ticket and only reads those two files.\n",
+  "category": "feature",
+  "duration": 1,
+  "edges": [],
+  "id": "SC-009",
+  "rails": [],
+  "scope": [
+    "Dockerfile",
+    "docs/deploy.md",
+    ".dockerignore",
+    "scripts/check_deploy_docs.py"
+  ],
+  "title": "Add the Cloud Run container definition"
+}
