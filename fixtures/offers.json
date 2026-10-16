@@ -1,0 +1,40 @@
+{
+  "offers": [
+    {
+      "id": "keells_saturday",
+      "bank": "Commercial Bank",
+      "product": "credit",
+      "store_id": "keells",
+      "days": ["saturday"],
+      "channel": "in_store",
+      "rate_bps": 2500,
+      "min_bill_lkr": 8000,
+      "cap_lkr": 1000,
+      "include_categories": ["fresh"],
+      "exclude_categories": ["staple"],
+      "stackable": false,
+      "valid_to": "2026-10-31",
+      "transcribed_on": "2026-10-17",
+      "source_url": "https://www.combank.lk/rewards-promotion/supermarket/enjoy-the-best-supermarket-deals-at-keells-with-combank-credit-cards",
+      "note": "Demo shape. Not a live Commercial Bank promotion."
+    },
+    {
+      "id": "keells_thursday",
+      "bank": "Commercial Bank",
+      "product": "credit",
+      "store_id": "keells",
+      "days": ["thursday"],
+      "channel": "in_store",
+      "rate_bps": 2500,
+      "min_bill_lkr": 20000,
+      "cap_lkr": 1000,
+      "include_categories": ["fresh"],
+      "exclude_categories": ["staple"],
+      "stackable": false,
+      "valid_to": "2026-10-31",
+      "transcribed_on": "2026-10-17",
+      "source_url": "https://www.combank.lk/rewards-promotion/supermarket/enjoy-the-best-supermarket-deals-at-keells-with-combank-credit-cards",
+      "note": "Demo shape. Not a live Commercial Bank promotion."
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "observed_on": "2026-10-17",
+  "data_label": "Sample catalog — not live shelf prices.",
+  "skus": [
+    {
+      "id": "rice_5kg",
+      "name": "Rice 5 kg",
+      "category": "staple",
+      "prices": {
+        "keells": { "amount_lkr": 1250, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 1180, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 1320, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    },
+    {
+      "id": "milk_400g",
+      "name": "Milk powder 400 g",
+      "category": "staple",
+      "prices": {
+        "keells": { "amount_lkr": 980, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 1020, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 960, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    },
+    {
+      "id": "dhal_1kg",
+      "name": "Dhal 1 kg",
+      "category": "staple",
+      "prices": {
+        "keells": { "amount_lkr": 420, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 400, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 450, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    },
+    {
+      "id": "eggs_10",
+      "name": "Eggs 10",
+      "category": "staple",
+      "prices": {
+        "keells": { "amount_lkr": 720, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 690, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 740, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    },
+    {
+      "id": "oil_1l",
+      "name": "Cooking oil 1 L",
+      "category": "staple",
+      "prices": {
+        "keells": { "amount_lkr": 890, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 860, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 910, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    },
+    {
+      "id": "tea_400g",
+      "name": "Tea 400 g",
+      "category": "staple",
+      "prices": {
+        "keells": { "amount_lkr": 640, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 670, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 620, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    },
+    {
+      "id": "chicken_1kg",
+      "name": "Chicken 1 kg",
+      "category": "fresh",
+      "prices": {
+        "keells": { "amount_lkr": 4500, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 4600, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 4700, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    },
+    {
+      "id": "vegetables",
+      "name": "Vegetables",
+      "category": "fresh",
+      "prices": {
+        "keells": { "amount_lkr": 4000, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 4100, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 3900, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    },
+    {
+      "id": "chicken_budget_1kg",
+      "name": "Chicken budget cut 1 kg",
+      "category": "fresh",
+      "prices": {
+        "keells": { "amount_lkr": 3000, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 3100, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 3200, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    },
+    {
+      "id": "fish_1kg",
+      "name": "Fish 1 kg",
+      "category": "fresh",
+      "prices": {
+        "keells": { "amount_lkr": 1800, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 1900, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 1750, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    },
+    {
+      "id": "fruit",
+      "name": "Fruit",
+      "category": "fresh",
+      "prices": {
+        "keells": { "amount_lkr": 650, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 700, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 680, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    },
+    {
+      "id": "yogurt",
+      "name": "Yogurt",
+      "category": "fresh",
+      "prices": {
+        "keells": { "amount_lkr": 280, "source": "fictional", "observed_on": "2026-10-17" },
+        "cargills": { "amount_lkr": 300, "source": "fictional", "observed_on": "2026-10-17" },
+        "spar": { "amount_lkr": 260, "source": "fictional", "observed_on": "2026-10-17" }
+      }
+    }
+  ]
+}

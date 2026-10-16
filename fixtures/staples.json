@@ -1,0 +1,16 @@
+{
+  "persona": "Karuppan",
+  "lines": [
+    { "sku_id": "rice_5kg", "qty": 1, "running_low": true },
+    { "sku_id": "milk_400g", "qty": 1, "running_low": false },
+    { "sku_id": "dhal_1kg", "qty": 1, "running_low": false },
+    { "sku_id": "eggs_10", "qty": 1, "running_low": false },
+    { "sku_id": "oil_1l", "qty": 1, "running_low": false },
+    { "sku_id": "tea_400g", "qty": 1, "running_low": false },
+    { "sku_id": "chicken_1kg", "qty": 1, "running_low": true },
+    { "sku_id": "vegetables", "qty": 1, "running_low": false },
+    { "sku_id": "fish_1kg", "qty": 1, "running_low": false },
+    { "sku_id": "fruit", "qty": 1, "running_low": false },
+    { "sku_id": "yogurt", "qty": 1, "running_low": false }
+  ]
+}

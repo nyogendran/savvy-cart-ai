@@ -1,0 +1,9 @@
+{
+  "id": "capped",
+  "lines": [
+    { "sku_id": "rice_5kg", "qty": 1 },
+    { "sku_id": "milk_400g", "qty": 1 },
+    { "sku_id": "chicken_1kg", "qty": 1 },
+    { "sku_id": "vegetables", "qty": 1 }
+  ]
+}
