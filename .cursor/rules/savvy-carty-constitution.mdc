@@ -1,0 +1,14 @@
+---
+description: Savvy Cart AI constitution and hackathon constraints for all ADLC work
+alwaysApply: true
+---
+
+# Savvy Cart AI — always-on constraints
+
+- Spec-driven ADLC: no feature code before an approved ticket + linted spec.
+- Read `specs/constitution.md` and `AGENTS.md` before large changes.
+- Google Cloud first (Vertex AI / Gemini, Cloud Run, managed data/auth/logging).
+- Prototype deadline **18 Oct 2026** — prefer demoable MVP over breadth.
+- Acceptance criteria must name verification (command, test, or assertion).
+- Never invent prices/inventory/policy; surface AI uncertainty.
+- No secrets in git; minimize PII; no payment-card data in logs.

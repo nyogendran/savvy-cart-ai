@@ -1,0 +1,10 @@
+{
+  "id": "SC-000",
+  "title": "Imperative title describing the change",
+  "body": "Self-contained context.\n\n## Acceptance criteria\n1. … verified by `…`\n",
+  "scope": ["specs/**", ".adlc/specs/**"],
+  "rails": [],
+  "edges": [],
+  "duration": 1,
+  "category": "feature"
+}

@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node \"C:\\Users\\ynr\\AppData\\Local\\Temp\\cursor-sandbox-cache\\fa2674dd11367a3eb862df3fac80bfb1\\npm\\_npx\\39cd6138e8fabff3\\node_modules\\@adlc\\cursor\\hooks\\adlc-session-start.mjs\"",
+        "timeout": 10,
+        "failClosed": false
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "node \"C:\\Users\\ynr\\AppData\\Local\\Temp\\cursor-sandbox-cache\\fa2674dd11367a3eb862df3fac80bfb1\\npm\\_npx\\39cd6138e8fabff3\\node_modules\\@adlc\\cursor\\hooks\\adlc-pretool.mjs\"",
+        "matcher": ".*",
+        "timeout": 10,
+        "failClosed": false
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "node \"C:\\Users\\ynr\\AppData\\Local\\Temp\\cursor-sandbox-cache\\fa2674dd11367a3eb862df3fac80bfb1\\npm\\_npx\\39cd6138e8fabff3\\node_modules\\@adlc\\cursor\\hooks\\adlc-audit.mjs\"",
+        "timeout": 10,
+        "failClosed": false
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "node \"C:\\Users\\ynr\\AppData\\Local\\Temp\\cursor-sandbox-cache\\fa2674dd11367a3eb862df3fac80bfb1\\npm\\_npx\\39cd6138e8fabff3\\node_modules\\@adlc\\cursor\\hooks\\adlc-shell-advisory.mjs\"",
+        "timeout": 10,
+        "failClosed": false
+      }
+    ],
+    "preCompact": [
+      {
+        "command": "node \"C:\\Users\\ynr\\AppData\\Local\\Temp\\cursor-sandbox-cache\\fa2674dd11367a3eb862df3fac80bfb1\\npm\\_npx\\39cd6138e8fabff3\\node_modules\\@adlc\\cursor\\hooks\\adlc-precompact.mjs\"",
+        "timeout": 10,
+        "failClosed": false
+      }
+    ],
+    "subagentStart": [
+      {
+        "command": "node \"C:\\Users\\ynr\\AppData\\Local\\Temp\\cursor-sandbox-cache\\fa2674dd11367a3eb862df3fac80bfb1\\npm\\_npx\\39cd6138e8fabff3\\node_modules\\@adlc\\cursor\\hooks\\adlc-subagent.mjs\"",
+        "timeout": 10,
+        "failClosed": false
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": "node \"C:\\Users\\ynr\\AppData\\Local\\Temp\\cursor-sandbox-cache\\fa2674dd11367a3eb862df3fac80bfb1\\npm\\_npx\\39cd6138e8fabff3\\node_modules\\@adlc\\cursor\\hooks\\adlc-subagent.mjs\" --stop",
+        "timeout": 10,
+        "failClosed": false
+      }
+    ],
+    "stop": [
+      {
+        "command": "node \"C:\\Users\\ynr\\AppData\\Local\\Temp\\cursor-sandbox-cache\\fa2674dd11367a3eb862df3fac80bfb1\\npm\\_npx\\39cd6138e8fabff3\\node_modules\\@adlc\\cursor\\hooks\\adlc-stop.mjs\"",
+        "timeout": 10,
+        "failClosed": false
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "node \"C:\\Users\\ynr\\AppData\\Local\\Temp\\cursor-sandbox-cache\\fa2674dd11367a3eb862df3fac80bfb1\\npm\\_npx\\39cd6138e8fabff3\\node_modules\\@adlc\\cursor\\hooks\\adlc-preflight.mjs\"",
+        "timeout": 10,
+        "failClosed": false
+      }
+    ]
+  }
+}

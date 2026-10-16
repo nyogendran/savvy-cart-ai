@@ -1,0 +1,13 @@
+---
+description: Conventions when editing specs and ADLC tickets
+globs: specs/**/*.md,.adlc/specs/**/*.md,.adlc/tickets/**/*
+alwaysApply: false
+---
+
+# Spec editing rules
+
+- Keep acceptance criteria **verifiable** (name the command/test/assertion).
+- Prefer rewriting prose after interrogation answers over appending Q&A dumps.
+- Mark status clearly: `DRAFT` → `READY_FOR_APPROVAL` → `APPROVED`.
+- Link the ticket id in the spec header when one exists.
+- Do not delete premortem risks — convert them into mitigations or explicit out-of-scope.
