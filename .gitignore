@@ -11,6 +11,7 @@
 !.adlc/lessons/
 !.adlc/lessons/**
 !.adlc/manifest.jsonl
+!.adlc/findings.jsonl
 !.adlc/manifest.d/
 !.adlc/manifest.d/**
 .adlc/manifest.d/.lineage

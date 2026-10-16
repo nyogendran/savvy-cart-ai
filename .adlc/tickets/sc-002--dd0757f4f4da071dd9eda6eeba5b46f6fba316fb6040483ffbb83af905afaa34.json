@@ -15,7 +15,9 @@
   "scope": [
     "fixtures/**",
     "tests/test_fixtures.py",
-    "pyproject.toml"
+    "pyproject.toml",
+    "src/savvycart/**",
+    ".gitignore"
   ],
   "title": "Commit the labeled grocery fixtures"
 }
