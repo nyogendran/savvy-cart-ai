@@ -1,8 +1,9 @@
-"""FastAPI app: plans and mock approve (SC-004)."""
+"""FastAPI app: plans, mock approve, and receipt extract."""
 
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from functools import lru_cache
 from pathlib import Path
@@ -12,6 +13,16 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from savvycart.optimizer import optimize
+from savvycart.receipts import (
+    EXTRACTS_PER_MINUTE,
+    MAX_RECEIPT_BYTES,
+    RECEIPT_LINES_SCHEMA,
+    ExtractRateLimiter,
+    MemoryStorage,
+    PayloadTooLarge,
+    RateLimited,
+    extract_receipt,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "fixtures"
@@ -21,18 +32,26 @@ app = FastAPI(title="Savvy Cart AI", version="0.1.0")
 
 
 class ModelClient(Protocol):
-    """Placeholder model client; plans must not call it for empty baskets."""
+    """Model client for plans (must not be called on empty baskets) and receipts."""
 
     def generate(self, *args: Any, **kwargs: Any) -> Any: ...
+
+    def extract(self, image_bytes: bytes, schema: dict[str, Any]) -> dict[str, Any] | str: ...
 
 
 class NullModelClient:
     def __init__(self) -> None:
         self.calls = 0
+        self.last_extract: tuple[bytes, dict[str, Any]] | None = None
 
     def generate(self, *args: Any, **kwargs: Any) -> Any:
         self.calls += 1
         raise RuntimeError("model client must not be called from /v1/plans in SC-004")
+
+    def extract(self, image_bytes: bytes, schema: dict[str, Any]) -> dict[str, Any] | str:
+        self.calls += 1
+        self.last_extract = (image_bytes, schema)
+        raise RuntimeError("configure a receipt model client on app.state.model_client")
 
 
 class LineId(BaseModel):
@@ -76,6 +95,23 @@ def get_model_client(request: Request) -> ModelClient:
         client = NullModelClient()
         request.app.state.model_client = client
     return client
+
+
+def get_storage(request: Request) -> MemoryStorage:
+    storage = getattr(request.app.state, "storage", None)
+    if storage is None:
+        storage = MemoryStorage()
+        request.app.state.storage = storage
+    return storage
+
+
+def get_rate_limiter(request: Request) -> ExtractRateLimiter:
+    limiter = getattr(request.app.state, "extract_rate_limiter", None)
+    if limiter is None:
+        clock = getattr(request.app.state, "clock", time.time)
+        limiter = ExtractRateLimiter(clock=clock, limit=EXTRACTS_PER_MINUTE)
+        request.app.state.extract_rate_limiter = limiter
+    return limiter
 
 
 def _plan_summary(plan: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -176,3 +212,27 @@ def approve_plan(body: ApproveRequest) -> dict[str, Any]:
         "preview_id": f"preview-{uuid.uuid4().hex}",
         "mock": True,
     }
+
+
+@app.post("/v1/receipts")
+async def create_receipt(
+    request: Request,
+    model_client: ModelClient = Depends(get_model_client),
+    storage: MemoryStorage = Depends(get_storage),
+    rate_limiter: ExtractRateLimiter = Depends(get_rate_limiter),
+) -> dict[str, Any]:
+    image_bytes = await request.body()
+    if len(image_bytes) > MAX_RECEIPT_BYTES:
+        raise HTTPException(status_code=413, detail="receipt image exceeds 4 MB")
+    try:
+        return extract_receipt(
+            image_bytes,
+            model_client=model_client,
+            storage=storage,
+            rate_limiter=rate_limiter,
+            schema=RECEIPT_LINES_SCHEMA,
+        )
+    except PayloadTooLarge:
+        raise HTTPException(status_code=413, detail="receipt image exceeds 4 MB") from None
+    except RateLimited:
+        raise HTTPException(status_code=429, detail="extract rate limit exceeded") from None
