@@ -1,0 +1,144 @@
+# SC-001 — Product vision and MVP acceptance criteria
+
+> Status: **DRAFT**
+> Ticket: **SC-001** (store write pending human accept of the dry-run)
+> Human source: `specs/001-product-vision/spec.md`
+> Locked: 17 Oct 2026
+> This spec freezes the prototype contract. It does not authorize application code. Code starts only after `/adlc-approve-spec` and `/adlc-decompose`.
+
+## Mission
+
+Build **Savvy Cart AI** for the Google Cloud AI Builder Cup. Prototype deadline **18 Oct 2026**. Stack is Google Cloud. The prototype must stay a demoable vertical slice: one guest path a judge can finish on a Cloud Run URL.
+
+## Problem
+
+On a normal Sri Lankan weekly shop, the useful price is the one-store basket total after the offer’s day, category, exclusions, minimum bill, cap, “cannot combine” rule, and end date.
+
+Team-authored. The Cup portal wording was not pasted. A later paste replaces this paragraph (assumption A1).
+
+## Persona
+
+**Karuppan**, fictional. Colombo. Saturday shop. Usual store in the sample: **Keells**. Card product: **Commercial Bank credit** (issuer and product name only; never a PAN, CVV, or full number). Budget about **LKR 12,000**.
+
+His buying pattern is the committed staple fixture `fixtures/staples.json`. Lines with `running_low: true` start checked. The fixture does not emit a depletion date.
+
+## Solution
+
+SavvyCart AI turns Karuppan’s grocery receipt and that card product into one-store basket options whose savings survive exclusions, minimum, cap, and end date.
+
+Gemini reads the receipt and narrates the optimizer JSON. Python code computes prices, eligibility, caps, and totals.
+
+## In scope
+
+1. Guest UI. No login. Persistent banner: `Sample catalog — not live shelf prices.`
+2. Editable persona defaults: budget, day, card product id, usual store.
+3. Staple list from the fixture, with running-low lines pre-checked.
+4. **Use sample receipt** loads `fixtures/receipt-sample.png` and shows lines from `fixtures/receipt-expected.json` already checked, labeled `fixture lines for the sample path`. Rice and chicken are in that expected file. A second action, **Extract this image**, calls Gemini. Confidence **< 0.6** on a live extract is unchecked until the human confirms it. If that call errors, the sample lines stay on screen and the UI says the live extract failed.
+5. Human confirmation is required before pricing. `running_low` only pre-checks staple rows. It is not an optimizer input. The budget is shown and editable. It does not change `discount`, eligibility, or the winner.
+6. Catalog of about twelve grocery SKUs priced at Keells, Cargills, and SPAR. Amounts are fictional and labeled `source: fictional`.
+7. Two offer rules, both `store_id: keells`, `stackable: false`. One applies on **Saturday**, the other on **Thursday**. Cargills and SPAR have shelf prices and no offer in this fixture. Each rule stores `valid_to`, `source_url`, and `transcribed_on`. Copy states the product is not affiliated with the bank.
+8. Deterministic optimizer (not an LLM, not an integer program):
+   - `shelf` = unit price × quantity from the snapshot. Missing price → line `unpriced`, plan `incomplete`, plan cannot win.
+   - `eligible` only when category is included, category is not excluded, the plan day matches, and channel is in-store.
+   - `naive_discount` = headline rate × grand shelf total. Display only as the crossed-out mistake.
+   - `gross_discount` = headline rate × eligible subtotal when eligible subtotal ≥ minimum; otherwise 0.
+   - `discount` = min(gross_discount, cap).
+   - `deferred_value` = 0.
+   - `effective_cost` = shelf total − discount.
+   - One store per plan. No split plans.
+   - Winner is the complete plan with the lowest effective cost. Ties break to the usual store.
+   - A line is in at most one of: excluded, eligible, unpriced. The cap applies once per plan.
+9. Day sweep: the same confirmed lines and the same shelf prices are scored for Keells on Saturday and Keells on Thursday. The UI shows both legal savings in LKR. The selected day also shows the three store plans; Cargills and SPAR show discount 0.
+10. If the selected day is after `valid_to`, discount is 0 and the plan reason is `expired`.
+11. Explain: Gemini may use only the optimizer JSON for that plan. Cited numbers must be a subset of numbers in that JSON.
+12. `fixtures/substitutions.json` holds one pair: a confirmed SKU and one same-category alternate. The alternate starts applied. **Reject swap** removes it and the optimizer runs again on the original SKU. The UI total updates from the new JSON. The engine invents no other substitutes.
+13. Approve writes a preview with `mock: true` and renders `No order is sent.` No outbound retailer or bank call.
+14. Control action **Show a basket this offer refuses**: eligible subtotal under the minimum, legal saving LKR 0.
+15. Receipt and offer text are untrusted data. Optimizer inputs are confirmed line ids plus fixture fields.
+16. One ADK agent on Cloud Run. Tools: catalog, offers, optimizer, explain. The UI names the tool that just ran.
+17. Secrets only via Secret Manager or the process environment. No key material in git.
+
+## Out of scope
+
+Live retailer or bank APIs. Scraping. Live-price claims. PAN, CVV, full card numbers. Payments and real orders. Login. Learned forecasts, pantry models, stock-out dates. Shelf prices that change by day inside this prototype. Sinhala or Tamil UI. A second retail category. BigQuery. Document AI. More than one agent. Loyalty points converted to rupees.
+
+## Stack
+
+| Piece | Choice |
+| --- | --- |
+| Language | Python 3 |
+| Agent | `google-adk`, one `Agent` |
+| Model | Chosen at build time. Must accept an image and a JSON schema. Do not hard-code a guessed id. |
+| HTTP | Cloud Run, unauthenticated invoke, `--min-instances=0`, `--timeout=120` |
+| Region | `asia-southeast1` if the model is callable there; otherwise the working region, written in `README.md` |
+| Data | `fixtures/*.json` committed. Firestore and Cloud Storage are optional and are not acceptance. |
+| Tests | `pytest` |
+
+## API
+
+- `POST /v1/receipts` → `{ lines: [{ raw, sku_id, qty, confidence }] }` with `sku_id` null when unmatched.
+- `POST /v1/plans` body `{ line_ids, day, card_product_id, usual_store }` → `{ baseline, plans, naive_crossed_out, day_sweep, data_label }`.
+- `POST /v1/explain` body `{ line_ids, day, card_product_id, usual_store, store_id }` → `{ text, cited_fields }`. The server runs the optimizer. Gemini receives only that plan JSON. A client-supplied discount is ignored.
+- `POST /v1/approve` body `{ line_ids, day, card_product_id, usual_store, store_id }` → `{ preview_id, mock: true }`. The response body contains no URL. Plan responses may include `source_url`. Approve responses must not.
+
+`POST /v1/plans` with an empty `line_ids` returns **400** and does not call Gemini.
+
+## Fixtures the build must add
+
+| File | Role |
+| --- | --- |
+| `fixtures/catalog.json` | SKUs, categories, fictional LKR prices, `observed_on`, `source: fictional` |
+| `fixtures/offers.json` | Two rules, distinct `days`, shared exclusion pattern, `min_bill_lkr`, `cap_lkr`, `valid_to`, `source_url`, `transcribed_on`, `stackable: false` |
+| `fixtures/staples.json` | Karuppan’s usual lines; at least one `running_low: true` |
+| `fixtures/baskets/refused.json` | Eligible subtotal under the minimum |
+| `fixtures/baskets/capped.json` | Eligible subtotal at or above the minimum and uncapped gross discount above the cap |
+| `fixtures/receipt-sample.png` | Image the sample button sends |
+| `fixtures/receipt-expected.json` | Expected lines for that image, including rice and chicken |
+| `fixtures/receipt-injection.json` | Same priced lines plus a raw string that demands a different discount |
+| `fixtures/substitutions.json` | One SKU pair. The alternate starts applied |
+
+Prices in these files are fictional. The spec does not fix the rupee amounts except through the tests below.
+
+## Acceptance criteria
+
+1. Given `fixtures/baskets/refused.json` and `fixtures/offers.json`, the optimizer sets `discount` to **0** on every plan. **Verified by** `python -m pytest tests/test_optimizer.py::test_under_minimum_savings_are_zero -q`.
+2. Given `fixtures/baskets/capped.json`, the winning plan’s `discount` equals that offer’s `cap_lkr` and is strictly less than `naive_discount`. **Verified by** `python -m pytest tests/test_optimizer.py::test_cap_limits_discount -q`.
+3. Given one confirmed line list and one catalog, scoring the Saturday offer-day and the Thursday offer-day yields two `discount` figures, and both scores read the same `shelf` amounts. **Verified by** `python -m pytest tests/test_optimizer.py::test_day_sweep_reuses_shelf_prices -q`.
+4. Given a selected day after the offer `valid_to`, `discount` is **0** and `reason` is `expired`. **Verified by** `python -m pytest tests/test_optimizer.py::test_expired_offer_saves_zero -q`.
+5. Given an optimizer plan JSON, every number in the explanation text is present in that JSON. **Verified by** `python -m pytest tests/test_explain.py::test_explanation_numbers_subset_of_plan -q`.
+6. Given `fixtures/receipt-injection.json` and the same lines without the injection string, both optimizer runs return the same `discount`. **Verified by** `python -m pytest tests/test_guardrail.py::test_injection_text_does_not_change_discount -q`.
+7. Given `POST /v1/plans` with `line_ids: []`, the response status is **400** and the test’s Gemini client records **0** calls. **Verified by** `python -m pytest tests/test_plans_api.py::test_empty_lines_do_not_call_the_model -q`.
+8. Given a confirmed capped basket, `POST /v1/approve` returns JSON `mock: true` and the response body contains no `http://` or `https://` URL. **Verified by** `python -m pytest tests/test_approve.py::test_approve_is_mock_and_has_no_partner_url -q`.
+9. `README.md` contains all of: `Use sample receipt`, `Sample catalog — not live shelf prices.`, `Why isn’t rice discounted?`, `Show a basket this offer refuses`, `No order is sent.`, `Cloud Run`, `Secret Manager`, and a heading `Cannot do`. **Verified by** `python scripts/check_judge_readme.py`.
+10. A secret scanner reports no leaks on the submission revision. **Verified by** `gitleaks detect --source . --redact` exiting 0.
+
+## Approved assumptions
+
+| Id | Assumption |
+| --- | --- |
+| A1 | Portal problem text is absent. The team sentence above is the problem until a paste replaces it. |
+| A2 | Submit before the end of 18 Oct 2026, Asia/Colombo, with a three-hour buffer. The portal hour is unconfirmed. |
+| A3 | Video target is ≤ 3:00 unless the dashboard text differs. |
+| A4 | The team is already formed and eligible. The dashboard was not re-checked in the locking session. |
+| A5 | Model id and the final region are build-time facts, recorded in the README, not in this spec. |
+| A6 | GCP project id and billing owner stay out of git. |
+| A7 | Finale travelers are undecided and out of scope. |
+| A8 | Offer rows copy public term patterns. They are not a claim that a named bank promotion is live. |
+| A9 | No model is trained on Karuppan’s history. |
+| A10 | Missing Firestore or Cloud Storage does not fail the criteria above. |
+| A11 | Python 3, pytest, and one ADK agent are the prototype stack. |
+
+## Mitigations already required by the criteria
+
+| Failure | Where it is handled |
+| --- | --- |
+| Headline percent applied to excluded staples | AC 2 (`naive_discount` vs cap) and the crossed-out display |
+| Offer that does not meet the minimum still shows a saving | AC 1 |
+| Day comparison invents a second price list | AC 3 |
+| Expired rule still discounts | AC 4 |
+| Explanation invents a rupee figure | AC 5 |
+| Receipt text treated as instructions | AC 6 |
+| Empty cart still calls Gemini | AC 7 |
+| Approve looks like a placed order | AC 8 |
+| Judge has no path or thinks prices are live | AC 9 |
+| Secret committed with the demo | AC 10 |

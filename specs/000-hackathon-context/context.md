@@ -22,10 +22,11 @@ Sources:
 | Finalists announced | 7 Nov 2026 |
 | Grand Finale | Demo Day, Singapore — 4 Dec 2026 (only **2** travelers; visa own cost) |
 
-## Theme (choose one)
+## Theme (locked)
 
-Default hypothesis for SavvyCart: **Retail & Commerce — Intelligent Customer and Business Experiences**  
-(discovery, personalization, conversational shopping, …). Confirm via `/adlc-product-strategy` before locking. Alternative if card-offer framing dominates: **BFSI**.
+**Retail & Commerce — Intelligent Customer and Business Experiences.**
+
+Locked 17 Oct 2026 with the narrow slice in `specs/001-product-vision/spec.md`. Card-offer rules stay inside this Retail story (personalization: this household, this card, this day). BFSI is a post-Cup adjacency, not the submitted theme.
 
 ## Official judging weights (all themes)
 
@@ -66,14 +67,30 @@ Default hypothesis for SavvyCart: **Retail & Commerce — Intelligent Customer a
 
 Local need → build on Google Cloud → show path to **global** scale.
 
-## Open inputs for the team
+## Locked 17 Oct 2026
 
-- [ ] Locked theme + official problem-statement wording from portal
-- [ ] One-sentence problem
-- [ ] Primary persona
-- [ ] GCP project ID / billing owner
-- [ ] Which 2 members travel if shortlisted
-- [ ] Strategy report accepted: `specs/002-product-strategy/report.md`
+- [x] Theme: Retail & Commerce
+- [x] One-sentence problem (team-authored; portal text was not pasted — see assumptions)
+- [x] Primary persona: **Karuppan** (fictional Colombo household shopper)
+- [x] Strategy report accepted for the narrow slice: `specs/002-product-strategy/report.md`
+- [ ] Official portal problem-statement wording (assumption A1 until pasted)
+- [ ] GCP project ID / billing owner (assumption A6; do not commit the id)
+- [ ] Which 2 members travel if shortlisted (assumption A7; outside the prototype)
+
+## Approved assumptions
+
+| Id | Assumption |
+| --- | --- |
+| A1 | Portal problem text was not pasted. The team sentence in the vision spec is the problem until a portal paste replaces it. |
+| A2 | Deadline hour and timezone are unconfirmed. Submit before the end of **18 Oct 2026**, Asia/Colombo, with a three-hour buffer. |
+| A3 | Demo video target is **≤ 3:00** unless the dashboard text the team can see differs. |
+| A4 | The team is already formed, 21+, non-student, and JAPAC. This session did not re-check the Cup dashboard. |
+| A5 | Gemini model id is chosen at build time. It must accept an image and a JSON schema. Region is `asia-southeast1` when that model is callable there; otherwise the region that succeeds, written in the README. |
+| A6 | A GCP project with billing is a human prerequisite. The project id stays out of git. |
+| A7 | Finale travelers are undecided and are not part of this prototype. |
+| A8 | Fixture prices are fictional. Offer geometry copies public term patterns and is not a live promotion or a bank affiliation. |
+| A9 | Karuppan’s buying pattern is a static staple fixture, not a trained forecast. |
+| A10 | Firestore and Cloud Storage are optional. Committed fixture JSON is enough to meet acceptance. |
 
 ## Strategy prompt
 
