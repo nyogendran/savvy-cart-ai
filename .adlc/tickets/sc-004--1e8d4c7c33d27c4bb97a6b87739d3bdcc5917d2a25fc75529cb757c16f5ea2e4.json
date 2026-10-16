@@ -1,5 +1,5 @@
 {
-  "body": "Approved spec: .adlc/specs/SC-001-product-vision.md. Do not edit that file or specs/001-product-vision/spec.md. Prices below are fictional and labeled source fictional. Do not call a live retailer, bank, or Gemini API in tests. Do not commit secrets. Rails stay empty; P3 freezes them later. Money is integer LKR. A percent discount is (amount * rate_bps) // 10000.\n\nCreate the HTTP app with FastAPI. Add fastapi and httpx to pyproject.toml. App object: savvycart.http:app.\n\nPOST /v1/plans body: line_ids (list of {sku_id, qty}), day ({weekday, date}), card_product_id, usual_store. Load fixtures from the fixtures/ directory. Call the optimizer. Return JSON with baseline, plans, naive_crossed_out, day_sweep, and data_label. data_label is exactly: Sample catalog — not live shelf prices.\n\nline_ids empty returns 400 and does not call a model client. Tests inject a client and assert zero calls.\n\nPOST /v1/approve with the same identity fields returns a JSON object whose only keys are preview_id and mock, and mock is true. preview_id is a non-empty string. No URL, no partner call.\n\nDo not implement receipts or explain on this ticket.\n\nAcceptance criteria:\n1. Empty line_ids returns 400 and does not call the model. Verify: python -m pytest tests/test_plans_api.py::test_empty_lines_do_not_call_the_model -q\n2. Approve returns only preview_id and mock true. Verify: python -m pytest tests/test_approve.py::test_approve_body_is_only_preview_id_and_mock -q\n",
+  "body": "Approved spec: .adlc/specs/SC-001-product-vision.md. Do not edit that file or specs/001-product-vision/spec.md. Prices below are fictional and labeled source fictional. Do not call a live retailer, bank, or Gemini API in tests. Do not commit secrets. Rails freeze fixtures/** and the SC-003 optimizer + its tests so this ticket cannot rewrite them. Money is integer LKR. A percent discount is (amount * rate_bps) // 10000.\n\nCreate the HTTP app with FastAPI. Add fastapi and httpx to pyproject.toml. App object: savvycart.http:app.\n\nPOST /v1/plans body: line_ids (list of {sku_id, qty}), day ({weekday, date}), card_product_id, usual_store. Load fixtures from the fixtures/ directory. Call the optimizer. Return JSON with baseline, plans, naive_crossed_out, day_sweep, and data_label. data_label is exactly: Sample catalog â€” not live shelf prices.\n\nline_ids empty returns 400 and does not call a model client. Tests inject a client and assert zero calls.\n\nPOST /v1/approve with the same identity fields returns a JSON object whose only keys are preview_id and mock, and mock is true. preview_id is a non-empty string. No URL, no partner call.\n\nDo not implement receipts or explain on this ticket.\n\nAcceptance criteria:\n1. Empty line_ids returns 400 and does not call the model. Verify: python -m pytest tests/test_plans_api.py::test_empty_lines_do_not_call_the_model -q\n2. Approve returns only preview_id and mock true. Verify: python -m pytest tests/test_approve.py::test_approve_body_is_only_preview_id_and_mock -q\n",
   "category": "feature",
   "duration": 2,
   "edges": [
@@ -8,7 +8,12 @@
     }
   ],
   "id": "SC-004",
-  "rails": [],
+  "rails": [
+    "fixtures/**",
+    "src/savvycart/optimizer.py",
+    "tests/test_optimizer.py",
+    "tests/test_guardrail.py"
+  ],
   "scope": [
     "src/savvycart/http.py",
     "tests/test_plans_api.py",
