@@ -12,6 +12,7 @@ from typing import Any, Protocol
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from savvycart.explain import explain_plan
 from savvycart.optimizer import optimize
 from savvycart.receipts import (
     EXTRACTS_PER_MINUTE,
@@ -32,11 +33,13 @@ app = FastAPI(title="Savvy Cart AI", version="0.1.0")
 
 
 class ModelClient(Protocol):
-    """Model client for plans (must not be called on empty baskets) and receipts."""
+    """Model client for plans, receipts, and explain."""
 
     def generate(self, *args: Any, **kwargs: Any) -> Any: ...
 
     def extract(self, image_bytes: bytes, schema: dict[str, Any]) -> dict[str, Any] | str: ...
+
+    def explain(self, plan_json: dict[str, Any], instruction: str) -> str: ...
 
 
 class NullModelClient:
@@ -52,6 +55,10 @@ class NullModelClient:
         self.calls += 1
         self.last_extract = (image_bytes, schema)
         raise RuntimeError("configure a receipt model client on app.state.model_client")
+
+    def explain(self, plan_json: dict[str, Any], instruction: str) -> str:
+        self.calls += 1
+        raise RuntimeError("configure an explain model client on app.state.model_client")
 
 
 class LineId(BaseModel):
@@ -77,6 +84,16 @@ class ApproveRequest(BaseModel):
     card_product_id: str
     usual_store: str
     store_id: str | None = None
+
+
+class ExplainRequest(BaseModel):
+    line_ids: list[LineId]
+    day: Day
+    card_product_id: str
+    usual_store: str
+    store_id: str
+    # Client-supplied discount is ignored if present.
+    discount: int | None = None
 
 
 @lru_cache(maxsize=1)
@@ -236,3 +253,26 @@ async def create_receipt(
         raise HTTPException(status_code=413, detail="receipt image exceeds 4 MB") from None
     except RateLimited:
         raise HTTPException(status_code=429, detail="extract rate limit exceeded") from None
+
+
+@app.post("/v1/explain")
+def explain(
+    body: ExplainRequest,
+    model_client: ModelClient = Depends(get_model_client),
+) -> dict[str, Any]:
+    _ = body.discount  # never trusted — optimizer is the source of truth
+    catalog = _load_catalog()
+    offers = _load_offers()
+    lines = [line.model_dump() for line in body.line_ids]
+    day = body.day.model_dump()
+    result = optimize(catalog, offers, lines, day, body.usual_store)
+    plan = next((p for p in result["plans"] if p["store_id"] == body.store_id), None)
+    if plan is None or not plan["complete"]:
+        raise HTTPException(status_code=400, detail="no complete plan for store_id")
+    summary = _plan_summary(plan)
+    assert summary is not None
+    explained = explain_plan(summary, model_client=model_client)
+    return {
+        "text": explained["text"],
+        "cited_fields": explained["cited_fields"],
+    }
