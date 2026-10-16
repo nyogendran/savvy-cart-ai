@@ -19,6 +19,7 @@ Run **P0 → P1 only**. Do **not** write application source code yet (no `src/`,
    - `specs/constitution.md`
    - `specs/000-hackathon-context/context.md`
    - `specs/001-product-vision/spec.md`
+   - `specs/002-product-strategy/report.md` if it exists (from `/adlc-product-strategy`)
    - `.cursor/rules/adlc.mdc`
 2. Confirm `@adlc/cli` is usable (`adlc --help`). If missing, tell me to run `npm i -g @adlc/cli`.
 3. Run `adlc preflight` (or summarize what I should run) and report pass/fail.
