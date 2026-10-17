@@ -848,12 +848,15 @@ def _render_suggestion(s: dict[str, Any]) -> str:
         return (f'<p class="source">{_e(s["bank"])} at {_e(STORE_NAMES[s["store_id"]])}: none of your eligible items due within '
                 f'{SUGGEST_DAYS} days would reach the {_money(s["minimum"])} minimum, so Savvy Cart suggests nothing.</p>')
     extra = s["replanned_lkr"] - s["current_lkr"]
+    if extra < 0:
+        outcome = f"so you would pay {_money(-extra)} less in total and get those items too."
+    else:
+        outcome = f'so those items would cost you {_money(extra)} instead of {_money(s["shelf_lkr"])}.'
     return (
         '<div class="suggestion">'
         f'<p><strong>{_e(s["bank"])} at {_e(STORE_NAMES[s["store_id"]])}:</strong> adding {_e(", ".join(s["names"]))} '
         f'({_money(s["shelf_lkr"])} at shelf price) reaches the {_money(s["minimum"])} minimum. '
-        f'The engine&#39;s plan with them is {_money(s["replanned_lkr"])}, against {_money(s["current_lkr"])} now, '
-        f'so those items would cost you {_money(extra)} instead of {_money(s["shelf_lkr"])}.</p>'
+        f'The engine&#39;s plan with them is {_money(s["replanned_lkr"])}, against {_money(s["current_lkr"])} now, {outcome}</p>'
         "<p>Only if you need these soon. Savvy Cart does not add them.</p></div>"
     )
 
