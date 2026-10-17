@@ -4,7 +4,7 @@
 .git
 .cursor
 tests
-samples
+samples/purchase-history/
 specs
 docs
 scripts

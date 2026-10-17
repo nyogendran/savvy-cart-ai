@@ -10,6 +10,8 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY src ./src
 COPY fixtures ./fixtures
+# De-identified purchase history and the redacted sample receipt; the e-bill PDFs are excluded by .dockerignore.
+COPY samples ./samples
 
 # Editable install keeps src/ next to fixtures/, which the app resolves relative to its source.
 RUN pip install -e . "uvicorn>=0.30" \
