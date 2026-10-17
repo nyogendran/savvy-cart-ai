@@ -1,0 +1,13 @@
+title = "Savvy Cart AI"
+
+[extend]
+useDefault = true
+
+# The ADLC manifest maps file paths to SHA-256 content hashes. Files named *_api.py make
+# generic-api-key read those digests as keys. Allow only that exact shape, only in the manifest.
+[[allowlists]]
+description = "ADLC manifest file-path to SHA-256 content hash entries"
+condition = "AND"
+regexTarget = "match"
+regexes = ['''\.py":"[0-9a-f]{64}"''']
+paths = ['''^\.adlc/manifest\.jsonl$''']

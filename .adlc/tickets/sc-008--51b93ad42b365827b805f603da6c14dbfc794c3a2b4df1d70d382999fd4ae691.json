@@ -1,5 +1,5 @@
 {
-  "body": "Approved spec: .adlc/specs/SC-001-product-vision.md. Do not edit that file or specs/001-product-vision/spec.md. Prices below are fictional and labeled source fictional. Do not call a live retailer, bank, or Gemini API in tests. Do not commit secrets. Rails stay empty; P3 freezes them later. Money is integer LKR. A percent discount is (amount * rate_bps) // 10000.\n\nRewrite README.md as the judge script for the guest UI. No login. Include every required string exactly:\n- Use sample receipt\n- Sample catalog — not live shelf prices.\n- Why isn’t rice discounted?\n- Show a basket this offer refuses\n- No order is sent.\n- Cloud Run\n- Secret Manager\n- a heading line that is exactly: ## Cannot do\n\nThe Cannot do section must say the app does not provide live prices, live stock, real orders, card numbers, or bank affiliation. Persona shown: Karuppan, Saturday, Commercial Bank credit, budget about LKR 12,000. Tell the judge the first load can take tens of seconds. Do not paste keys or project ids.\n\nAcceptance criteria:\n1. README.md contains each required string and the Cannot do heading. Verify: python scripts/check_judge_readme.py\n2. The secret scan exits 0. Verify: gitleaks detect --source . --redact\nIf gitleaks is missing, install the official release binary, run that command, and do not commit the binary or any secret it prints.\n",
+  "body": "Approved spec: .adlc/specs/SC-001-product-vision.md. Do not edit that file or specs/001-product-vision/spec.md. Prices below are fictional and labeled source fictional. Do not call a live retailer, bank, or Gemini API in tests. Do not commit secrets. Rails freeze src/**, tests/**, fixtures/**, samples/**, pyproject.toml, and .gitignore; this ticket only writes docs and checks. Money is integer LKR. A percent discount is (amount * rate_bps) // 10000.\n\nRewrite README.md as the judge script for the guest UI. No login. Include every required string exactly:\n- Use sample receipt\n- Sample catalog — not live shelf prices.\n- Why isn’t rice discounted?\n- Show a basket this offer refuses\n- No order is sent.\n- Cloud Run\n- Secret Manager\n- a heading line that is exactly: ## Cannot do\n\nThe Cannot do section must say the app does not provide live prices, live stock, real orders, card numbers, or bank affiliation. Persona shown: Karuppan, Saturday, Commercial Bank credit, budget about LKR 12,000. Tell the judge the first load can take tens of seconds. Do not paste keys or project ids.\n\nAcceptance criteria:\n1. README.md contains each required string and the Cannot do heading. Verify: python scripts/check_judge_readme.py\n2. The secret scan exits 0. Verify: gitleaks detect --source . --redact\nThe ADLC manifest maps file paths to SHA-256 content hashes, and files named *_api.py trip the generic-api-key rule. .gitleaks.toml extends the default rules and allowlists only matches that are both in .adlc/manifest.jsonl and of the form <path>.py\":\"<64 hex>\". No other allowlist.\nIf gitleaks is missing, install the official release binary, run that command, and do not commit the binary or any secret it prints.\n",
   "category": "docs",
   "duration": 1,
   "edges": [
@@ -8,10 +8,18 @@
     }
   ],
   "id": "SC-008",
-  "rails": [],
+  "rails": [
+    "src/**",
+    "tests/**",
+    "fixtures/**",
+    "samples/**",
+    "pyproject.toml",
+    ".gitignore"
+  ],
   "scope": [
     "README.md",
-    "scripts/check_judge_readme.py"
+    "scripts/check_judge_readme.py",
+    ".gitleaks.toml"
   ],
   "title": "Document the judge path and secret scan"
 }
