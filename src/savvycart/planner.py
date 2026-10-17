@@ -1,4 +1,4 @@
-"""Exact day planner: split a basket across up to two stores, one card per bill (OR-Tools CP-SAT)."""
+"""Exact day planner: split a basket across up to four stores, one card per bill (OR-Tools CP-SAT)."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", 
 COST_SCALE = 1000
 MAX_QTY = 50
 MAX_TRIP_COST_LKR = 5000
+MAX_STORES = 4
 
 
 def _lkr(value: float) -> int:
@@ -33,13 +34,24 @@ def _eligible(offer: dict[str, Any], category: str) -> bool:
     return (not include or category in include) and category not in exclude
 
 
-def _best_promotion(promotions: list[dict], sku: dict, store_id: str, day: dict) -> dict | None:
-    """Promotions do not stack: the single best one for this line at this store."""
+def _promotion_saving(promotion: dict, shelf: int, unit_lkr: float, qty: float) -> int:
+    """Integer LKR a promotion takes off one line: a percent, or a fixed unit price for up to max_qty units."""
+    if promotion.get("type") == "fixed_price":
+        units = min(qty, promotion["max_qty"])
+        return max(_lkr(unit_lkr * units) - _lkr(promotion["price_lkr"] * units), 0)
+    return (shelf * promotion["rate_bps"]) // 10000
+
+
+def _best_promotion(promotions: list[dict], sku: dict, store_id: str, day: date, shelf: int, unit_lkr: float, qty: float) -> tuple[dict | None, int]:
+    """Promotions do not stack: the single one that saves most on this line at this store."""
     matching = [
         p for p in promotions
-        if _applies(p, store_id, day) and (p.get("sku_id") == sku["id"] or p.get("category") == sku["category"])
+        if _applies(p, store_id, day)
+        and (p.get("sku_id") == sku["id"] or (p.get("type") != "fixed_price" and p.get("category") == sku["category"]))
     ]
-    return max(matching, key=lambda p: (p["rate_bps"], p["id"]), default=None)
+    scored = [(_promotion_saving(p, shelf, unit_lkr, qty), p["id"], p) for p in matching]
+    best = max(scored, key=lambda s: (s[0], s[1]), default=None)
+    return (best[2], best[0]) if best and best[0] > 0 else (None, 0)
 
 
 def _wallet_banks(wallet: list[Any]) -> set[str]:
@@ -59,8 +71,8 @@ def plan_day(
     _with_baselines: bool = True,
 ) -> dict[str, Any]:
     """Cheapest legal plan for the confirmed lines on one day."""
-    if max_stores not in (1, 2):
-        raise ValueError("max_stores must be 1 or 2")
+    if isinstance(max_stores, bool) or max_stores not in range(1, MAX_STORES + 1):
+        raise ValueError(f"max_stores must be from 1 to {MAX_STORES}")
     if not isinstance(trip_cost_lkr, int) or not 0 <= trip_cost_lkr <= MAX_TRIP_COST_LKR:
         raise ValueError(f"trip_cost_lkr must be an integer from 0 to {MAX_TRIP_COST_LKR}")
     for line in lines:
@@ -86,8 +98,7 @@ def plan_day(
             if not price:
                 continue
             shelf = _lkr(price["amount_lkr"] * float(line["qty"]))
-            promo = _best_promotion(promotions, sku, store, the_day)
-            saving = (shelf * promo["rate_bps"]) // 10000 if promo else 0
+            promo, saving = _best_promotion(promotions, sku, store, the_day, shelf, price["amount_lkr"], float(line["qty"]))
             cells[(i, store)] = {"shelf": shelf, "promoted": shelf - saving, "promo": promo, "promo_saving": saving}
             priced = True
         if not priced:

@@ -37,7 +37,7 @@ def pantry(
 ) -> list[dict[str, Any]]:
     """One entry per catalog SKU, ordered by days left (unknown last)."""
     names = {sku["id"]: sku["name"] for sku in catalog["skus"]}
-    bought = purchases_by_sku(bills, history_map)
+    bought = purchases_by_sku([b for b in bills if b["date"] <= today.isoformat()], history_map)
     items = []
     for sku_id, name in names.items():
         dates = sorted(bought.get(sku_id, {}))

@@ -151,15 +151,19 @@ def test_plan_step_shows_store_bills_and_savings():
 
 
 def test_agent_replan_is_disclosed_and_numbers_are_grounded():
+    seen = {}
+
     async def replanning_runner(question, context):
-        other = dict(context["confirmed"], day="2026-10-23")
+        seen["day"] = context["confirmed"]["day"]
+        seen["other"] = "2026-10-29" if seen["day"] != "2026-10-29" else "2026-10-28"
+        other = dict(context["confirmed"], day=seen["other"])
         return {
             "text": ("On Friday it would cost 4,999 LKR. Thursday saves you more. You save 99999 LKR on everything! "
                      "Glomark saves you 98765 LKR. Five stores would cost 31337 LKR."),
             "tools": ["plan_day", "explain_plan_numbers", "plan_day"],
             "calls": [{"name": "plan_day", "args": other}, {"name": "explain_plan_numbers", "args": {"plan": {"saving": 98765}}},
                       {"name": "plan_day", "args": dict(other, max_stores=5)}],
-            "results": [{"name": "plan_day", "response": {"day": {"date": "2026-10-23", "weekday": "friday"}, "effective_cost_lkr": 4999}},
+            "results": [{"name": "plan_day", "response": {"day": {"date": seen["other"]}, "effective_cost_lkr": 4999}},
                         {"name": "explain_plan_numbers", "response": {"allowed_numbers": ["98765"]}},
                         {"name": "plan_day", "response": {"error": "31337 is not a valid max_stores"}}],
         }
@@ -174,7 +178,7 @@ def test_agent_replan_is_disclosed_and_numbers_are_grounded():
     assert "4999" in text and "99999" not in text
     # Echoed or error tool output never grounds a number.
     assert "98765" not in text and "31337" not in text
-    assert "The agent re-planned with different inputs: day 2026-10-23 instead of 2026-10-22" in page
+    assert f"The agent re-planned with different inputs: day {seen['other']} instead of {seen['day']}" in page
     assert "Its comparison is not the plan above." in page
 
 
@@ -210,7 +214,7 @@ def test_agent_tools_refuse_inputs_outside_the_catalog():
     assert agent_plan_day(**ok)["solver_status"] == "OPTIMAL"
     for bad in ({"lines": [{"sku_id": "unknown_98765", "qty": 1}]}, {"lines": [{"sku_id": "banana_ambul", "qty": "bad"}]},
                 {"lines": ["junk"]}, {"lines": []}, {"usual_store": "store_54321"}, {"usual_store": ["keells"]},
-                {"banks": [None]}, {"banks": "HNB"}, {"day": "9999-12-31"}, {"day": None}, {"max_stores": 3}, {"trip_cost_lkr": "x"}):
+                {"banks": [None]}, {"banks": "HNB"}, {"day": "9999-12-31"}, {"day": None}, {"max_stores": 5}, {"trip_cost_lkr": "x"}):
         assert "error" in agent_plan_day(**{**ok, **bad}), bad
     assert agent_plan_day(**{**ok, "lines": [{"sku_id": "banana_ambul", "qty": 1.98765}]})["stores"][0]["lines"][0]["qty"] == 1.988
     assert "error" in get_pantry("9999-12-31") and "error" in get_pantry(None)

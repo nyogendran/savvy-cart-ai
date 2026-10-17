@@ -1,13 +1,12 @@
 {
-  "note": "Demo shape. Not a live bank or store promotion.",
+  "note": "Card offers for Nations Trust Bank and Commercial Bank are published headlines captured 18 Oct 2026 with assumed terms; HNB offers and every store promotion are demo shapes.",
   "card_offers": [
     {
-      "id": "ntb_keells_fresh_weekend",
+      "id": "ntb_keells_sunday",
       "bank": "Nations Trust Bank",
       "product": "credit",
       "store_id": "keells",
       "days": [
-        "saturday",
         "sunday"
       ],
       "rate_bps": 2500,
@@ -19,17 +18,46 @@
       "exclude_categories": [],
       "valid_to": "2026-10-31",
       "stackable": false,
-      "note": "Demo shape. Not a live bank or store promotion."
+      "source": "published",
+      "source_url": "https://www.nationstrust.com/promotions",
+      "captured_on": "2026-10-18",
+      "headline": "Keells: 25% off with Mastercard Credit Cards. Valid every Sunday till 31st October 2026",
+      "terms_source": "assumption",
+      "note": "Published offer headline captured 18 Oct 2026. Minimum bill, cap, and categories are assumptions; check the bank's terms."
     },
     {
-      "id": "combank_keells_fresh_saturday",
+      "id": "ntb_cargills_wednesday",
+      "bank": "Nations Trust Bank",
+      "product": "credit",
+      "store_id": "cargills",
+      "days": [
+        "wednesday"
+      ],
+      "rate_bps": 2500,
+      "min_bill_lkr": 3000,
+      "cap_lkr": 1000,
+      "include_categories": [
+        "fresh"
+      ],
+      "exclude_categories": [],
+      "valid_to": "2026-10-31",
+      "stackable": false,
+      "source": "published",
+      "source_url": "https://www.nationstrust.com/promotions",
+      "captured_on": "2026-10-18",
+      "headline": "Cargills Food City: 25% off with Mastercard Credit Cards. Valid on Wednesdays till 31 October 2026",
+      "terms_source": "assumption",
+      "note": "Published offer headline captured 18 Oct 2026. Minimum bill, cap, and categories are assumptions; check the bank's terms."
+    },
+    {
+      "id": "combank_keells_saturday",
       "bank": "Commercial Bank",
       "product": "credit",
       "store_id": "keells",
       "days": [
         "saturday"
       ],
-      "rate_bps": 2000,
+      "rate_bps": 2500,
       "min_bill_lkr": 4000,
       "cap_lkr": 1250,
       "include_categories": [
@@ -40,7 +68,84 @@
       ],
       "valid_to": "2026-10-31",
       "stackable": false,
-      "note": "Demo shape. Not a live bank or store promotion."
+      "source": "published",
+      "source_url": "https://www.combank.lk/rewards-promotions",
+      "captured_on": "2026-10-18",
+      "headline": "Up to 25% Off. Enjoy the best supermarket deals at Keells with ComBank Credit Cards. Offer valid on every Saturday till 31st October 2026",
+      "terms_source": "assumption",
+      "note": "Published offer headline captured 18 Oct 2026. Minimum bill, cap, and categories are assumptions; check the bank's terms."
+    },
+    {
+      "id": "combank_cargills_friday",
+      "bank": "Commercial Bank",
+      "product": "credit",
+      "store_id": "cargills",
+      "days": [
+        "friday"
+      ],
+      "rate_bps": 2500,
+      "min_bill_lkr": 3000,
+      "cap_lkr": 1000,
+      "include_categories": [
+        "fresh"
+      ],
+      "exclude_categories": [],
+      "valid_to": "2026-10-30",
+      "stackable": false,
+      "source": "published",
+      "source_url": "https://www.combank.lk/rewards-promotions",
+      "captured_on": "2026-10-18",
+      "headline": "Up to 25% Off. Enjoy the best supermarket deals at Cargills Food City with ComBank Credit Cards. Offer valid on every Friday till 30th October 2026",
+      "terms_source": "assumption",
+      "note": "Published offer headline captured 18 Oct 2026. Minimum bill, cap, and categories are assumptions; check the bank's terms."
+    },
+    {
+      "id": "combank_glomark_fresh_wednesday",
+      "bank": "Commercial Bank",
+      "product": "credit",
+      "store_id": "glomark",
+      "days": [
+        "wednesday"
+      ],
+      "rate_bps": 3000,
+      "min_bill_lkr": 3000,
+      "cap_lkr": 1500,
+      "include_categories": [
+        "fresh"
+      ],
+      "exclude_categories": [],
+      "valid_to": "2026-10-28",
+      "stackable": false,
+      "source": "published",
+      "source_url": "https://www.combank.lk/rewards-promotions",
+      "captured_on": "2026-10-18",
+      "headline": "Up to 30% Off. Enjoy the best supermarket fresh deals at Softlogic Glomark with ComBank Credit and Debit Cards. Offer valid on every Wednesday till 28th October 2026",
+      "terms_source": "assumption",
+      "note": "Published offer headline captured 18 Oct 2026. Minimum bill, cap, and categories are assumptions; check the bank's terms."
+    },
+    {
+      "id": "combank_spar_fresh_tuesday",
+      "bank": "Commercial Bank",
+      "product": "credit",
+      "store_id": "spar",
+      "days": [
+        "tuesday"
+      ],
+      "rate_bps": 2000,
+      "min_bill_lkr": 3000,
+      "cap_lkr": 1000,
+      "include_categories": [
+        "fresh"
+      ],
+      "exclude_categories": [],
+      "valid_to": "2026-10-27",
+      "stackable": false,
+      "source": "published",
+      "source_url": "https://www.combank.lk/rewards-promotions",
+      "captured_on": "2026-10-18",
+      "headline": "Up to 20% Off. Enjoy the best supermarket fresh deals at Spar Supermarket with ComBank Credit Cards. Offer valid on every Tuesday till 27th October 2026",
+      "terms_source": "assumption",
+      "note": "Published offer headline captured 18 Oct 2026. Minimum bill, cap, and categories are assumptions; check the bank's terms."
     },
     {
       "id": "hnb_cargills_weekend",
@@ -64,46 +169,8 @@
       ],
       "valid_to": "2026-10-31",
       "stackable": false,
-      "note": "Demo shape. Not a live bank or store promotion."
-    },
-    {
-      "id": "combank_cargills_wednesday",
-      "bank": "Commercial Bank",
-      "product": "credit",
-      "store_id": "cargills",
-      "days": [
-        "wednesday"
-      ],
-      "rate_bps": 2000,
-      "min_bill_lkr": 3000,
-      "cap_lkr": 1000,
-      "include_categories": [
-        "fresh"
-      ],
-      "exclude_categories": [],
-      "valid_to": "2026-10-31",
-      "stackable": false,
-      "note": "Demo shape. Not a live bank or store promotion."
-    },
-    {
-      "id": "ntb_glomark_thursday",
-      "bank": "Nations Trust Bank",
-      "product": "credit",
-      "store_id": "glomark",
-      "days": [
-        "thursday"
-      ],
-      "rate_bps": 2500,
-      "min_bill_lkr": 5000,
-      "cap_lkr": 2000,
-      "include_categories": [
-        "fresh",
-        "staple"
-      ],
-      "exclude_categories": [],
-      "valid_to": "2026-10-31",
-      "stackable": false,
-      "note": "Demo shape. Not a live bank or store promotion."
+      "note": "Demo shape. Not a live bank or store promotion.",
+      "source": "fictional"
     },
     {
       "id": "hnb_spar_sunday",
@@ -122,7 +189,8 @@
       "exclude_categories": [],
       "valid_to": "2026-10-31",
       "stackable": false,
-      "note": "Demo shape. Not a live bank or store promotion."
+      "note": "Demo shape. Not a live bank or store promotion.",
+      "source": "fictional"
     }
   ],
   "store_promotions": [
@@ -180,6 +248,44 @@
       "rate_bps": 1500,
       "days": [
         "wednesday"
+      ],
+      "valid_to": "2026-10-31",
+      "note": "Demo shape. Not a live bank or store promotion."
+    },
+    {
+      "id": "cargills_uht_milk_500_x3",
+      "type": "fixed_price",
+      "store_id": "cargills",
+      "sku_id": "uht_milk_1l",
+      "price_lkr": 500,
+      "max_qty": 3,
+      "days": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
+      ],
+      "valid_to": "2026-10-31",
+      "note": "Demo shape. Not a live bank or store promotion."
+    },
+    {
+      "id": "spar_eggs_560_x2",
+      "type": "fixed_price",
+      "store_id": "spar",
+      "sku_id": "eggs_10",
+      "price_lkr": 560,
+      "max_qty": 2,
+      "days": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
       ],
       "valid_to": "2026-10-31",
       "note": "Demo shape. Not a live bank or store promotion."

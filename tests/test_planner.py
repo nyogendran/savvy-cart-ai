@@ -142,7 +142,7 @@ def test_rejects_impossible_inputs():
         with pytest.raises(ValueError):
             plan_day(*args, BASKET, DAY, WALLET, max_stores=2, trip_cost_lkr=bad_trip, usual_store="a")
     with pytest.raises(ValueError):
-        plan_day(*args, BASKET, DAY, WALLET, max_stores=3, trip_cost_lkr=50, usual_store="a")
+        plan_day(*args, BASKET, DAY, WALLET, max_stores=5, trip_cost_lkr=50, usual_store="a")  # SC-019: up to 4 stores
 
 
 def test_plans_are_deterministic_with_tie_breaks():

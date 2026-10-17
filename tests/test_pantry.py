@@ -89,9 +89,15 @@ def test_v2_fixtures_are_labeled_and_in_band():
     assert {o["bank"] for o in offers["card_offers"]} == {"Commercial Bank", "Nations Trust Bank", "HNB"}
     for offer in offers["card_offers"]:
         assert offer["store_id"] in stores and offer["stackable"] is False
-        assert offer["note"] == "Demo shape. Not a live bank or store promotion."
         assert date.fromisoformat(offer["valid_to"])
+        if offer["source"] == "fictional":
+            assert offer["note"] == "Demo shape. Not a live bank or store promotion."
+        else:  # SC-019: published headlines carry their source; unpublished terms are assumptions
+            assert offer["source"] == "published" and offer["source_url"].startswith("https://")
+            assert offer["terms_source"] == "assumption"
     for promotion in offers["store_promotions"]:
         assert promotion["store_id"] in stores
         assert ("sku_id" in promotion) != ("category" in promotion)
         assert promotion["note"] == "Demo shape. Not a live bank or store promotion."
+        if promotion.get("type") == "fixed_price":
+            assert promotion["price_lkr"] > 0 and promotion["max_qty"] >= 1
