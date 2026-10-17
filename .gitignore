@@ -43,3 +43,5 @@ fixtures/receipt_20261017_01.jpeg
 fixtures/*.jpg
 fixtures/*.jpeg
 fixtures/*.heic
+# Real e-bill PDFs; only the de-identified samples/purchase-history.json is committed
+samples/purchase-history/

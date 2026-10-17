@@ -1,0 +1,787 @@
+{
+  "note": "Fictional Cargills and Glomark bills for the demo persona. Prices are within plus or minus 10 percent of observed Keells prices. Not real purchases.",
+  "bills": [
+    {
+      "date": "2026-05-10",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "BANANA AMBUL",
+          "qty": 1.0,
+          "unit_lkr": 216,
+          "amount_lkr": 216
+        },
+        {
+          "line": 2,
+          "raw": "BANANA SEENI",
+          "qty": 1.5,
+          "unit_lkr": 258,
+          "amount_lkr": 387
+        },
+        {
+          "line": 3,
+          "raw": "BIG ONIONS",
+          "qty": 1.0,
+          "unit_lkr": 369,
+          "amount_lkr": 369
+        },
+        {
+          "line": 4,
+          "raw": "TOMATOES",
+          "qty": 0.5,
+          "unit_lkr": 682,
+          "amount_lkr": 341
+        },
+        {
+          "line": 5,
+          "raw": "CARROT",
+          "qty": 0.5,
+          "unit_lkr": 365,
+          "amount_lkr": 182
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 1495,
+      "net_lkr": 1495
+    },
+    {
+      "date": "2026-05-22",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "TOMATOES",
+          "qty": 0.5,
+          "unit_lkr": 682,
+          "amount_lkr": 341
+        },
+        {
+          "line": 2,
+          "raw": "CARROT",
+          "qty": 0.5,
+          "unit_lkr": 365,
+          "amount_lkr": 182
+        },
+        {
+          "line": 3,
+          "raw": "SANDWICH BREAD 450G",
+          "qty": 2.0,
+          "unit_lkr": 162,
+          "amount_lkr": 324
+        },
+        {
+          "line": 4,
+          "raw": "KOTMALE FULL CREAM UHT MILK 1L",
+          "qty": 4.0,
+          "unit_lkr": 568,
+          "amount_lkr": 2272
+        },
+        {
+          "line": 5,
+          "raw": "RATTHI FULL CREAM MILK POWDER 400G",
+          "qty": 1.0,
+          "unit_lkr": 1235,
+          "amount_lkr": 1235
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 4354,
+      "net_lkr": 4354
+    },
+    {
+      "date": "2026-06-03",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "KOTMALE FULL CREAM UHT MILK 1L",
+          "qty": 4.0,
+          "unit_lkr": 568,
+          "amount_lkr": 2272
+        },
+        {
+          "line": 2,
+          "raw": "RATTHI FULL CREAM MILK POWDER 400G",
+          "qty": 1.0,
+          "unit_lkr": 1235,
+          "amount_lkr": 1235
+        },
+        {
+          "line": 3,
+          "raw": "KOTMALE YOGHURT 6S 480G",
+          "qty": 1.0,
+          "unit_lkr": 416,
+          "amount_lkr": 416
+        },
+        {
+          "line": 4,
+          "raw": "BROWN EGGS 10S",
+          "qty": 1.0,
+          "unit_lkr": 604,
+          "amount_lkr": 604
+        },
+        {
+          "line": 5,
+          "raw": "RED DHAL 1KG",
+          "qty": 1.0,
+          "unit_lkr": 302,
+          "amount_lkr": 302
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 4829,
+      "net_lkr": 4829
+    },
+    {
+      "date": "2026-06-15",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "BROWN EGGS 10S",
+          "qty": 1.0,
+          "unit_lkr": 604,
+          "amount_lkr": 604
+        },
+        {
+          "line": 2,
+          "raw": "RED DHAL 1KG",
+          "qty": 1.0,
+          "unit_lkr": 302,
+          "amount_lkr": 302
+        },
+        {
+          "line": 3,
+          "raw": "COCONUT",
+          "qty": 3.0,
+          "unit_lkr": 174,
+          "amount_lkr": 522
+        },
+        {
+          "line": 4,
+          "raw": "DISH WASH BAR 200G",
+          "qty": 2.0,
+          "unit_lkr": 122,
+          "amount_lkr": 244
+        },
+        {
+          "line": 5,
+          "raw": "BANANA AMBUL",
+          "qty": 1.0,
+          "unit_lkr": 216,
+          "amount_lkr": 216
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 1888,
+      "net_lkr": 1888
+    },
+    {
+      "date": "2026-06-20",
+      "chain": "glomark",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "KOTMALE YOGHURT 6S 480G",
+          "qty": 1.0,
+          "unit_lkr": 392,
+          "amount_lkr": 392
+        },
+        {
+          "line": 2,
+          "raw": "BROWN EGGS 10S",
+          "qty": 1.0,
+          "unit_lkr": 640,
+          "amount_lkr": 640
+        },
+        {
+          "line": 3,
+          "raw": "RED DHAL 1KG",
+          "qty": 1.0,
+          "unit_lkr": 291,
+          "amount_lkr": 291
+        },
+        {
+          "line": 4,
+          "raw": "COCONUT",
+          "qty": 3.0,
+          "unit_lkr": 192,
+          "amount_lkr": 576
+        },
+        {
+          "line": 5,
+          "raw": "DISH WASH BAR 200G",
+          "qty": 2.0,
+          "unit_lkr": 126,
+          "amount_lkr": 252
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 2151,
+      "net_lkr": 2151
+    },
+    {
+      "date": "2026-06-27",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "DISH WASH BAR 200G",
+          "qty": 2.0,
+          "unit_lkr": 122,
+          "amount_lkr": 244
+        },
+        {
+          "line": 2,
+          "raw": "BANANA AMBUL",
+          "qty": 1.0,
+          "unit_lkr": 216,
+          "amount_lkr": 216
+        },
+        {
+          "line": 3,
+          "raw": "BANANA SEENI",
+          "qty": 1.5,
+          "unit_lkr": 258,
+          "amount_lkr": 387
+        },
+        {
+          "line": 4,
+          "raw": "BIG ONIONS",
+          "qty": 1.0,
+          "unit_lkr": 369,
+          "amount_lkr": 369
+        },
+        {
+          "line": 5,
+          "raw": "TOMATOES",
+          "qty": 0.5,
+          "unit_lkr": 682,
+          "amount_lkr": 341
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 1557,
+      "net_lkr": 1557
+    },
+    {
+      "date": "2026-07-09",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "BIG ONIONS",
+          "qty": 1.0,
+          "unit_lkr": 369,
+          "amount_lkr": 369
+        },
+        {
+          "line": 2,
+          "raw": "TOMATOES",
+          "qty": 0.5,
+          "unit_lkr": 682,
+          "amount_lkr": 341
+        },
+        {
+          "line": 3,
+          "raw": "CARROT",
+          "qty": 0.5,
+          "unit_lkr": 365,
+          "amount_lkr": 182
+        },
+        {
+          "line": 4,
+          "raw": "SANDWICH BREAD 450G",
+          "qty": 2.0,
+          "unit_lkr": 162,
+          "amount_lkr": 324
+        },
+        {
+          "line": 5,
+          "raw": "KOTMALE FULL CREAM UHT MILK 1L",
+          "qty": 4.0,
+          "unit_lkr": 568,
+          "amount_lkr": 2272
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 3488,
+      "net_lkr": 3488
+    },
+    {
+      "date": "2026-07-21",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "SANDWICH BREAD 450G",
+          "qty": 2.0,
+          "unit_lkr": 162,
+          "amount_lkr": 324
+        },
+        {
+          "line": 2,
+          "raw": "KOTMALE FULL CREAM UHT MILK 1L",
+          "qty": 4.0,
+          "unit_lkr": 568,
+          "amount_lkr": 2272
+        },
+        {
+          "line": 3,
+          "raw": "RATTHI FULL CREAM MILK POWDER 400G",
+          "qty": 1.0,
+          "unit_lkr": 1235,
+          "amount_lkr": 1235
+        },
+        {
+          "line": 4,
+          "raw": "KOTMALE YOGHURT 6S 480G",
+          "qty": 1.0,
+          "unit_lkr": 416,
+          "amount_lkr": 416
+        },
+        {
+          "line": 5,
+          "raw": "BROWN EGGS 10S",
+          "qty": 1.0,
+          "unit_lkr": 604,
+          "amount_lkr": 604
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 4851,
+      "net_lkr": 4851
+    },
+    {
+      "date": "2026-08-02",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "KOTMALE YOGHURT 6S 480G",
+          "qty": 1.0,
+          "unit_lkr": 416,
+          "amount_lkr": 416
+        },
+        {
+          "line": 2,
+          "raw": "BROWN EGGS 10S",
+          "qty": 1.0,
+          "unit_lkr": 604,
+          "amount_lkr": 604
+        },
+        {
+          "line": 3,
+          "raw": "RED DHAL 1KG",
+          "qty": 1.0,
+          "unit_lkr": 302,
+          "amount_lkr": 302
+        },
+        {
+          "line": 4,
+          "raw": "COCONUT",
+          "qty": 3.0,
+          "unit_lkr": 174,
+          "amount_lkr": 522
+        },
+        {
+          "line": 5,
+          "raw": "DISH WASH BAR 200G",
+          "qty": 2.0,
+          "unit_lkr": 122,
+          "amount_lkr": 244
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 2088,
+      "net_lkr": 2088
+    },
+    {
+      "date": "2026-08-08",
+      "chain": "glomark",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "COCONUT",
+          "qty": 3.0,
+          "unit_lkr": 192,
+          "amount_lkr": 576
+        },
+        {
+          "line": 2,
+          "raw": "DISH WASH BAR 200G",
+          "qty": 2.0,
+          "unit_lkr": 126,
+          "amount_lkr": 252
+        },
+        {
+          "line": 3,
+          "raw": "BANANA AMBUL",
+          "qty": 1.0,
+          "unit_lkr": 239,
+          "amount_lkr": 239
+        },
+        {
+          "line": 4,
+          "raw": "BANANA SEENI",
+          "qty": 1.5,
+          "unit_lkr": 268,
+          "amount_lkr": 402
+        },
+        {
+          "line": 5,
+          "raw": "BIG ONIONS",
+          "qty": 1.0,
+          "unit_lkr": 388,
+          "amount_lkr": 388
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 1857,
+      "net_lkr": 1857
+    },
+    {
+      "date": "2026-08-14",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "COCONUT",
+          "qty": 3.0,
+          "unit_lkr": 174,
+          "amount_lkr": 522
+        },
+        {
+          "line": 2,
+          "raw": "DISH WASH BAR 200G",
+          "qty": 2.0,
+          "unit_lkr": 122,
+          "amount_lkr": 244
+        },
+        {
+          "line": 3,
+          "raw": "BANANA AMBUL",
+          "qty": 1.0,
+          "unit_lkr": 216,
+          "amount_lkr": 216
+        },
+        {
+          "line": 4,
+          "raw": "BANANA SEENI",
+          "qty": 1.5,
+          "unit_lkr": 258,
+          "amount_lkr": 387
+        },
+        {
+          "line": 5,
+          "raw": "BIG ONIONS",
+          "qty": 1.0,
+          "unit_lkr": 369,
+          "amount_lkr": 369
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 1738,
+      "net_lkr": 1738
+    },
+    {
+      "date": "2026-08-26",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "BANANA SEENI",
+          "qty": 1.5,
+          "unit_lkr": 258,
+          "amount_lkr": 387
+        },
+        {
+          "line": 2,
+          "raw": "BIG ONIONS",
+          "qty": 1.0,
+          "unit_lkr": 369,
+          "amount_lkr": 369
+        },
+        {
+          "line": 3,
+          "raw": "TOMATOES",
+          "qty": 0.5,
+          "unit_lkr": 682,
+          "amount_lkr": 341
+        },
+        {
+          "line": 4,
+          "raw": "CARROT",
+          "qty": 0.5,
+          "unit_lkr": 365,
+          "amount_lkr": 182
+        },
+        {
+          "line": 5,
+          "raw": "SANDWICH BREAD 450G",
+          "qty": 2.0,
+          "unit_lkr": 162,
+          "amount_lkr": 324
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 1603,
+      "net_lkr": 1603
+    },
+    {
+      "date": "2026-09-07",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "CARROT",
+          "qty": 0.5,
+          "unit_lkr": 365,
+          "amount_lkr": 182
+        },
+        {
+          "line": 2,
+          "raw": "SANDWICH BREAD 450G",
+          "qty": 2.0,
+          "unit_lkr": 162,
+          "amount_lkr": 324
+        },
+        {
+          "line": 3,
+          "raw": "KOTMALE FULL CREAM UHT MILK 1L",
+          "qty": 4.0,
+          "unit_lkr": 568,
+          "amount_lkr": 2272
+        },
+        {
+          "line": 4,
+          "raw": "RATTHI FULL CREAM MILK POWDER 400G",
+          "qty": 1.0,
+          "unit_lkr": 1235,
+          "amount_lkr": 1235
+        },
+        {
+          "line": 5,
+          "raw": "KOTMALE YOGHURT 6S 480G",
+          "qty": 1.0,
+          "unit_lkr": 416,
+          "amount_lkr": 416
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 4429,
+      "net_lkr": 4429
+    },
+    {
+      "date": "2026-09-19",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "RATTHI FULL CREAM MILK POWDER 400G",
+          "qty": 1.0,
+          "unit_lkr": 1235,
+          "amount_lkr": 1235
+        },
+        {
+          "line": 2,
+          "raw": "KOTMALE YOGHURT 6S 480G",
+          "qty": 1.0,
+          "unit_lkr": 416,
+          "amount_lkr": 416
+        },
+        {
+          "line": 3,
+          "raw": "BROWN EGGS 10S",
+          "qty": 1.0,
+          "unit_lkr": 604,
+          "amount_lkr": 604
+        },
+        {
+          "line": 4,
+          "raw": "RED DHAL 1KG",
+          "qty": 1.0,
+          "unit_lkr": 302,
+          "amount_lkr": 302
+        },
+        {
+          "line": 5,
+          "raw": "COCONUT",
+          "qty": 3.0,
+          "unit_lkr": 174,
+          "amount_lkr": 522
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 3079,
+      "net_lkr": 3079
+    },
+    {
+      "date": "2026-09-29",
+      "chain": "glomark",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "BANANA SEENI",
+          "qty": 1.5,
+          "unit_lkr": 268,
+          "amount_lkr": 402
+        },
+        {
+          "line": 2,
+          "raw": "BIG ONIONS",
+          "qty": 1.0,
+          "unit_lkr": 388,
+          "amount_lkr": 388
+        },
+        {
+          "line": 3,
+          "raw": "TOMATOES",
+          "qty": 0.5,
+          "unit_lkr": 624,
+          "amount_lkr": 312
+        },
+        {
+          "line": 4,
+          "raw": "CARROT",
+          "qty": 0.5,
+          "unit_lkr": 399,
+          "amount_lkr": 200
+        },
+        {
+          "line": 5,
+          "raw": "SANDWICH BREAD 450G",
+          "qty": 2.0,
+          "unit_lkr": 172,
+          "amount_lkr": 344
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 1646,
+      "net_lkr": 1646
+    },
+    {
+      "date": "2026-10-01",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "RED DHAL 1KG",
+          "qty": 1.0,
+          "unit_lkr": 302,
+          "amount_lkr": 302
+        },
+        {
+          "line": 2,
+          "raw": "COCONUT",
+          "qty": 3.0,
+          "unit_lkr": 174,
+          "amount_lkr": 522
+        },
+        {
+          "line": 3,
+          "raw": "DISH WASH BAR 200G",
+          "qty": 2.0,
+          "unit_lkr": 122,
+          "amount_lkr": 244
+        },
+        {
+          "line": 4,
+          "raw": "BANANA AMBUL",
+          "qty": 1.0,
+          "unit_lkr": 216,
+          "amount_lkr": 216
+        },
+        {
+          "line": 5,
+          "raw": "BANANA SEENI",
+          "qty": 1.5,
+          "unit_lkr": 258,
+          "amount_lkr": 387
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 1671,
+      "net_lkr": 1671
+    },
+    {
+      "date": "2026-10-12",
+      "chain": "cargills",
+      "source": "fictional",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "BANANA AMBUL",
+          "qty": 1.0,
+          "unit_lkr": 216,
+          "amount_lkr": 216
+        },
+        {
+          "line": 2,
+          "raw": "BANANA SEENI",
+          "qty": 1.5,
+          "unit_lkr": 258,
+          "amount_lkr": 387
+        },
+        {
+          "line": 3,
+          "raw": "BIG ONIONS",
+          "qty": 1.0,
+          "unit_lkr": 369,
+          "amount_lkr": 369
+        },
+        {
+          "line": 4,
+          "raw": "TOMATOES",
+          "qty": 0.5,
+          "unit_lkr": 682,
+          "amount_lkr": 341
+        },
+        {
+          "line": 5,
+          "raw": "CARROT",
+          "qty": 0.5,
+          "unit_lkr": 365,
+          "amount_lkr": 182
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 1495,
+      "net_lkr": 1495
+    }
+  ]
+}

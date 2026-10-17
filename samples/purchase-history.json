@@ -1,0 +1,2983 @@
+{
+  "note": "De-identified from one shopper's Keells e-bills with their consent. Names, contact details, branch, bill, cashier, loyalty and card numbers removed.",
+  "bills": [
+    {
+      "date": "2026-05-05",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 3,
+          "raw": "KOTMALE CURD TUB 900G",
+          "qty": 1.0,
+          "unit_lkr": 750,
+          "amount_lkr": 750
+        },
+        {
+          "line": 4,
+          "raw": "BANANA - AMBUL",
+          "qty": 1.15,
+          "unit_lkr": 160,
+          "amount_lkr": 184
+        },
+        {
+          "line": 5,
+          "raw": "KEELLS WHOLE CHILLI 250G",
+          "qty": 1.0,
+          "unit_lkr": 385,
+          "amount_lkr": 385
+        },
+        {
+          "line": 6,
+          "raw": "MILMA ATTA CHAPATHI ROTTI 10PCS 450G",
+          "qty": 2.0,
+          "unit_lkr": 490,
+          "amount_lkr": 980
+        },
+        {
+          "line": 7,
+          "raw": "BIG ONIONS",
+          "qty": 0.918,
+          "unit_lkr": 230,
+          "amount_lkr": 211
+        },
+        {
+          "line": 8,
+          "raw": "TOP CRUST BREAD 450G",
+          "qty": 1.0,
+          "unit_lkr": 149,
+          "amount_lkr": 149
+        },
+        {
+          "line": 9,
+          "raw": "PRE-PACKED RED ONIONS",
+          "qty": 0.486,
+          "unit_lkr": 400,
+          "amount_lkr": 194
+        },
+        {
+          "line": 10,
+          "raw": "GREEN CHILIES",
+          "qty": 0.092,
+          "unit_lkr": 250,
+          "amount_lkr": 23
+        },
+        {
+          "line": 11,
+          "raw": "GARLIC",
+          "qty": 0.242,
+          "unit_lkr": 880,
+          "amount_lkr": 213
+        },
+        {
+          "line": 12,
+          "raw": "KEELLS TURMERIC POWDER 100G",
+          "qty": 1.0,
+          "unit_lkr": 450,
+          "amount_lkr": 450
+        },
+        {
+          "line": 13,
+          "raw": "KEELLS JAFFNA CURRY POWDER 100G",
+          "qty": 1.0,
+          "unit_lkr": 210,
+          "amount_lkr": 210
+        },
+        {
+          "line": 14,
+          "raw": "KEELLS CUMIN POWDER 100G",
+          "qty": 1.0,
+          "unit_lkr": 280,
+          "amount_lkr": 280
+        },
+        {
+          "line": 15,
+          "raw": "WIJAYA TURMERIC POWDER 100G",
+          "qty": 1.0,
+          "unit_lkr": 540,
+          "amount_lkr": 540
+        },
+        {
+          "line": 16,
+          "raw": "WIJAYA CHILLI POWDER 100G",
+          "qty": 1.0,
+          "unit_lkr": 210,
+          "amount_lkr": 210
+        },
+        {
+          "line": 17,
+          "raw": "KEELLS PEPPER POWDER 100G",
+          "qty": 1.0,
+          "unit_lkr": 395,
+          "amount_lkr": 395
+        },
+        {
+          "line": 18,
+          "raw": "FISH ROLL",
+          "qty": 5.0,
+          "unit_lkr": 160,
+          "amount_lkr": 800
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Green Discount",
+          "line": 1,
+          "rate_bps": 0,
+          "amount_lkr": 18
+        },
+        {
+          "label": "Keells Deals",
+          "line": 3,
+          "rate_bps": 1000,
+          "amount_lkr": 75
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 5975,
+      "net_lkr": 5882
+    },
+    {
+      "date": "2026-05-23",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "BANANA - AMBUN",
+          "qty": 1.238,
+          "unit_lkr": 370,
+          "amount_lkr": 458
+        },
+        {
+          "line": 2,
+          "raw": "BANANA - AMBUL",
+          "qty": 1.712,
+          "unit_lkr": 120,
+          "amount_lkr": 205
+        },
+        {
+          "line": 3,
+          "raw": "JAGRO STRAWBERRIES SUN GROWN 250G",
+          "qty": 1.0,
+          "unit_lkr": 1330,
+          "amount_lkr": 1330
+        },
+        {
+          "line": 4,
+          "raw": "TOMATOES",
+          "qty": 0.526,
+          "unit_lkr": 470,
+          "amount_lkr": 247
+        },
+        {
+          "line": 5,
+          "raw": "GARLIC",
+          "qty": 0.474,
+          "unit_lkr": 850,
+          "amount_lkr": 403
+        },
+        {
+          "line": 6,
+          "raw": "PRE-PACKED POTATOES",
+          "qty": 1.11,
+          "unit_lkr": 360,
+          "amount_lkr": 400
+        },
+        {
+          "line": 7,
+          "raw": "RED ONIONS",
+          "qty": 0.408,
+          "unit_lkr": 380,
+          "amount_lkr": 155
+        },
+        {
+          "line": 8,
+          "raw": "CARROT",
+          "qty": 0.412,
+          "unit_lkr": 460,
+          "amount_lkr": 190
+        },
+        {
+          "line": 9,
+          "raw": "KEELLS CREAM BUN 2S",
+          "qty": 2.0,
+          "unit_lkr": 220,
+          "amount_lkr": 440
+        },
+        {
+          "line": 10,
+          "raw": "BIG ONIONS",
+          "qty": 1.432,
+          "unit_lkr": 260,
+          "amount_lkr": 372
+        },
+        {
+          "line": 11,
+          "raw": "PAPAYA",
+          "qty": 1.312,
+          "unit_lkr": 110,
+          "amount_lkr": 144
+        },
+        {
+          "line": 12,
+          "raw": "MUNCHEE CHOCOLATE CREAM BISCUIT 365G",
+          "qty": 1.0,
+          "unit_lkr": 410,
+          "amount_lkr": 410
+        },
+        {
+          "line": 13,
+          "raw": "KEELLS TEA BUN 2S",
+          "qty": 1.0,
+          "unit_lkr": 180,
+          "amount_lkr": 180
+        },
+        {
+          "line": 14,
+          "raw": "HIGHLAND FULL CREAM UHT MILK PKT 450ML",
+          "qty": 3.0,
+          "unit_lkr": 230,
+          "amount_lkr": 690
+        },
+        {
+          "line": 15,
+          "raw": "TESS JACK MACKERAL 425G",
+          "qty": 1.0,
+          "unit_lkr": 560,
+          "amount_lkr": 560
+        },
+        {
+          "line": 16,
+          "raw": "KIST 100% JUICE RED APPLE TETRA 1L",
+          "qty": 2.0,
+          "unit_lkr": 1100,
+          "amount_lkr": 2200
+        },
+        {
+          "line": 17,
+          "raw": "SAMAPOSHA 200G",
+          "qty": 1.0,
+          "unit_lkr": 185,
+          "amount_lkr": 185
+        },
+        {
+          "line": 18,
+          "raw": "RICE & CURRY WITH FISH",
+          "qty": 4.0,
+          "unit_lkr": 530,
+          "amount_lkr": 2120
+        },
+        {
+          "line": 19,
+          "raw": "Medium Polythene Bag",
+          "qty": 2.0,
+          "unit_lkr": 3,
+          "amount_lkr": 6
+        },
+        {
+          "line": 22,
+          "raw": "KEELLS PEANUT SPREAD CREAMY 200G",
+          "qty": 2.0,
+          "unit_lkr": 770,
+          "amount_lkr": 1540
+        },
+        {
+          "line": 23,
+          "raw": "KOTMALE FULL CREAM UHT MILK TETRA 1L",
+          "qty": 2.0,
+          "unit_lkr": 550,
+          "amount_lkr": 1100
+        },
+        {
+          "line": 24,
+          "raw": "KELLOGG'S MUESLI FRUIT AND NUT 500G",
+          "qty": 1.0,
+          "unit_lkr": 2995,
+          "amount_lkr": 2995
+        },
+        {
+          "line": 25,
+          "raw": "FORTUNE COCOFINE COCONUT OIL 2.9L",
+          "qty": 1.0,
+          "unit_lkr": 4500,
+          "amount_lkr": 4500
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Nexus 20% | fresh",
+          "line": 7,
+          "rate_bps": 2000,
+          "amount_lkr": 32
+        },
+        {
+          "label": "Nexus Deals 25%",
+          "line": 27,
+          "rate_bps": 2500,
+          "amount_lkr": 749
+        },
+        {
+          "label": "Green Discount",
+          "line": 20,
+          "rate_bps": 0,
+          "amount_lkr": 54
+        },
+        {
+          "label": "Keells Deals",
+          "line": 16,
+          "rate_bps": 1500,
+          "amount_lkr": 330
+        }
+      ],
+      "card_offers": [
+        {
+          "bank": "NTB",
+          "rate_bps": 2000,
+          "category": "hot food & bakery",
+          "amount_lkr": 442
+        },
+        {
+          "bank": "NTB",
+          "rate_bps": 2500,
+          "category": "total bill for mastercard credit cards",
+          "amount_lkr": 4686
+        }
+      ],
+      "gross_lkr": 20830,
+      "net_lkr": 14537
+    },
+    {
+      "date": "2026-06-02",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "RATTHI FULL CREAM MILK POWDER PKT 1KG",
+          "qty": 1.0,
+          "unit_lkr": 2990,
+          "amount_lkr": 2990
+        },
+        {
+          "line": 2,
+          "raw": "MAURIPAN INSTANT DRY YEAST 60G",
+          "qty": 1.0,
+          "unit_lkr": 550,
+          "amount_lkr": 550
+        },
+        {
+          "line": 3,
+          "raw": "MOTHA GELATINE 30G",
+          "qty": 1.0,
+          "unit_lkr": 385,
+          "amount_lkr": 385
+        },
+        {
+          "line": 4,
+          "raw": "ZELLERS IMORRE BISCUIT 90G",
+          "qty": 2.0,
+          "unit_lkr": 310,
+          "amount_lkr": 620
+        },
+        {
+          "line": 5,
+          "raw": "CHICKEN DRUMSTICKS SKINLESS",
+          "qty": 0.266,
+          "unit_lkr": 1690,
+          "amount_lkr": 450
+        },
+        {
+          "line": 6,
+          "raw": "CHICKEN WHOLE LEGS SKINLESS",
+          "qty": 0.494,
+          "unit_lkr": 1690,
+          "amount_lkr": 835
+        },
+        {
+          "line": 7,
+          "raw": "CHICKEN BREAST MEAT BONELESS",
+          "qty": 0.582,
+          "unit_lkr": 2170,
+          "amount_lkr": 1263
+        },
+        {
+          "line": 8,
+          "raw": "KREST CHICKEN MEATBALL KIRATA MIRIS 200G",
+          "qty": 1.0,
+          "unit_lkr": 640,
+          "amount_lkr": 640
+        },
+        {
+          "line": 9,
+          "raw": "CBL RAMBA TETOS TOMATO 20G",
+          "qty": 1.0,
+          "unit_lkr": 85,
+          "amount_lkr": 85
+        },
+        {
+          "line": 10,
+          "raw": "FINAGLE BURGER BUNS 100G",
+          "qty": 3.0,
+          "unit_lkr": 220,
+          "amount_lkr": 660
+        },
+        {
+          "line": 11,
+          "raw": "KREST FISH CHINESE ROLLS 500G",
+          "qty": 1.0,
+          "unit_lkr": 960,
+          "amount_lkr": 960
+        },
+        {
+          "line": 12,
+          "raw": "KEELLS RED DHAL 1KG",
+          "qty": 1.0,
+          "unit_lkr": 335,
+          "amount_lkr": 335
+        },
+        {
+          "line": 13,
+          "raw": "LUX BODY WASH MAGICAL ORCHID 240ML",
+          "qty": 1.0,
+          "unit_lkr": 670,
+          "amount_lkr": 670
+        },
+        {
+          "line": 14,
+          "raw": "NOAS CASSAVA CHIPS CHEESE & TOMATO 100G",
+          "qty": 2.0,
+          "unit_lkr": 330,
+          "amount_lkr": 660
+        },
+        {
+          "line": 15,
+          "raw": "TONG GARDEN COATED PEANUTS CHICKEN 45G",
+          "qty": 1.0,
+          "unit_lkr": 365,
+          "amount_lkr": 365
+        },
+        {
+          "line": 16,
+          "raw": "OCEAN STAR CHILEAN JACK MACKEREL 425G",
+          "qty": 1.0,
+          "unit_lkr": 750,
+          "amount_lkr": 750
+        },
+        {
+          "line": 17,
+          "raw": "Large Polythene Bag",
+          "qty": 2.0,
+          "unit_lkr": 5,
+          "amount_lkr": 10
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Nexus Deals 25%",
+          "line": 13,
+          "rate_bps": 2500,
+          "amount_lkr": 168
+        },
+        {
+          "label": "Keells Deals",
+          "line": 16,
+          "rate_bps": 500,
+          "amount_lkr": 38
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 12227,
+      "net_lkr": 12021
+    },
+    {
+      "date": "2026-06-23",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "KIMBULA BUN",
+          "qty": 5.0,
+          "unit_lkr": 85,
+          "amount_lkr": 425
+        },
+        {
+          "line": 2,
+          "raw": "BUTTER CROISSANT - MEDIUM",
+          "qty": 2.0,
+          "unit_lkr": 170,
+          "amount_lkr": 340
+        },
+        {
+          "line": 3,
+          "raw": "KOTMALE FULL CREAM UHT MILK TETRA 180ML",
+          "qty": 1.0,
+          "unit_lkr": 140,
+          "amount_lkr": 140
+        },
+        {
+          "line": 4,
+          "raw": "BANANA - AMBUL",
+          "qty": 1.186,
+          "unit_lkr": 250,
+          "amount_lkr": 297
+        },
+        {
+          "line": 5,
+          "raw": "CAPSICUM",
+          "qty": 0.28,
+          "unit_lkr": 540,
+          "amount_lkr": 151
+        },
+        {
+          "line": 6,
+          "raw": "THALANA BATU",
+          "qty": 0.258,
+          "unit_lkr": 380,
+          "amount_lkr": 98
+        },
+        {
+          "line": 7,
+          "raw": "BRINJALS",
+          "qty": 0.344,
+          "unit_lkr": 470,
+          "amount_lkr": 162
+        },
+        {
+          "line": 8,
+          "raw": "BITTER GOURD",
+          "qty": 0.17,
+          "unit_lkr": 680,
+          "amount_lkr": 116
+        },
+        {
+          "line": 9,
+          "raw": "GREEN BEANS",
+          "qty": 0.258,
+          "unit_lkr": 780,
+          "amount_lkr": 201
+        },
+        {
+          "line": 10,
+          "raw": "KEELLS BAG LARGE",
+          "qty": 1.0,
+          "unit_lkr": 120,
+          "amount_lkr": 120
+        }
+      ],
+      "promotions": [],
+      "card_offers": [
+        {
+          "bank": "NTB",
+          "rate_bps": 2000,
+          "category": "hot food and bakery",
+          "amount_lkr": 119
+        }
+      ],
+      "gross_lkr": 2049,
+      "net_lkr": 1930
+    },
+    {
+      "date": "2026-07-15",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "OMELETTE BUN",
+          "qty": 2.0,
+          "unit_lkr": 180,
+          "amount_lkr": 360
+        },
+        {
+          "line": 2,
+          "raw": "BANANA - SEENI",
+          "qty": 0.854,
+          "unit_lkr": 180,
+          "amount_lkr": 154
+        },
+        {
+          "line": 3,
+          "raw": "BANANA - AMBUL",
+          "qty": 0.878,
+          "unit_lkr": 250,
+          "amount_lkr": 220
+        },
+        {
+          "line": 4,
+          "raw": "BANANA - CIC QUALITY",
+          "qty": 0.742,
+          "unit_lkr": 660,
+          "amount_lkr": 490
+        },
+        {
+          "line": 5,
+          "raw": "ROZA PASTA LUMACHINE 400G",
+          "qty": 1.0,
+          "unit_lkr": 460,
+          "amount_lkr": 460
+        },
+        {
+          "line": 6,
+          "raw": "OATEO INSTANT OATS POUCH 400G",
+          "qty": 1.0,
+          "unit_lkr": 600,
+          "amount_lkr": 600
+        },
+        {
+          "line": 7,
+          "raw": "DIAMOND FULL CREAM MILK POWDER POU 400G",
+          "qty": 1.0,
+          "unit_lkr": 1100,
+          "amount_lkr": 1100
+        },
+        {
+          "line": 8,
+          "raw": "FLORA FAT SPREAD TUB 500G",
+          "qty": 1.0,
+          "unit_lkr": 1390,
+          "amount_lkr": 1390
+        },
+        {
+          "line": 9,
+          "raw": "KOTMALE YOGHURT MULTI PACK 6S 480G",
+          "qty": 2.0,
+          "unit_lkr": 400,
+          "amount_lkr": 800
+        },
+        {
+          "line": 10,
+          "raw": "KREST FISH CHINESE ROLLS 500G",
+          "qty": 2.0,
+          "unit_lkr": 960,
+          "amount_lkr": 1920
+        },
+        {
+          "line": 11,
+          "raw": "EDINBOROUGH TOMATO KETCHUP 400G",
+          "qty": 1.0,
+          "unit_lkr": 560,
+          "amount_lkr": 560
+        },
+        {
+          "line": 12,
+          "raw": "MINT PREMIUM PAPER SERVIETTES 1PLY 50S",
+          "qty": 1.0,
+          "unit_lkr": 200,
+          "amount_lkr": 200
+        },
+        {
+          "line": 13,
+          "raw": "KEELLS DRINKING WATER PET 500ML",
+          "qty": 1.0,
+          "unit_lkr": 70,
+          "amount_lkr": 70
+        },
+        {
+          "line": 14,
+          "raw": "HAPPY COW CHEESE PORTION REGULAR 120G",
+          "qty": 1.0,
+          "unit_lkr": 880,
+          "amount_lkr": 880
+        },
+        {
+          "line": 15,
+          "raw": "KEELLS SANDWICH BREAD 750G",
+          "qty": 1.0,
+          "unit_lkr": 410,
+          "amount_lkr": 410
+        },
+        {
+          "line": 16,
+          "raw": "KEELLS BAG LARGE",
+          "qty": 1.0,
+          "unit_lkr": 120,
+          "amount_lkr": 120
+        },
+        {
+          "line": 17,
+          "raw": "Large Polythene Bag",
+          "qty": 1.0,
+          "unit_lkr": 5,
+          "amount_lkr": 5
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Nexus Deals 25%",
+          "line": 10,
+          "rate_bps": 2500,
+          "amount_lkr": 480
+        },
+        {
+          "label": "Keells Deals",
+          "line": 8,
+          "rate_bps": 2500,
+          "amount_lkr": 348
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 9738,
+      "net_lkr": 8910
+    },
+    {
+      "date": "2026-07-25",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "MUNCHEE GIFT ASSORTMENT 400G",
+          "qty": 1.0,
+          "unit_lkr": 750,
+          "amount_lkr": 750
+        },
+        {
+          "line": 2,
+          "raw": "VIVA MALTED FOOD DRN POU 600G + CANISTER",
+          "qty": 1.0,
+          "unit_lkr": 1120,
+          "amount_lkr": 1120
+        },
+        {
+          "line": 3,
+          "raw": "BANANA - KOLIKUTTU",
+          "qty": 1.7,
+          "unit_lkr": 580,
+          "amount_lkr": 986
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Green Discount",
+          "line": 4,
+          "rate_bps": 0,
+          "amount_lkr": 6
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 2856,
+      "net_lkr": 2850
+    },
+    {
+      "date": "2026-07-26",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "KEELLS WHITE COWPEA 500G",
+          "qty": 1.0,
+          "unit_lkr": 950,
+          "amount_lkr": 950
+        },
+        {
+          "line": 2,
+          "raw": "KEELLS GRAM DHALL 500G",
+          "qty": 1.0,
+          "unit_lkr": 225,
+          "amount_lkr": 225
+        },
+        {
+          "line": 3,
+          "raw": "KEELLS CHICKPEAS 500G",
+          "qty": 1.0,
+          "unit_lkr": 275,
+          "amount_lkr": 275
+        },
+        {
+          "line": 4,
+          "raw": "KEELLS SAGO 250G",
+          "qty": 1.0,
+          "unit_lkr": 369,
+          "amount_lkr": 369
+        },
+        {
+          "line": 5,
+          "raw": "HIGHLAND FULL CREAM UHT MILK PKT 900ML",
+          "qty": 3.0,
+          "unit_lkr": 440,
+          "amount_lkr": 1320
+        },
+        {
+          "line": 6,
+          "raw": "HAPPY HEN BROWN EGGS LARGE 10S",
+          "qty": 2.0,
+          "unit_lkr": 590,
+          "amount_lkr": 1180
+        },
+        {
+          "line": 7,
+          "raw": "KOTMALE FULL CREAM UHT MILK TETRA 1L",
+          "qty": 2.0,
+          "unit_lkr": 580,
+          "amount_lkr": 1160
+        },
+        {
+          "line": 8,
+          "raw": "SAMS CHICKEN CHINESE ROLL 500G",
+          "qty": 1.0,
+          "unit_lkr": 820,
+          "amount_lkr": 820
+        },
+        {
+          "line": 9,
+          "raw": "KELLOGG'S CORN FLAKES HONEY CRUNCH 300",
+          "qty": 1.0,
+          "unit_lkr": 1295,
+          "amount_lkr": 1295
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Green Discount",
+          "line": 10,
+          "rate_bps": 0,
+          "amount_lkr": 12
+        },
+        {
+          "label": "Keells Deals",
+          "line": 8,
+          "rate_bps": 1000,
+          "amount_lkr": 82
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 7594,
+      "net_lkr": 7500
+    },
+    {
+      "date": "2026-08-04",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "FINAGLE HOT DOG BREAD2S",
+          "qty": 3.0,
+          "unit_lkr": 220,
+          "amount_lkr": 660
+        },
+        {
+          "line": 2,
+          "raw": "KEELLS MARSHMALLOW ASSORTED 70G",
+          "qty": 1.0,
+          "unit_lkr": 118,
+          "amount_lkr": 118
+        },
+        {
+          "line": 3,
+          "raw": "PRIMA STELLA INST NOODLES CHCKN 5S 390G",
+          "qty": 1.0,
+          "unit_lkr": 650,
+          "amount_lkr": 650
+        },
+        {
+          "line": 4,
+          "raw": "PRAWNS MEDIUM",
+          "qty": 0.516,
+          "unit_lkr": 2190,
+          "amount_lkr": 1130
+        },
+        {
+          "line": 5,
+          "raw": "TUNA PREMIUM",
+          "qty": 0.396,
+          "unit_lkr": 3490,
+          "amount_lkr": 1382
+        },
+        {
+          "line": 6,
+          "raw": "BANANA - SEENI",
+          "qty": 1.306,
+          "unit_lkr": 220,
+          "amount_lkr": 287
+        },
+        {
+          "line": 7,
+          "raw": "RANCRISP CASSAVA CHIPS PEP & SALT 100G",
+          "qty": 2.0,
+          "unit_lkr": 340,
+          "amount_lkr": 680
+        },
+        {
+          "line": 8,
+          "raw": "MELON - RED FANTASY",
+          "qty": 2.292,
+          "unit_lkr": 90,
+          "amount_lkr": 206
+        },
+        {
+          "line": 9,
+          "raw": "TOP CRUST BREAD 450G",
+          "qty": 1.0,
+          "unit_lkr": 149,
+          "amount_lkr": 149
+        },
+        {
+          "line": 10,
+          "raw": "KEELLS BAG LARGE",
+          "qty": 1.0,
+          "unit_lkr": 120,
+          "amount_lkr": 120
+        },
+        {
+          "line": 11,
+          "raw": "Medium Polythene Bag",
+          "qty": 1.0,
+          "unit_lkr": 3,
+          "amount_lkr": 3
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Quick Sales-Fruit",
+          "line": 6,
+          "rate_bps": 3000,
+          "amount_lkr": 87
+        },
+        {
+          "label": "Keells Deals",
+          "line": 3,
+          "rate_bps": 3000,
+          "amount_lkr": 195
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 5386,
+      "net_lkr": 5104
+    },
+    {
+      "date": "2026-08-16",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "KEELLS TEA BUN 2S",
+          "qty": 4.0,
+          "unit_lkr": 190,
+          "amount_lkr": 760
+        },
+        {
+          "line": 2,
+          "raw": "TOP CRUST BREAD 450G",
+          "qty": 1.0,
+          "unit_lkr": 149,
+          "amount_lkr": 149
+        },
+        {
+          "line": 3,
+          "raw": "R K SULTANA 200G",
+          "qty": 1.0,
+          "unit_lkr": 890,
+          "amount_lkr": 890
+        },
+        {
+          "line": 4,
+          "raw": "DATE CROWN DATES KHALAS 500G",
+          "qty": 1.0,
+          "unit_lkr": 950,
+          "amount_lkr": 950
+        },
+        {
+          "line": 5,
+          "raw": "SPRING HOME ROTI PARATA PLAIN 5S 320G",
+          "qty": 1.0,
+          "unit_lkr": 1110,
+          "amount_lkr": 1110
+        },
+        {
+          "line": 6,
+          "raw": "DOVE SHAMPOO INTENSE REPAIR 180ML",
+          "qty": 1.0,
+          "unit_lkr": 750,
+          "amount_lkr": 750
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Nexus Deals 25%",
+          "line": 6,
+          "rate_bps": 2500,
+          "amount_lkr": 188
+        },
+        {
+          "label": "Green Discount",
+          "line": 7,
+          "rate_bps": 0,
+          "amount_lkr": 6
+        },
+        {
+          "label": "Nexus Deals 20%",
+          "line": 5,
+          "rate_bps": 2000,
+          "amount_lkr": 222
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 4609,
+      "net_lkr": 4193
+    },
+    {
+      "date": "2026-08-18",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "DOVE CONDITIONER BEAUTIFUL CURLS 380ML",
+          "qty": 1.0,
+          "unit_lkr": 2850,
+          "amount_lkr": 2850
+        },
+        {
+          "line": 2,
+          "raw": "DOVE SHAMPOO BEAUTIFUL CURLS 380ML",
+          "qty": 1.0,
+          "unit_lkr": 2850,
+          "amount_lkr": 2850
+        },
+        {
+          "line": 3,
+          "raw": "VIANA BB CREAM SPF 30++ HONEY GLOW 30G",
+          "qty": 1.0,
+          "unit_lkr": 1200,
+          "amount_lkr": 1200
+        },
+        {
+          "line": 4,
+          "raw": "VIANA BB CREAM SPF 30++ SAFFRON GLOW 30G",
+          "qty": 1.0,
+          "unit_lkr": 1200,
+          "amount_lkr": 1200
+        },
+        {
+          "line": 5,
+          "raw": "CUCUMBER",
+          "qty": 0.668,
+          "unit_lkr": 140,
+          "amount_lkr": 94
+        },
+        {
+          "line": 6,
+          "raw": "BANANA - SEENI",
+          "qty": 0.904,
+          "unit_lkr": 250,
+          "amount_lkr": 226
+        },
+        {
+          "line": 7,
+          "raw": "BANANA - AMBUL",
+          "qty": 1.104,
+          "unit_lkr": 260,
+          "amount_lkr": 287
+        },
+        {
+          "line": 8,
+          "raw": "KEELLS ROTI PARATHA PLAIN 330G 6S",
+          "qty": 2.0,
+          "unit_lkr": 280,
+          "amount_lkr": 560
+        },
+        {
+          "line": 9,
+          "raw": "ROZA PASTA FUSILLI 400G",
+          "qty": 1.0,
+          "unit_lkr": 460,
+          "amount_lkr": 460
+        },
+        {
+          "line": 10,
+          "raw": "LANKA SUMEDA ANTI MOSQ INCENSE STICK 30S",
+          "qty": 1.0,
+          "unit_lkr": 400,
+          "amount_lkr": 400
+        },
+        {
+          "line": 11,
+          "raw": "VELVET B/WASH ORANGE & SHEA 240ML",
+          "qty": 1.0,
+          "unit_lkr": 670,
+          "amount_lkr": 670
+        },
+        {
+          "line": 12,
+          "raw": "RICH SAGO 250G",
+          "qty": 1.0,
+          "unit_lkr": 410,
+          "amount_lkr": 410
+        },
+        {
+          "line": 13,
+          "raw": "GOLDI CHICKEN SAUSAGES SUPEME 500G",
+          "qty": 1.0,
+          "unit_lkr": 1250,
+          "amount_lkr": 1250
+        },
+        {
+          "line": 14,
+          "raw": "MOTHA GELATINE 30G",
+          "qty": 1.0,
+          "unit_lkr": 385,
+          "amount_lkr": 385
+        },
+        {
+          "line": 15,
+          "raw": "MOTHA JELLY STRAWBERRY 100G",
+          "qty": 1.0,
+          "unit_lkr": 230,
+          "amount_lkr": 230
+        },
+        {
+          "line": 16,
+          "raw": "KOTMALE CHEESE BLOCK CHEDDAR 250G",
+          "qty": 1.0,
+          "unit_lkr": 1300,
+          "amount_lkr": 1300
+        },
+        {
+          "line": 17,
+          "raw": "KREST FISH CHINESE ROLLS 500G",
+          "qty": 1.0,
+          "unit_lkr": 960,
+          "amount_lkr": 960
+        },
+        {
+          "line": 18,
+          "raw": "KEELLS KURAKKAN BREAD 400G",
+          "qty": 1.0,
+          "unit_lkr": 380,
+          "amount_lkr": 380
+        },
+        {
+          "line": 19,
+          "raw": "KEELLS BAG LARGE",
+          "qty": 1.0,
+          "unit_lkr": 120,
+          "amount_lkr": 120
+        }
+      ],
+      "promotions": [
+        {
+          "label": "QuickDeal-SQ",
+          "line": 18,
+          "rate_bps": 5000,
+          "amount_lkr": 190
+        },
+        {
+          "label": "Keells Deals",
+          "line": 11,
+          "rate_bps": 2000,
+          "amount_lkr": 134
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 15832,
+      "net_lkr": 15508
+    },
+    {
+      "date": "2026-08-21",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "CHICKEN BREAST MEAT BONELESS",
+          "qty": 0.51,
+          "unit_lkr": 2250,
+          "amount_lkr": 1148
+        },
+        {
+          "line": 2,
+          "raw": "KOTMALE FULL CREAM UHT MILK TETRA 1L",
+          "qty": 4.0,
+          "unit_lkr": 580,
+          "amount_lkr": 2320
+        },
+        {
+          "line": 3,
+          "raw": "PRAWNS MEDIUM",
+          "qty": 0.606,
+          "unit_lkr": 2340,
+          "amount_lkr": 1418
+        },
+        {
+          "line": 4,
+          "raw": "SILVERMILL COCONUT MILK VALUE PACK 660ML",
+          "qty": 1.0,
+          "unit_lkr": 740,
+          "amount_lkr": 740
+        },
+        {
+          "line": 5,
+          "raw": "BABY CHERAMY CREAM 200ML",
+          "qty": 1.0,
+          "unit_lkr": 655,
+          "amount_lkr": 655
+        },
+        {
+          "line": 6,
+          "raw": "NIMEX PAPER SERVIETTES 2PLY 100S",
+          "qty": 1.0,
+          "unit_lkr": 525,
+          "amount_lkr": 525
+        },
+        {
+          "line": 7,
+          "raw": "KELLOGG'S ROLLED OATS 400G",
+          "qty": 2.0,
+          "unit_lkr": 710,
+          "amount_lkr": 1420
+        },
+        {
+          "line": 8,
+          "raw": "MANIOC",
+          "qty": 2.364,
+          "unit_lkr": 370,
+          "amount_lkr": 875
+        },
+        {
+          "line": 9,
+          "raw": "CIC WHITE BASMATHI RICE 1KG",
+          "qty": 2.0,
+          "unit_lkr": 740,
+          "amount_lkr": 1480
+        },
+        {
+          "line": 10,
+          "raw": "Large Polythene Bag",
+          "qty": 3.0,
+          "unit_lkr": 5,
+          "amount_lkr": 15
+        },
+        {
+          "line": 11,
+          "raw": "Medium Polythene Bag",
+          "qty": 1.0,
+          "unit_lkr": 3,
+          "amount_lkr": 3
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Keells Deals",
+          "line": 7,
+          "rate_bps": 2000,
+          "amount_lkr": 284
+        },
+        {
+          "label": "Keells Deals",
+          "line": 4,
+          "rate_bps": 540,
+          "amount_lkr": 40
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 10598,
+      "net_lkr": 10274
+    },
+    {
+      "date": "2026-08-24",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "KEELLS TEA BUN 2S",
+          "qty": 2.0,
+          "unit_lkr": 190,
+          "amount_lkr": 380
+        },
+        {
+          "line": 2,
+          "raw": "CIC YOGHURT DAIRY DESSERT S/BERRY 70G",
+          "qty": 2.0,
+          "unit_lkr": 80,
+          "amount_lkr": 160
+        },
+        {
+          "line": 3,
+          "raw": "CHELLO KOMARIKA JELLY 80G",
+          "qty": 2.0,
+          "unit_lkr": 80,
+          "amount_lkr": 160
+        },
+        {
+          "line": 4,
+          "raw": "MD JAM LOW SUGAR WOOD APPLE 330G",
+          "qty": 1.0,
+          "unit_lkr": 660,
+          "amount_lkr": 660
+        },
+        {
+          "line": 5,
+          "raw": "MARMITE 100G",
+          "qty": 1.0,
+          "unit_lkr": 750,
+          "amount_lkr": 750
+        },
+        {
+          "line": 6,
+          "raw": "HAPPY HEN BROWN EGGS MEDIUM 10S",
+          "qty": 1.0,
+          "unit_lkr": 595,
+          "amount_lkr": 595
+        },
+        {
+          "line": 7,
+          "raw": "HAPPY HEN BROWN EGGS LARGE 10S",
+          "qty": 2.0,
+          "unit_lkr": 590,
+          "amount_lkr": 1180
+        },
+        {
+          "line": 8,
+          "raw": "SUPREME SPRATS READY TO COOK 200G",
+          "qty": 2.0,
+          "unit_lkr": 1040,
+          "amount_lkr": 2080
+        },
+        {
+          "line": 9,
+          "raw": "KOTMALE CHEESE BLOCK CHEDDAR 250G",
+          "qty": 1.0,
+          "unit_lkr": 1400,
+          "amount_lkr": 1400
+        },
+        {
+          "line": 10,
+          "raw": "FLORA FAT SPREAD TUB 500G",
+          "qty": 1.0,
+          "unit_lkr": 1390,
+          "amount_lkr": 1390
+        },
+        {
+          "line": 11,
+          "raw": "KOTMALE NON FAT YOGHURT 450G",
+          "qty": 2.0,
+          "unit_lkr": 370,
+          "amount_lkr": 740
+        },
+        {
+          "line": 12,
+          "raw": "TOP CRUST BREAD 450G",
+          "qty": 1.0,
+          "unit_lkr": 149,
+          "amount_lkr": 149
+        },
+        {
+          "line": 13,
+          "raw": "MALIBAN CREAM CRACKER 490G",
+          "qty": 1.0,
+          "unit_lkr": 490,
+          "amount_lkr": 490
+        },
+        {
+          "line": 14,
+          "raw": "RATTHI FULL CREAM MILK POWDER PKT 1KG",
+          "qty": 1.0,
+          "unit_lkr": 2990,
+          "amount_lkr": 2990
+        },
+        {
+          "line": 15,
+          "raw": "NEW RATHNA KEERI SAMBA RICE 1KG (5U)",
+          "qty": 5.0,
+          "unit_lkr": 260,
+          "amount_lkr": 1300
+        },
+        {
+          "line": 16,
+          "raw": "BIG ONIONS",
+          "qty": 1.23,
+          "unit_lkr": 330,
+          "amount_lkr": 406
+        },
+        {
+          "line": 17,
+          "raw": "BATANA",
+          "qty": 0.726,
+          "unit_lkr": 220,
+          "amount_lkr": 160
+        },
+        {
+          "line": 18,
+          "raw": "CUCUMBER",
+          "qty": 0.672,
+          "unit_lkr": 150,
+          "amount_lkr": 101
+        },
+        {
+          "line": 19,
+          "raw": "GREEN CHILIES",
+          "qty": 0.096,
+          "unit_lkr": 980,
+          "amount_lkr": 94
+        },
+        {
+          "line": 20,
+          "raw": "SNAKE GOURD",
+          "qty": 0.508,
+          "unit_lkr": 240,
+          "amount_lkr": 122
+        },
+        {
+          "line": 21,
+          "raw": "THALAPATH KOPPARA",
+          "qty": 0.666,
+          "unit_lkr": 3190,
+          "amount_lkr": 2125
+        },
+        {
+          "line": 22,
+          "raw": "BANANA - SEENI",
+          "qty": 1.812,
+          "unit_lkr": 270,
+          "amount_lkr": 489
+        },
+        {
+          "line": 23,
+          "raw": "MANIOC",
+          "qty": 1.378,
+          "unit_lkr": 210,
+          "amount_lkr": 289
+        },
+        {
+          "line": 24,
+          "raw": "CABBAGE",
+          "qty": 0.566,
+          "unit_lkr": 190,
+          "amount_lkr": 108
+        },
+        {
+          "line": 25,
+          "raw": "COCONUT",
+          "qty": 2.0,
+          "unit_lkr": 155,
+          "amount_lkr": 310
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Green Discount",
+          "line": 26,
+          "rate_bps": 0,
+          "amount_lkr": 12
+        },
+        {
+          "label": "Keells Deals",
+          "line": 10,
+          "rate_bps": 2000,
+          "amount_lkr": 278
+        },
+        {
+          "label": "Keells Deals",
+          "line": 3,
+          "rate_bps": 1500,
+          "amount_lkr": 24
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 18627,
+      "net_lkr": 18313
+    },
+    {
+      "date": "2026-08-27",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "HAPPY HEN BROWN EGGS LARGE 10S",
+          "qty": 1.0,
+          "unit_lkr": 610,
+          "amount_lkr": 610
+        },
+        {
+          "line": 2,
+          "raw": "NEL FARM BROWN EGGS LARGE 10S",
+          "qty": 1.0,
+          "unit_lkr": 595,
+          "amount_lkr": 595
+        },
+        {
+          "line": 3,
+          "raw": "PAPAYA",
+          "qty": 1.232,
+          "unit_lkr": 250,
+          "amount_lkr": 308
+        },
+        {
+          "line": 4,
+          "raw": "BANANA - SEENI",
+          "qty": 0.556,
+          "unit_lkr": 210,
+          "amount_lkr": 117
+        },
+        {
+          "line": 5,
+          "raw": "KEELLS PEPPER POWDER 100G",
+          "qty": 1.0,
+          "unit_lkr": 395,
+          "amount_lkr": 395
+        },
+        {
+          "line": 6,
+          "raw": "KEELLS TURMERIC POWDER 100G",
+          "qty": 1.0,
+          "unit_lkr": 450,
+          "amount_lkr": 450
+        },
+        {
+          "line": 7,
+          "raw": "R K SULTANA 200G",
+          "qty": 1.0,
+          "unit_lkr": 890,
+          "amount_lkr": 890
+        },
+        {
+          "line": 8,
+          "raw": "KEELLS TEA BUN 2S",
+          "qty": 3.0,
+          "unit_lkr": 190,
+          "amount_lkr": 570
+        },
+        {
+          "line": 9,
+          "raw": "KEELLS KURAKKAN BREAD 400G",
+          "qty": 1.0,
+          "unit_lkr": 380,
+          "amount_lkr": 380
+        },
+        {
+          "line": 10,
+          "raw": "KEELLS WHITE COWPEA 500G",
+          "qty": 1.0,
+          "unit_lkr": 950,
+          "amount_lkr": 950
+        },
+        {
+          "line": 11,
+          "raw": "KEELLS KONDE GRAM 500G",
+          "qty": 1.0,
+          "unit_lkr": 510,
+          "amount_lkr": 510
+        },
+        {
+          "line": 12,
+          "raw": "KOTMALE FULL CREAM UHT MILK TETRA 1L",
+          "qty": 2.0,
+          "unit_lkr": 580,
+          "amount_lkr": 1160
+        },
+        {
+          "line": 13,
+          "raw": "HIGHLAND FULL CREAM UHT MILK PKT 900ML",
+          "qty": 3.0,
+          "unit_lkr": 440,
+          "amount_lkr": 1320
+        },
+        {
+          "line": 14,
+          "raw": "WONRICH PASTEURIZED FRESH MILK 1L",
+          "qty": 2.0,
+          "unit_lkr": 500,
+          "amount_lkr": 1000
+        },
+        {
+          "line": 15,
+          "raw": "KOTMALE CURD TUB 900G",
+          "qty": 1.0,
+          "unit_lkr": 750,
+          "amount_lkr": 750
+        },
+        {
+          "line": 16,
+          "raw": "KREST CHICKEN SAUSAGES SKINLESS 500G",
+          "qty": 1.0,
+          "unit_lkr": 1280,
+          "amount_lkr": 1280
+        },
+        {
+          "line": 17,
+          "raw": "KOTMALE YOGHURT MULTI PACK 6S 480G",
+          "qty": 2.0,
+          "unit_lkr": 400,
+          "amount_lkr": 800
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Nexus Deals 25%",
+          "line": 16,
+          "rate_bps": 2500,
+          "amount_lkr": 320
+        },
+        {
+          "label": "Green Discount",
+          "line": 18,
+          "rate_bps": 0,
+          "amount_lkr": 30
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 12085,
+      "net_lkr": 11735
+    },
+    {
+      "date": "2026-08-30",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "ADIDAS PERFUME PURE GAME MEN EDT 100ML",
+          "qty": 1.0,
+          "unit_lkr": 4450,
+          "amount_lkr": 4450
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Keells Deals",
+          "line": 1,
+          "rate_bps": 1000,
+          "amount_lkr": 445
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 4450,
+      "net_lkr": 4005
+    },
+    {
+      "date": "2026-08-30",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "GREEN GRAM BULK KG",
+          "qty": 0.946,
+          "unit_lkr": 820,
+          "amount_lkr": 776
+        },
+        {
+          "line": 2,
+          "raw": "SNAKE GOURD",
+          "qty": 0.488,
+          "unit_lkr": 240,
+          "amount_lkr": 117
+        },
+        {
+          "line": 3,
+          "raw": "MANIOC",
+          "qty": 1.734,
+          "unit_lkr": 270,
+          "amount_lkr": 468
+        },
+        {
+          "line": 4,
+          "raw": "GREEN CHILIES",
+          "qty": 0.1,
+          "unit_lkr": 880,
+          "amount_lkr": 88
+        },
+        {
+          "line": 5,
+          "raw": "GARLIC",
+          "qty": 0.392,
+          "unit_lkr": 890,
+          "amount_lkr": 349
+        },
+        {
+          "line": 6,
+          "raw": "GINGER",
+          "qty": 0.086,
+          "unit_lkr": 1100,
+          "amount_lkr": 95
+        },
+        {
+          "line": 7,
+          "raw": "TOMATOES",
+          "qty": 0.574,
+          "unit_lkr": 490,
+          "amount_lkr": 281
+        },
+        {
+          "line": 8,
+          "raw": "POTATOES",
+          "qty": 1.182,
+          "unit_lkr": 390,
+          "amount_lkr": 461
+        },
+        {
+          "line": 9,
+          "raw": "KEELLS RED DHAL 1KG",
+          "qty": 1.0,
+          "unit_lkr": 285,
+          "amount_lkr": 285
+        },
+        {
+          "line": 10,
+          "raw": "BIG ONIONS",
+          "qty": 0.966,
+          "unit_lkr": 350,
+          "amount_lkr": 338
+        },
+        {
+          "line": 11,
+          "raw": "MCCURRIE PEPPER POWDER 100G",
+          "qty": 1.0,
+          "unit_lkr": 620,
+          "amount_lkr": 620
+        },
+        {
+          "line": 12,
+          "raw": "KEELLS DINNER BUN 4S",
+          "qty": 2.0,
+          "unit_lkr": 220,
+          "amount_lkr": 440
+        },
+        {
+          "line": 13,
+          "raw": "KEELLS TEA BUN 2S",
+          "qty": 3.0,
+          "unit_lkr": 190,
+          "amount_lkr": 570
+        },
+        {
+          "line": 14,
+          "raw": "KEELLS RED COWPEA 500G",
+          "qty": 2.0,
+          "unit_lkr": 945,
+          "amount_lkr": 1890
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Green Discount",
+          "line": 15,
+          "rate_bps": 0,
+          "amount_lkr": 6
+        },
+        {
+          "label": "Quick Sales-Vegetable",
+          "line": 3,
+          "rate_bps": 3000,
+          "amount_lkr": 141
+        },
+        {
+          "label": "Quick Sales-Vegetable",
+          "line": 2,
+          "rate_bps": 3000,
+          "amount_lkr": 36
+        }
+      ],
+      "card_offers": [
+        {
+          "bank": "NTB",
+          "rate_bps": 2500,
+          "category": "fresh",
+          "amount_lkr": 506
+        }
+      ],
+      "gross_lkr": 6778,
+      "net_lkr": 6089
+    },
+    {
+      "date": "2026-09-05",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "PAPAYA",
+          "qty": 1.504,
+          "unit_lkr": 210,
+          "amount_lkr": 316
+        },
+        {
+          "line": 2,
+          "raw": "MELON - RED FANTASY",
+          "qty": 1.834,
+          "unit_lkr": 100,
+          "amount_lkr": 183
+        },
+        {
+          "line": 3,
+          "raw": "KANDOS CASHEWNUT CHOC 160G",
+          "qty": 1.0,
+          "unit_lkr": 980,
+          "amount_lkr": 980
+        },
+        {
+          "line": 4,
+          "raw": "BANANA - AMBUL",
+          "qty": 1.802,
+          "unit_lkr": 370,
+          "amount_lkr": 667
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Green Discount",
+          "line": 5,
+          "rate_bps": 0,
+          "amount_lkr": 6
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 2146,
+      "net_lkr": 2140
+    },
+    {
+      "date": "2026-09-05",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "FLORA FAT SPREAD TUB 500G",
+          "qty": 1.0,
+          "unit_lkr": 1390,
+          "amount_lkr": 1390
+        },
+        {
+          "line": 2,
+          "raw": "KOTMALE YOGHURT MULTI PACK 6S 480G",
+          "qty": 2.0,
+          "unit_lkr": 400,
+          "amount_lkr": 800
+        },
+        {
+          "line": 3,
+          "raw": "KEELLS MULTIGRAIN BREAD 200G",
+          "qty": 2.0,
+          "unit_lkr": 340,
+          "amount_lkr": 680
+        },
+        {
+          "line": 4,
+          "raw": "KEELLS CREAM BUN 2S",
+          "qty": 1.0,
+          "unit_lkr": 230,
+          "amount_lkr": 230
+        },
+        {
+          "line": 5,
+          "raw": "KEELLS TEA BUN 2S",
+          "qty": 2.0,
+          "unit_lkr": 190,
+          "amount_lkr": 380
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Green Discount",
+          "line": 6,
+          "rate_bps": 0,
+          "amount_lkr": 6
+        },
+        {
+          "label": "Nexus Deals 20%",
+          "line": 1,
+          "rate_bps": 2000,
+          "amount_lkr": 278
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 3480,
+      "net_lkr": 3196
+    },
+    {
+      "date": "2026-09-08",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "DAINTEE JUJUBES 150G",
+          "qty": 1.0,
+          "unit_lkr": 250,
+          "amount_lkr": 250
+        },
+        {
+          "line": 2,
+          "raw": "LITTLE LION SOFT LOG STRAWBERRY 200G",
+          "qty": 1.0,
+          "unit_lkr": 390,
+          "amount_lkr": 390
+        },
+        {
+          "line": 3,
+          "raw": "Medium Polythene Bag",
+          "qty": 1.0,
+          "unit_lkr": 3,
+          "amount_lkr": 3
+        },
+        {
+          "line": 4,
+          "raw": "COCA COLA ZERO PET 400ML",
+          "qty": 1.0,
+          "unit_lkr": 200,
+          "amount_lkr": 200
+        },
+        {
+          "line": 5,
+          "raw": "KIST 100% JUICE GREEN APPLE TETRA 500ML",
+          "qty": 1.0,
+          "unit_lkr": 680,
+          "amount_lkr": 680
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 1523,
+      "net_lkr": 1523
+    },
+    {
+      "date": "2026-09-08",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "MORTEIN FAST KILL COCKRO/KILL 600ML",
+          "qty": 1.0,
+          "unit_lkr": 1650,
+          "amount_lkr": 1650
+        },
+        {
+          "line": 2,
+          "raw": "BANANA - SEENI",
+          "qty": 0.82,
+          "unit_lkr": 280,
+          "amount_lkr": 230
+        },
+        {
+          "line": 3,
+          "raw": "EAGLE NAPHTHALENE BALLS JAMBO 150G",
+          "qty": 1.0,
+          "unit_lkr": 335,
+          "amount_lkr": 335
+        },
+        {
+          "line": 4,
+          "raw": "VIM DISHWASH BAR 100G MULTIPACK",
+          "qty": 1.0,
+          "unit_lkr": 180,
+          "amount_lkr": 180
+        },
+        {
+          "line": 5,
+          "raw": "DETTOL SOAP ORIGINAL 110G",
+          "qty": 2.0,
+          "unit_lkr": 190,
+          "amount_lkr": 380
+        },
+        {
+          "line": 6,
+          "raw": "Medium Polythene Bag",
+          "qty": 1.0,
+          "unit_lkr": 3,
+          "amount_lkr": 3
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Keells Deals",
+          "line": 1,
+          "rate_bps": 1000,
+          "amount_lkr": 165
+        },
+        {
+          "label": "Keells Deals",
+          "line": 5,
+          "rate_bps": 1000,
+          "amount_lkr": 38
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 2778,
+      "net_lkr": 2575
+    },
+    {
+      "date": "2026-09-11",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "KEELLS TEA BUN 2S",
+          "qty": 4.0,
+          "unit_lkr": 190,
+          "amount_lkr": 760
+        },
+        {
+          "line": 2,
+          "raw": "RANCRISP CASSAVA CHIPS PEP & SALT 100G",
+          "qty": 2.0,
+          "unit_lkr": 340,
+          "amount_lkr": 680
+        },
+        {
+          "line": 3,
+          "raw": "RANCRISP CASSAVA CHIPS HOT & SPICY 100G",
+          "qty": 1.0,
+          "unit_lkr": 340,
+          "amount_lkr": 340
+        },
+        {
+          "line": 4,
+          "raw": "RITZBURY CHAMP CHOCO VALUE PACK 192G",
+          "qty": 1.0,
+          "unit_lkr": 550,
+          "amount_lkr": 550
+        },
+        {
+          "line": 5,
+          "raw": "IMORICH I/C CHOC ALMND CRUNCH CONE 120ML",
+          "qty": 2.0,
+          "unit_lkr": 220,
+          "amount_lkr": 440
+        },
+        {
+          "line": 6,
+          "raw": "DILMAH FLAV CINNAMON BAG BOX",
+          "qty": 1.0,
+          "unit_lkr": 500,
+          "amount_lkr": 500
+        },
+        {
+          "line": 7,
+          "raw": "DILMAH TEA FLAV GINGER BAG BOX",
+          "qty": 1.0,
+          "unit_lkr": 500,
+          "amount_lkr": 500
+        },
+        {
+          "line": 8,
+          "raw": "IMORICH I/C BLACK FOREST CONE 120ML",
+          "qty": 2.0,
+          "unit_lkr": 200,
+          "amount_lkr": 400
+        },
+        {
+          "line": 9,
+          "raw": "RATTHI FULL CREAM MILK POWDER POU 200G",
+          "qty": 1.0,
+          "unit_lkr": 650,
+          "amount_lkr": 650
+        },
+        {
+          "line": 10,
+          "raw": "ACON PAPER CUPS 10S",
+          "qty": 1.0,
+          "unit_lkr": 280,
+          "amount_lkr": 280
+        },
+        {
+          "line": 11,
+          "raw": "POND'S SUNSCREEN CREAM SPF 55 50G",
+          "qty": 1.0,
+          "unit_lkr": 1900,
+          "amount_lkr": 1900
+        },
+        {
+          "line": 12,
+          "raw": "KEELLS WOODEN SPOON 12PCS",
+          "qty": 1.0,
+          "unit_lkr": 260,
+          "amount_lkr": 260
+        },
+        {
+          "line": 13,
+          "raw": "ECOWARE ROUND PAPER PLATES 7 INCH 10S",
+          "qty": 1.0,
+          "unit_lkr": 330,
+          "amount_lkr": 330
+        },
+        {
+          "line": 14,
+          "raw": "NIMEX PAPER SERVIETTES 1PLY 50S",
+          "qty": 1.0,
+          "unit_lkr": 250,
+          "amount_lkr": 250
+        },
+        {
+          "line": 15,
+          "raw": "ACON HAPPY BDAY CAKE TOPPER PLASTIC",
+          "qty": 1.0,
+          "unit_lkr": 300,
+          "amount_lkr": 300
+        },
+        {
+          "line": 16,
+          "raw": "KEELLS NUMERAL CANDLE METALLIC SILVR-2",
+          "qty": 1.0,
+          "unit_lkr": 160,
+          "amount_lkr": 160
+        },
+        {
+          "line": 17,
+          "raw": "KEELLS NUMERAL CANDLE METALLIC SILVR-1",
+          "qty": 1.0,
+          "unit_lkr": 160,
+          "amount_lkr": 160
+        },
+        {
+          "line": 18,
+          "raw": "BIC LADY RAZOR TWIN 2S",
+          "qty": 1.0,
+          "unit_lkr": 300,
+          "amount_lkr": 300
+        },
+        {
+          "line": 19,
+          "raw": "KEELLS BAG LARGE",
+          "qty": 1.0,
+          "unit_lkr": 120,
+          "amount_lkr": 120
+        },
+        {
+          "line": 20,
+          "raw": "Medium Polythene Bag",
+          "qty": 1.0,
+          "unit_lkr": 3,
+          "amount_lkr": 3
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 8883,
+      "net_lkr": 8883
+    },
+    {
+      "date": "2026-09-18",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "BANANA - AMBUL",
+          "qty": 1.458,
+          "unit_lkr": 370,
+          "amount_lkr": 539
+        },
+        {
+          "line": 2,
+          "raw": "MELON - DARK BELL",
+          "qty": 2.852,
+          "unit_lkr": 120,
+          "amount_lkr": 342
+        },
+        {
+          "line": 3,
+          "raw": "LAKMO EGGS LARGE 10S",
+          "qty": 2.0,
+          "unit_lkr": 615,
+          "amount_lkr": 1230
+        },
+        {
+          "line": 4,
+          "raw": "LITTLE LION BATTER CAROL COOKIES 335G",
+          "qty": 1.0,
+          "unit_lkr": 420,
+          "amount_lkr": 420
+        },
+        {
+          "line": 5,
+          "raw": "MUNCHEE SUPER CREAM CRACKER",
+          "qty": 1.0,
+          "unit_lkr": 200,
+          "amount_lkr": 200
+        },
+        {
+          "line": 6,
+          "raw": "AMBEWELA SET YOGHURT TUB 450ML",
+          "qty": 2.0,
+          "unit_lkr": 440,
+          "amount_lkr": 880
+        },
+        {
+          "line": 7,
+          "raw": "MD JAM LOW SUGAR WOOD APPLE 330G",
+          "qty": 1.0,
+          "unit_lkr": 660,
+          "amount_lkr": 660
+        },
+        {
+          "line": 8,
+          "raw": "TOMATOES",
+          "qty": 0.314,
+          "unit_lkr": 670,
+          "amount_lkr": 210
+        },
+        {
+          "line": 9,
+          "raw": "CHICKEN BONELESS THIGH",
+          "qty": 0.17,
+          "unit_lkr": 2250,
+          "amount_lkr": 383
+        },
+        {
+          "line": 10,
+          "raw": "BIG ONIONS",
+          "qty": 1.01,
+          "unit_lkr": 380,
+          "amount_lkr": 384
+        },
+        {
+          "line": 11,
+          "raw": "CHICKEN FULL BREAST SKINLESS",
+          "qty": 0.742,
+          "unit_lkr": 1780,
+          "amount_lkr": 1321
+        },
+        {
+          "line": 12,
+          "raw": "CHICKEN DRUMSTICKS SKINLESS",
+          "qty": 0.336,
+          "unit_lkr": 1750,
+          "amount_lkr": 588
+        },
+        {
+          "line": 13,
+          "raw": "KEELLS ROASTED CURRY POWDER 100G",
+          "qty": 1.0,
+          "unit_lkr": 190,
+          "amount_lkr": 190
+        },
+        {
+          "line": 14,
+          "raw": "TOP CRUST BREAD 450G",
+          "qty": 1.0,
+          "unit_lkr": 159,
+          "amount_lkr": 159
+        },
+        {
+          "line": 15,
+          "raw": "KEELLS BAG LARGE",
+          "qty": 1.0,
+          "unit_lkr": 120,
+          "amount_lkr": 120
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 7626,
+      "net_lkr": 7626
+    },
+    {
+      "date": "2026-09-20",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "SERA REAL COCONUT MILK 330ML",
+          "qty": 2.0,
+          "unit_lkr": 385,
+          "amount_lkr": 770
+        },
+        {
+          "line": 2,
+          "raw": "RATTHI FULL CREAM MILK POWDER POU 400G",
+          "qty": 2.0,
+          "unit_lkr": 1300,
+          "amount_lkr": 2600
+        },
+        {
+          "line": 3,
+          "raw": "KOTMALE FULL CREAM UHT MILK TETRA 1L",
+          "qty": 2.0,
+          "unit_lkr": 580,
+          "amount_lkr": 1160
+        },
+        {
+          "line": 4,
+          "raw": "WONRICH PASTEURIZED FRESH MILK 1L",
+          "qty": 3.0,
+          "unit_lkr": 500,
+          "amount_lkr": 1500
+        },
+        {
+          "line": 5,
+          "raw": "LYSOL CITRUS 500ML",
+          "qty": 1.0,
+          "unit_lkr": 550,
+          "amount_lkr": 550
+        },
+        {
+          "line": 6,
+          "raw": "SOFTOUCH FABRIC COND 2X FRENCH PER 800ML",
+          "qty": 1.0,
+          "unit_lkr": 1300,
+          "amount_lkr": 1300
+        },
+        {
+          "line": 7,
+          "raw": "TOMATOES",
+          "qty": 0.494,
+          "unit_lkr": 650,
+          "amount_lkr": 321
+        },
+        {
+          "line": 8,
+          "raw": "MUNCHEE TIKIRI MARIE BISCUIT 360G",
+          "qty": 1.0,
+          "unit_lkr": 350,
+          "amount_lkr": 350
+        },
+        {
+          "line": 9,
+          "raw": "CUCUMBER",
+          "qty": 0.75,
+          "unit_lkr": 120,
+          "amount_lkr": 90
+        },
+        {
+          "line": 10,
+          "raw": "POTATOES",
+          "qty": 0.858,
+          "unit_lkr": 390,
+          "amount_lkr": 335
+        },
+        {
+          "line": 11,
+          "raw": "KNOL KHOL",
+          "qty": 0.442,
+          "unit_lkr": 340,
+          "amount_lkr": 150
+        },
+        {
+          "line": 12,
+          "raw": "RED VELVET MUFFIN",
+          "qty": 4.0,
+          "unit_lkr": 280,
+          "amount_lkr": 1120
+        },
+        {
+          "line": 13,
+          "raw": "CARROT",
+          "qty": 0.56,
+          "unit_lkr": 270,
+          "amount_lkr": 151
+        },
+        {
+          "line": 14,
+          "raw": "COCONUT",
+          "qty": 2.0,
+          "unit_lkr": 166,
+          "amount_lkr": 332
+        },
+        {
+          "line": 15,
+          "raw": "KOTMALE YOGHURT MULTI PACK 6S 480G",
+          "qty": 1.0,
+          "unit_lkr": 400,
+          "amount_lkr": 400
+        },
+        {
+          "line": 16,
+          "raw": "MANIOC",
+          "qty": 2.394,
+          "unit_lkr": 360,
+          "amount_lkr": 862
+        },
+        {
+          "line": 17,
+          "raw": "DILMAH TEA FLAV GINGER BAG BOX",
+          "qty": 1.0,
+          "unit_lkr": 500,
+          "amount_lkr": 500
+        },
+        {
+          "line": 18,
+          "raw": "DUMBARA JAGGERY CUP 500G",
+          "qty": 1.0,
+          "unit_lkr": 2945,
+          "amount_lkr": 2945
+        },
+        {
+          "line": 19,
+          "raw": "DILMAH TEA RESPLENDENT ISLAND",
+          "qty": 1.0,
+          "unit_lkr": 2130,
+          "amount_lkr": 2130
+        },
+        {
+          "line": 20,
+          "raw": "BIG ONIONS",
+          "qty": 0.878,
+          "unit_lkr": 370,
+          "amount_lkr": 325
+        },
+        {
+          "line": 21,
+          "raw": "TRICKLEDOWN LAMINATION GIFT BAG XL",
+          "qty": 1.0,
+          "unit_lkr": 550,
+          "amount_lkr": 550
+        },
+        {
+          "line": 22,
+          "raw": "SIGNAL TOOTHPASTE STRONG TEETH 200G",
+          "qty": 1.0,
+          "unit_lkr": 365,
+          "amount_lkr": 365
+        },
+        {
+          "line": 23,
+          "raw": "BANANA - AMBUL",
+          "qty": 1.118,
+          "unit_lkr": 350,
+          "amount_lkr": 391
+        },
+        {
+          "line": 24,
+          "raw": "BANANA - CAVENDISH",
+          "qty": 0.924,
+          "unit_lkr": 290,
+          "amount_lkr": 268
+        },
+        {
+          "line": 25,
+          "raw": "TOP CRUST BREAD 450G",
+          "qty": 1.0,
+          "unit_lkr": 159,
+          "amount_lkr": 159
+        },
+        {
+          "line": 26,
+          "raw": "HARISCHANDRA GINGELLY ROLLS 400G 25S",
+          "qty": 1.0,
+          "unit_lkr": 1100,
+          "amount_lkr": 1100
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Nexus Deals 25%",
+          "line": 8,
+          "rate_bps": 2500,
+          "amount_lkr": 88
+        },
+        {
+          "label": "Green Discount",
+          "line": 27,
+          "rate_bps": 0,
+          "amount_lkr": 30
+        },
+        {
+          "label": "Keells Deals",
+          "line": 6,
+          "rate_bps": 1000,
+          "amount_lkr": 130
+        },
+        {
+          "label": "Keells Deals",
+          "line": 22,
+          "rate_bps": 3010,
+          "amount_lkr": 110
+        },
+        {
+          "label": "Keells Deals",
+          "line": 1,
+          "rate_bps": 1010,
+          "amount_lkr": 78
+        },
+        {
+          "label": "Nexus 20% | fresh September W03",
+          "line": 16,
+          "rate_bps": 2000,
+          "amount_lkr": 138
+        },
+        {
+          "label": "Quick Sales-Vegetable",
+          "line": 16,
+          "rate_bps": 2000,
+          "amount_lkr": 173
+        },
+        {
+          "label": "Quick Sales-Vegetable",
+          "line": 13,
+          "rate_bps": 3000,
+          "amount_lkr": 46
+        },
+        {
+          "label": "Quick Sales-Vegetable",
+          "line": 9,
+          "rate_bps": 4000,
+          "amount_lkr": 36
+        }
+      ],
+      "card_offers": [
+        {
+          "bank": "NTB",
+          "rate_bps": 2500,
+          "category": "fresh",
+          "amount_lkr": 709
+        }
+      ],
+      "gross_lkr": 20724,
+      "net_lkr": 19186
+    },
+    {
+      "date": "2026-09-27",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "RICHLIFE DESSERT SET KIRI 450G",
+          "qty": 1.0,
+          "unit_lkr": 420,
+          "amount_lkr": 420
+        },
+        {
+          "line": 2,
+          "raw": "MUKUNUWENNA",
+          "qty": 1.0,
+          "unit_lkr": 95,
+          "amount_lkr": 95
+        },
+        {
+          "line": 3,
+          "raw": "SILVERMILL COCONUT MILK VALUE PACK 660ML",
+          "qty": 1.0,
+          "unit_lkr": 740,
+          "amount_lkr": 740
+        },
+        {
+          "line": 4,
+          "raw": "NATURE'S SKIN SOOTHING GEL ALOE96% 100ML",
+          "qty": 1.0,
+          "unit_lkr": 780,
+          "amount_lkr": 780
+        },
+        {
+          "line": 5,
+          "raw": "KEELLS TEA BUN 2S",
+          "qty": 2.0,
+          "unit_lkr": 190,
+          "amount_lkr": 380
+        },
+        {
+          "line": 6,
+          "raw": "KEELLS KURAKKAN BREAD 400G",
+          "qty": 1.0,
+          "unit_lkr": 380,
+          "amount_lkr": 380
+        },
+        {
+          "line": 7,
+          "raw": "BLACK KNIGHT HAIR GEL WET LOOK B5 25G",
+          "qty": 2.0,
+          "unit_lkr": 100,
+          "amount_lkr": 200
+        },
+        {
+          "line": 8,
+          "raw": "DETTOL H/WASH REFILL LASTING FRESH 175ML",
+          "qty": 1.0,
+          "unit_lkr": 375,
+          "amount_lkr": 375
+        },
+        {
+          "line": 9,
+          "raw": "BANANA - AMBUL",
+          "qty": 1.358,
+          "unit_lkr": 340,
+          "amount_lkr": 462
+        },
+        {
+          "line": 10,
+          "raw": "Large Polythene Bag",
+          "qty": 1.0,
+          "unit_lkr": 5,
+          "amount_lkr": 5
+        },
+        {
+          "line": 11,
+          "raw": "Medium Polythene Bag",
+          "qty": 1.0,
+          "unit_lkr": 3,
+          "amount_lkr": 3
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Quick Sales-Fruit",
+          "line": 9,
+          "rate_bps": 3000,
+          "amount_lkr": 139
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 3840,
+      "net_lkr": 3701
+    },
+    {
+      "date": "2026-10-17",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "WATERMELON JUICE",
+          "qty": 1.0,
+          "unit_lkr": 200,
+          "amount_lkr": 200
+        },
+        {
+          "line": 2,
+          "raw": "KEELLS BAG LARGE",
+          "qty": 1.0,
+          "unit_lkr": 120,
+          "amount_lkr": 120
+        },
+        {
+          "line": 3,
+          "raw": "CHICKEN SAUSAGE ROLL",
+          "qty": 1.0,
+          "unit_lkr": 190,
+          "amount_lkr": 190
+        },
+        {
+          "line": 4,
+          "raw": "RED VELVET MUFFIN",
+          "qty": 1.0,
+          "unit_lkr": 280,
+          "amount_lkr": 280
+        },
+        {
+          "line": 5,
+          "raw": "AVOCADO",
+          "qty": 1.1,
+          "unit_lkr": 350,
+          "amount_lkr": 385
+        },
+        {
+          "line": 6,
+          "raw": "APPLE - RED",
+          "qty": 0.592,
+          "unit_lkr": 2370,
+          "amount_lkr": 1403
+        },
+        {
+          "line": 7,
+          "raw": "BANANA - SEENI",
+          "qty": 1.596,
+          "unit_lkr": 250,
+          "amount_lkr": 399
+        },
+        {
+          "line": 8,
+          "raw": "PAPAYA",
+          "qty": 1.75,
+          "unit_lkr": 80,
+          "amount_lkr": 140
+        }
+      ],
+      "promotions": [],
+      "card_offers": [],
+      "gross_lkr": 3117,
+      "net_lkr": 3117
+    },
+    {
+      "date": "2026-10-17",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "HIGHLAND FULL CREAM UHT MILK PKT 900ML",
+          "qty": 3.0,
+          "unit_lkr": 440,
+          "amount_lkr": 1320
+        },
+        {
+          "line": 2,
+          "raw": "KOTMALE FULL CREAM UHT MILK TETRA 1L",
+          "qty": 4.0,
+          "unit_lkr": 580,
+          "amount_lkr": 2320
+        },
+        {
+          "line": 3,
+          "raw": "FLORA FAT SPREAD TUB 500G",
+          "qty": 2.0,
+          "unit_lkr": 1390,
+          "amount_lkr": 2780
+        },
+        {
+          "line": 4,
+          "raw": "KOTMALE YOGHURT MULTI PACK 6S 480G",
+          "qty": 1.0,
+          "unit_lkr": 400,
+          "amount_lkr": 400
+        },
+        {
+          "line": 5,
+          "raw": "BANANA - AMBUL",
+          "qty": 1.034,
+          "unit_lkr": 230,
+          "amount_lkr": 238
+        },
+        {
+          "line": 6,
+          "raw": "HAPPY HEN BROWN EGG LARGE 10S",
+          "qty": 2.0,
+          "unit_lkr": 630,
+          "amount_lkr": 1260
+        },
+        {
+          "line": 7,
+          "raw": "CHELLO DR/YOG SOURSOP+ ALOEVERA 180ML",
+          "qty": 1.0,
+          "unit_lkr": 170,
+          "amount_lkr": 170
+        },
+        {
+          "line": 8,
+          "raw": "KEELLS CHILI PASTE 325G",
+          "qty": 1.0,
+          "unit_lkr": 1105,
+          "amount_lkr": 1105
+        },
+        {
+          "line": 9,
+          "raw": "BROWN SUGAR BULK KG",
+          "qty": 1.04,
+          "unit_lkr": 275,
+          "amount_lkr": 286
+        },
+        {
+          "line": 10,
+          "raw": "KEELLS DISH WASH BAR 200G",
+          "qty": 2.0,
+          "unit_lkr": 121,
+          "amount_lkr": 242
+        },
+        {
+          "line": 11,
+          "raw": "SANTOOR SOAP SANDAL & TURMERIC 100G",
+          "qty": 1.0,
+          "unit_lkr": 175,
+          "amount_lkr": 175
+        },
+        {
+          "line": 12,
+          "raw": "FINAGLE CREAM BUN 60G 2S",
+          "qty": 2.0,
+          "unit_lkr": 180,
+          "amount_lkr": 360
+        },
+        {
+          "line": 13,
+          "raw": "CAPPUCCINO DOUGHNUT",
+          "qty": 1.0,
+          "unit_lkr": 200,
+          "amount_lkr": 200
+        },
+        {
+          "line": 14,
+          "raw": "CHOCOLATE DOUGHNUT",
+          "qty": 1.0,
+          "unit_lkr": 200,
+          "amount_lkr": 200
+        },
+        {
+          "line": 15,
+          "raw": "Large Polythene Bag",
+          "qty": 3.0,
+          "unit_lkr": 5,
+          "amount_lkr": 15
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Keells Deals",
+          "line": 11,
+          "rate_bps": 1540,
+          "amount_lkr": 27
+        },
+        {
+          "label": "Nexus Deals 30%",
+          "line": 3,
+          "rate_bps": 3000,
+          "amount_lkr": 834
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 11071,
+      "net_lkr": 10210
+    },
+    {
+      "date": "2026-10-17",
+      "chain": "keells",
+      "source": "receipt",
+      "lines": [
+        {
+          "line": 1,
+          "raw": "GRAPES - BLACK",
+          "qty": 0.232,
+          "unit_lkr": 3270,
+          "amount_lkr": 759
+        },
+        {
+          "line": 2,
+          "raw": "RED APPLE CHEERY",
+          "qty": 0.294,
+          "unit_lkr": 1790,
+          "amount_lkr": 526
+        },
+        {
+          "line": 3,
+          "raw": "CABBAGE",
+          "qty": 0.546,
+          "unit_lkr": 530,
+          "amount_lkr": 289
+        },
+        {
+          "line": 4,
+          "raw": "PRE-PACKED POTATOES",
+          "qty": 1.202,
+          "unit_lkr": 300,
+          "amount_lkr": 361
+        },
+        {
+          "line": 5,
+          "raw": "BIG ONIONS",
+          "qty": 0.936,
+          "unit_lkr": 380,
+          "amount_lkr": 356
+        },
+        {
+          "line": 6,
+          "raw": "LEEKS",
+          "qty": 0.314,
+          "unit_lkr": 170,
+          "amount_lkr": 53
+        },
+        {
+          "line": 7,
+          "raw": "CARROT",
+          "qty": 0.742,
+          "unit_lkr": 380,
+          "amount_lkr": 282
+        },
+        {
+          "line": 8,
+          "raw": "BEETROOT",
+          "qty": 0.596,
+          "unit_lkr": 390,
+          "amount_lkr": 232
+        },
+        {
+          "line": 9,
+          "raw": "SILVERMILL COCONUT MILK VALUE PACK 660ML",
+          "qty": 1.0,
+          "unit_lkr": 740,
+          "amount_lkr": 740
+        },
+        {
+          "line": 10,
+          "raw": "TOP CRUST BREAD 450G",
+          "qty": 2.0,
+          "unit_lkr": 159,
+          "amount_lkr": 318
+        },
+        {
+          "line": 11,
+          "raw": "KEELLS RED DHAL 1KG",
+          "qty": 1.0,
+          "unit_lkr": 285,
+          "amount_lkr": 285
+        },
+        {
+          "line": 12,
+          "raw": "MD JAM MANGO 300G",
+          "qty": 1.0,
+          "unit_lkr": 410,
+          "amount_lkr": 410
+        },
+        {
+          "line": 13,
+          "raw": "KOTMALE CHEESE BLOCK CHEDDAR 250G",
+          "qty": 1.0,
+          "unit_lkr": 1400,
+          "amount_lkr": 1400
+        },
+        {
+          "line": 14,
+          "raw": "FLORA FAT SPREAD TUB 500G",
+          "qty": 1.0,
+          "unit_lkr": 1390,
+          "amount_lkr": 1390
+        },
+        {
+          "line": 15,
+          "raw": "COCONUT",
+          "qty": 3.0,
+          "unit_lkr": 179,
+          "amount_lkr": 537
+        },
+        {
+          "line": 16,
+          "raw": "MUNCHEE CHOCOLATE CREAM BISCUIT 365G",
+          "qty": 1.0,
+          "unit_lkr": 440,
+          "amount_lkr": 440
+        },
+        {
+          "line": 17,
+          "raw": "PRIMA KOTTU MEE NOODLES CH&ON 5S 400G",
+          "qty": 1.0,
+          "unit_lkr": 700,
+          "amount_lkr": 700
+        },
+        {
+          "line": 18,
+          "raw": "RATTHI FULL CREAM MILK POWDER POU 400G",
+          "qty": 2.0,
+          "unit_lkr": 1300,
+          "amount_lkr": 2600
+        },
+        {
+          "line": 19,
+          "raw": "HAPPY HEN BROWN EGGS MEDIUM 10S",
+          "qty": 2.0,
+          "unit_lkr": 615,
+          "amount_lkr": 1230
+        }
+      ],
+      "promotions": [
+        {
+          "label": "Nexus 20% | fresh October W03",
+          "line": 8,
+          "rate_bps": 2000,
+          "amount_lkr": 47
+        },
+        {
+          "label": "Green Discount",
+          "line": 20,
+          "rate_bps": 0,
+          "amount_lkr": 12
+        },
+        {
+          "label": "Nexus Deals 30%",
+          "line": 14,
+          "rate_bps": 3000,
+          "amount_lkr": 417
+        }
+      ],
+      "card_offers": [],
+      "gross_lkr": 12908,
+      "net_lkr": 12432
+    }
+  ]
+}
