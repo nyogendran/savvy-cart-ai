@@ -1,0 +1,188 @@
+{
+  "note": "Demo shape. Not a live bank or store promotion.",
+  "card_offers": [
+    {
+      "id": "ntb_keells_fresh_weekend",
+      "bank": "Nations Trust Bank",
+      "product": "credit",
+      "store_id": "keells",
+      "days": [
+        "saturday",
+        "sunday"
+      ],
+      "rate_bps": 2500,
+      "min_bill_lkr": 3000,
+      "cap_lkr": 1000,
+      "include_categories": [
+        "fresh"
+      ],
+      "exclude_categories": [],
+      "valid_to": "2026-10-31",
+      "stackable": false,
+      "note": "Demo shape. Not a live bank or store promotion."
+    },
+    {
+      "id": "combank_keells_fresh_saturday",
+      "bank": "Commercial Bank",
+      "product": "credit",
+      "store_id": "keells",
+      "days": [
+        "saturday"
+      ],
+      "rate_bps": 2000,
+      "min_bill_lkr": 4000,
+      "cap_lkr": 1250,
+      "include_categories": [
+        "fresh"
+      ],
+      "exclude_categories": [
+        "staple"
+      ],
+      "valid_to": "2026-10-31",
+      "stackable": false,
+      "note": "Demo shape. Not a live bank or store promotion."
+    },
+    {
+      "id": "hnb_cargills_weekend",
+      "bank": "HNB",
+      "product": "credit",
+      "store_id": "cargills",
+      "days": [
+        "friday",
+        "saturday",
+        "sunday"
+      ],
+      "rate_bps": 1500,
+      "min_bill_lkr": 5000,
+      "cap_lkr": 1500,
+      "include_categories": [
+        "staple",
+        "fresh"
+      ],
+      "exclude_categories": [
+        "household"
+      ],
+      "valid_to": "2026-10-31",
+      "stackable": false,
+      "note": "Demo shape. Not a live bank or store promotion."
+    },
+    {
+      "id": "combank_cargills_wednesday",
+      "bank": "Commercial Bank",
+      "product": "credit",
+      "store_id": "cargills",
+      "days": [
+        "wednesday"
+      ],
+      "rate_bps": 2000,
+      "min_bill_lkr": 3000,
+      "cap_lkr": 1000,
+      "include_categories": [
+        "fresh"
+      ],
+      "exclude_categories": [],
+      "valid_to": "2026-10-31",
+      "stackable": false,
+      "note": "Demo shape. Not a live bank or store promotion."
+    },
+    {
+      "id": "ntb_glomark_thursday",
+      "bank": "Nations Trust Bank",
+      "product": "credit",
+      "store_id": "glomark",
+      "days": [
+        "thursday"
+      ],
+      "rate_bps": 2500,
+      "min_bill_lkr": 5000,
+      "cap_lkr": 2000,
+      "include_categories": [
+        "fresh",
+        "staple"
+      ],
+      "exclude_categories": [],
+      "valid_to": "2026-10-31",
+      "stackable": false,
+      "note": "Demo shape. Not a live bank or store promotion."
+    },
+    {
+      "id": "hnb_spar_sunday",
+      "bank": "HNB",
+      "product": "credit",
+      "store_id": "spar",
+      "days": [
+        "sunday"
+      ],
+      "rate_bps": 1500,
+      "min_bill_lkr": 4000,
+      "cap_lkr": 1000,
+      "include_categories": [
+        "fresh"
+      ],
+      "exclude_categories": [],
+      "valid_to": "2026-10-31",
+      "stackable": false,
+      "note": "Demo shape. Not a live bank or store promotion."
+    }
+  ],
+  "store_promotions": [
+    {
+      "id": "keells_fresh_loyalty",
+      "store_id": "keells",
+      "category": "fresh",
+      "rate_bps": 2000,
+      "days": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
+      ],
+      "valid_to": "2026-10-31",
+      "note": "Demo shape. Not a live bank or store promotion."
+    },
+    {
+      "id": "keells_spread_30",
+      "store_id": "keells",
+      "sku_id": "flora_500g",
+      "rate_bps": 3000,
+      "days": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
+      ],
+      "valid_to": "2026-10-31",
+      "note": "Demo shape. Not a live bank or store promotion."
+    },
+    {
+      "id": "cargills_milk_powder_10",
+      "store_id": "cargills",
+      "sku_id": "milk_powder_400g",
+      "rate_bps": 1000,
+      "days": [
+        "friday",
+        "saturday",
+        "sunday"
+      ],
+      "valid_to": "2026-10-31",
+      "note": "Demo shape. Not a live bank or store promotion."
+    },
+    {
+      "id": "glomark_vegetable_wednesday",
+      "store_id": "glomark",
+      "category": "fresh",
+      "rate_bps": 1500,
+      "days": [
+        "wednesday"
+      ],
+      "valid_to": "2026-10-31",
+      "note": "Demo shape. Not a live bank or store promotion."
+    }
+  ]
+}

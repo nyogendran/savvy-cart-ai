@@ -1,0 +1,487 @@
+{
+  "data_label": "Keells prices observed on the shopper's receipts; Cargills, SPAR and Glomark prices are fictional.",
+  "stores": [
+    "keells",
+    "cargills",
+    "spar",
+    "glomark"
+  ],
+  "skus": [
+    {
+      "id": "banana_ambul",
+      "name": "Banana ambul",
+      "category": "fresh",
+      "unit": "kg",
+      "prices": {
+        "keells": {
+          "amount_lkr": 230,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 216,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 244,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 239,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "banana_seeni",
+      "name": "Banana seeni",
+      "category": "fresh",
+      "unit": "kg",
+      "prices": {
+        "keells": {
+          "amount_lkr": 250,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 258,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 270,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 268,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "big_onions",
+      "name": "Big onions",
+      "category": "fresh",
+      "unit": "kg",
+      "prices": {
+        "keells": {
+          "amount_lkr": 380,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 369,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 395,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 388,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "tomatoes",
+      "name": "Tomatoes",
+      "category": "fresh",
+      "unit": "kg",
+      "prices": {
+        "keells": {
+          "amount_lkr": 650,
+          "source": "receipt",
+          "observed_on": "2026-09-20"
+        },
+        "cargills": {
+          "amount_lkr": 682,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 663,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 624,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "carrot",
+      "name": "Carrot",
+      "category": "fresh",
+      "unit": "kg",
+      "prices": {
+        "keells": {
+          "amount_lkr": 380,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 365,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 407,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 399,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "papaya",
+      "name": "Papaya",
+      "category": "fresh",
+      "unit": "kg",
+      "prices": {
+        "keells": {
+          "amount_lkr": 80,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 74,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 84,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 82,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "coconut",
+      "name": "Coconut",
+      "category": "fresh",
+      "unit": "each",
+      "prices": {
+        "keells": {
+          "amount_lkr": 179,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 170,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 184,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 186,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "bread_450g",
+      "name": "Sandwich bread 450 g",
+      "category": "staple",
+      "unit": "each",
+      "prices": {
+        "keells": {
+          "amount_lkr": 159,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 162,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 157,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 172,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "tea_bun",
+      "name": "Tea bun, 2 pack",
+      "category": "staple",
+      "unit": "each",
+      "prices": {
+        "keells": {
+          "amount_lkr": 190,
+          "source": "receipt",
+          "observed_on": "2026-09-27"
+        },
+        "cargills": {
+          "amount_lkr": 184,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 198,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 201,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "uht_milk_1l",
+      "name": "Full cream UHT milk 1 L",
+      "category": "staple",
+      "unit": "each",
+      "prices": {
+        "keells": {
+          "amount_lkr": 580,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 568,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 609,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 597,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "milk_powder_400g",
+      "name": "Full cream milk powder 400 g",
+      "category": "staple",
+      "unit": "each",
+      "prices": {
+        "keells": {
+          "amount_lkr": 1300,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 1235,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 1326,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 1378,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "yoghurt_6s",
+      "name": "Yoghurt multipack 6 x 80 g",
+      "category": "staple",
+      "unit": "each",
+      "prices": {
+        "keells": {
+          "amount_lkr": 400,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 416,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 392,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 392,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "eggs_10",
+      "name": "Brown eggs, 10 pack",
+      "category": "staple",
+      "unit": "each",
+      "prices": {
+        "keells": {
+          "amount_lkr": 615,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 609,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 652,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 646,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "red_dhal_1kg",
+      "name": "Red dhal 1 kg",
+      "category": "staple",
+      "unit": "each",
+      "prices": {
+        "keells": {
+          "amount_lkr": 285,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 302,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 294,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 291,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "flora_500g",
+      "name": "Fat spread tub 500 g",
+      "category": "staple",
+      "unit": "each",
+      "prices": {
+        "keells": {
+          "amount_lkr": 1390,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 1432,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 1348,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 1320,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "cheese_250g",
+      "name": "Cheddar cheese block 250 g",
+      "category": "staple",
+      "unit": "each",
+      "prices": {
+        "keells": {
+          "amount_lkr": 1400,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 1344,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 1428,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 1316,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    },
+    {
+      "id": "dish_wash_bar",
+      "name": "Dish wash bar 200 g",
+      "category": "household",
+      "unit": "each",
+      "prices": {
+        "keells": {
+          "amount_lkr": 121,
+          "source": "receipt",
+          "observed_on": "2026-10-17"
+        },
+        "cargills": {
+          "amount_lkr": 122,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "spar": {
+          "amount_lkr": 127,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        },
+        "glomark": {
+          "amount_lkr": 126,
+          "source": "fictional",
+          "observed_on": "2026-10-17"
+        }
+      }
+    }
+  ]
+}
