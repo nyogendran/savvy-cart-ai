@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import time
 import uuid
 from functools import lru_cache
@@ -110,10 +111,21 @@ def _load_offers() -> list[dict[str, Any]]:
     return json.loads((FIXTURES / "offers.json").read_text(encoding="utf-8"))["offers"]
 
 
+def _default_model_client() -> ModelClient:
+    model = os.environ.get("GEMINI_MODEL", "")
+    has_key = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
+    if model and (has_key or vertex):
+        from savvycart.gemini import GeminiModelClient
+
+        return GeminiModelClient(model)
+    return NullModelClient()
+
+
 def get_model_client(request: Request) -> ModelClient:
     client = getattr(request.app.state, "model_client", None)
     if client is None:
-        client = NullModelClient()
+        client = _default_model_client()
         request.app.state.model_client = client
     return client
 

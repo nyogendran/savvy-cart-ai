@@ -1,0 +1,31 @@
+{
+  "image": "samples/receipts/keells-2026-10-17-redacted.jpg",
+  "store_id": "keells",
+  "observed_on": "2026-10-17",
+  "source": "shelf_note",
+  "note": "Real receipt, transcribed by a human. Shopper name and loyalty points redacted. Observed prices are not loaded into the catalog. Amounts are integer LKR cents.",
+  "lines": [
+    { "ln": 1, "raw": "HIGHLAND FULL CREAM UHT MILK PKT 900ML", "qty": 3.0, "unit_cents": 44000, "amount_cents": 132000, "expected_sku_id": null },
+    { "ln": 2, "raw": "KOTMALE FULL CREAM UHT MILK TETRA 1L", "qty": 4.0, "unit_cents": 58000, "amount_cents": 232000, "expected_sku_id": null },
+    { "ln": 3, "raw": "FLORA FAT SPREAD TUB 500G", "qty": 2.0, "unit_cents": 139000, "amount_cents": 278000, "expected_sku_id": null },
+    { "ln": 4, "raw": "KOTMALE YOGHURT MULTI PACK 6S 480G", "qty": 1.0, "unit_cents": 40000, "amount_cents": 40000, "expected_sku_id": "yogurt" },
+    { "ln": 5, "raw": "BANANA - AMBUL", "qty": 1.034, "unit_cents": 23000, "amount_cents": 23782, "expected_sku_id": "fruit" },
+    { "ln": 6, "raw": "HAPPY HEN BROWN EGG LARGE 10S", "qty": 2.0, "unit_cents": 63000, "amount_cents": 126000, "expected_sku_id": "eggs_10" },
+    { "ln": 7, "raw": "CHELLO DR/YOG SOURSOP+ ALOEVERA 180ML", "qty": 1.0, "unit_cents": 17000, "amount_cents": 17000, "expected_sku_id": null },
+    { "ln": 8, "raw": "KEELLS CHILI PASTE 325G", "qty": 1.0, "unit_cents": 110500, "amount_cents": 110500, "expected_sku_id": null },
+    { "ln": 9, "raw": "BROWN SUGAR BULK KG", "qty": 1.04, "unit_cents": 27500, "amount_cents": 28600, "expected_sku_id": null },
+    { "ln": 10, "raw": "KEELLS DISH WASH BAR 200G", "qty": 2.0, "unit_cents": 12100, "amount_cents": 24200, "expected_sku_id": null },
+    { "ln": 11, "raw": "SANTOOR SOAP SANDAL & TURMERIC 100G", "qty": 1.0, "unit_cents": 17500, "amount_cents": 17500, "expected_sku_id": null },
+    { "ln": 12, "raw": "FINAGLE CREAM BUN 60G 2S", "qty": 2.0, "unit_cents": 18000, "amount_cents": 36000, "expected_sku_id": null },
+    { "ln": 13, "raw": "CAPPUCCINO DOUGHNUT", "qty": 1.0, "unit_cents": 20000, "amount_cents": 20000, "expected_sku_id": null },
+    { "ln": 14, "raw": "CHOCOLATE DOUGHNUT", "qty": 1.0, "unit_cents": 20000, "amount_cents": 20000, "expected_sku_id": null },
+    { "ln": 15, "raw": "Large Polythene Bag", "qty": 3.0, "unit_cents": 500, "amount_cents": 1500, "expected_sku_id": null }
+  ],
+  "gross_cents": 1107082,
+  "promotion_cents": 86100,
+  "net_cents": 1020982,
+  "promotions": [
+    { "label": "Keells Deals", "applies_to_ln": 11, "percent": "15.40", "amount_cents": 2700 },
+    { "label": "Nexus Deals 30%", "applies_to_ln": 3, "percent": "30.00", "amount_cents": 83400 }
+  ]
+}

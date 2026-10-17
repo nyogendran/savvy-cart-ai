@@ -37,3 +37,6 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+
+# Real receipt photos carry personal data; commit only redacted copies under samples/
+fixtures/receipt_20261017_01.jpeg
