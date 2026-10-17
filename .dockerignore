@@ -1,0 +1,25 @@
+.env
+.env.*
+.adlc
+.git
+.cursor
+tests
+samples
+specs
+docs
+scripts
+**/__pycache__
+**/*.egg-info
+.pytest_cache
+
+# Real receipt photos never enter the image
+fixtures/*.jpg
+fixtures/*.jpeg
+fixtures/*.heic
+
+# Service-account and other JSON key files
+**/*service-account*.json
+**/*credentials*.json
+**/*-key.json
+**/*_key.json
+**/key.json
