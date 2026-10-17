@@ -342,6 +342,34 @@ async def _internal_post(request: Request, path: str, **kwargs: Any) -> httpx.Re
         return await client.post(path, **kwargs)
 
 
+def _clean_receipt_lines(value: Any) -> list[dict[str, Any]]:
+    """Keep only well-formed receipt rows; the hidden form field is untrusted."""
+    if not isinstance(value, list):
+        return []
+    known = set(_sku_names())
+    cleaned: list[dict[str, Any]] = []
+    for line in value:
+        if not isinstance(line, dict):
+            continue
+        sku_id = line.get("sku_id")
+        try:
+            qty = int(float(line.get("qty", 1)))
+            confidence = min(1.0, max(0.0, float(line.get("confidence", 0))))
+        except (TypeError, ValueError):
+            continue
+        if qty < 1:
+            continue
+        cleaned.append(
+            {
+                "raw": str(line.get("raw", "")),
+                "sku_id": sku_id if isinstance(sku_id, str) and sku_id in known else None,
+                "qty": qty,
+                "confidence": confidence,
+            }
+        )
+    return cleaned
+
+
 def _checked_receipt_ids(lines: list[dict[str, Any]]) -> list[str]:
     return [
         line["sku_id"]
@@ -663,7 +691,7 @@ async def guest_action(request: Request) -> str:
     action = get("action", "plan")
     staples_checked = set(form.get("staple", []))
     try:
-        receipt_lines = json.loads(get("receipt_json", "[]"))
+        receipt_lines = _clean_receipt_lines(json.loads(get("receipt_json", "[]")))
     except json.JSONDecodeError:
         receipt_lines = []
     receipt_label = get("receipt_label", "") or None
@@ -686,7 +714,7 @@ async def guest_action(request: Request) -> str:
             headers={"content-type": "image/png"},
         )
         if extracted.status_code == 200:
-            receipt_lines, receipt_label = extracted.json()["lines"], LIVE_LABEL
+            receipt_lines, receipt_label = _clean_receipt_lines(extracted.json().get("lines")), LIVE_LABEL
         else:
             receipt_lines, receipt_label = sample_lines, SAMPLE_LABEL
             message = "The live extract failed. The sample lines stay."

@@ -146,6 +146,64 @@ def test_options_compare_need_and_minimum():
         assert "Swap applied" in kept
 
 
+class FakeExtractClient(FakeModelClient):
+    def __init__(self, lines: list[dict[str, Any]]) -> None:
+        super().__init__()
+        self.lines = lines
+
+    def extract(self, image_bytes: bytes, schema: dict[str, Any]) -> dict[str, Any]:
+        self.calls += 1
+        return {"lines": self.lines}
+
+
+def test_extract_failure_keeps_sample_lines():
+    app.state.model_client = None
+    app.state.extract_rate_limiter = None
+    try:
+        with TestClient(app) as http:
+            page = _post_ui(http, [("action", "extract"), ("weekday", "saturday")])
+    finally:
+        app.state.model_client = None
+        app.state.extract_rate_limiter = None
+    assert "The live extract failed. The sample lines stay." in page
+    assert "fixture lines for the sample path" in page
+    assert re.search(r'name="line" value="chicken_1kg" checked', page)
+
+
+def test_low_confidence_lines_start_unchecked():
+    client = FakeExtractClient(
+        [
+            {"raw": "RICE 5KG", "sku_id": "rice_5kg", "qty": 1, "confidence": 0.9},
+            {"raw": "CHICKEN 1KG", "sku_id": "chicken_1kg", "qty": 1, "confidence": 0.4},
+        ]
+    )
+    app.state.model_client = client
+    app.state.extract_rate_limiter = None
+    try:
+        with TestClient(app) as http:
+            page = _post_ui(http, [("action", "extract"), ("weekday", "saturday")])
+    finally:
+        app.state.model_client = None
+        app.state.extract_rate_limiter = None
+    assert client.calls == 1
+    assert "Showing live extract." in page
+    assert re.search(r'name="line" value="rice_5kg" checked', page)
+    assert re.search(r'name="line" value="chicken_1kg">', page)
+
+
+def test_malformed_form_state_is_dropped_not_500():
+    with TestClient(app) as http:
+        for receipt_json in (
+            '{"not": "a list"}',
+            '[{"raw": "x", "sku_id": "rice_5kg", "qty": "abc", "confidence": 0.9}]',
+            '[{"sku_id": "rice_5kg", "qty": 1}]',
+            '[{"raw": "<b>x</b>", "sku_id": "made_up_sku", "qty": 1, "confidence": 0.9}]',
+            "not json",
+        ):
+            page = _post_ui(http, [("action", "plan"), ("receipt_json", receipt_json), ("staple", "rice_5kg")])
+            assert "<b>x</b>" not in page
+
+
 def test_refused_basket_and_mock_approve():
     with TestClient(app) as http:
         refused = _post_ui(http, [("action", "refused"), ("weekday", "saturday")])
