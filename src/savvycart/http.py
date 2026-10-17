@@ -163,6 +163,19 @@ def get_rate_limiter(request: Request) -> ExtractRateLimiter:
     return limiter
 
 
+MODEL_EXPLANATIONS_PER_MINUTE = 20
+
+
+def model_rate_limiter(app_: FastAPI) -> ExtractRateLimiter:
+    """Process-wide cap on Gemini explanation runs, so a public URL cannot run up model cost."""
+    limiter = getattr(app_.state, "model_rate_limiter", None)
+    if limiter is None:
+        clock = getattr(app_.state, "clock", None) or time.time
+        limiter = ExtractRateLimiter(clock=clock, limit=MODEL_EXPLANATIONS_PER_MINUTE)
+        app_.state.model_rate_limiter = limiter
+    return limiter
+
+
 def _plan_summary(plan: dict[str, Any] | None) -> dict[str, Any] | None:
     if plan is None:
         return None
@@ -310,6 +323,7 @@ async def create_receipt(
 @app.post("/v1/explain")
 def explain(
     body: ExplainRequest,
+    request: Request,
     model_client: ModelClient = Depends(get_model_client),
 ) -> dict[str, Any]:
     _ = body.discount  # never trusted — optimizer is the source of truth
@@ -325,6 +339,8 @@ def explain(
     assert summary is not None
     source = "model"
     try:
+        if not model_rate_limiter(request.app).allow():
+            raise ModelResponseError("explanation rate limit reached")
         explained = explain_plan(summary, model_client=model_client)
     except (ModelNotConfigured, ModelResponseError):
         source = "engine"
@@ -365,6 +381,8 @@ SAMPLE_RECEIPT_V2 = ROOT / "samples" / "receipts" / "keells-2026-10-17.expected.
 SAMPLE_PHOTO_V2 = ROOT / "samples" / "receipts" / "keells-2026-10-17-redacted.jpg"
 STATUS_TEXT = {"due": "Due", "soon": "Soon", "ok": "OK", "unknown": "Not enough history", "stale": "Not bought for a while"}
 AGENT_TIMEOUT_SECONDS = 60
+# explain_plan_numbers only echoes numbers from a plan the model supplies, so it cannot widen the filter.
+GROUNDING_TOOLS = ("get_pantry", "load_catalog", "load_offers", "plan_day")
 AGENT_QUESTION_V2 = (
     "Explain to the shopper, in a few short sentences, why this is the cheapest way to buy these groceries: "
     "which store and card for which items, and what they save against their usual store. "
@@ -415,6 +433,15 @@ def _canonical_raw(raw: str) -> str | None:
     return close[0] if close else None
 
 
+def _form_date(value: Any) -> _date | None:
+    """An ISO date from untrusted form state, kept far from the calendar limits the pantry arithmetic would overflow."""
+    try:
+        day = _date.fromisoformat(str(value))
+    except ValueError:
+        return None
+    return day if _date(2000, 1, 1) <= day <= _date(2100, 12, 31) else None
+
+
 def _clean_added(value: Any) -> list[dict[str, Any]]:
     """Purchases added this session from receipts; the hidden field is untrusted."""
     if not isinstance(value, list):
@@ -424,12 +451,12 @@ def _clean_added(value: Any) -> list[dict[str, Any]]:
         if not isinstance(row, dict):
             continue
         raw = _canonical_raw(row.get("raw", ""))
+        day = _form_date(row.get("date", ""))
         try:
             qty = float(row.get("qty", 1))
-            day = _date.fromisoformat(str(row.get("date", "")))
         except (TypeError, ValueError):
             continue
-        if raw and 0 < qty <= MAX_QTY:
+        if raw and day and 0 < qty <= MAX_QTY:
             cleaned.append({"raw": raw, "qty": qty, "date": day.isoformat()})
     return cleaned
 
@@ -475,14 +502,11 @@ def _parse_state(form: dict[str, list[str]]) -> dict[str, Any]:
     def bounded_int(key: str, default: str, low: int, high: int) -> int:
         try:
             value = int(float(get(key, default)))
-        except ValueError:
+        except (OverflowError, ValueError):
             value = int(default)
         return min(max(value, low), high)
 
-    try:
-        today = _date.fromisoformat(get("today", V2_DEFAULTS["today"]))
-    except ValueError:
-        today = _date.fromisoformat(V2_DEFAULTS["today"])
+    today = _form_date(get("today", V2_DEFAULTS["today"])) or _date.fromisoformat(V2_DEFAULTS["today"])
     banks_known = [bank for bank, _ in WALLET_CARDS]
     if "wallet_set" in form:
         banks = [b for b in banks_known if b in form.get("bank", [])]
@@ -786,6 +810,8 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
     fallback = {"text": _engine_summary(plan), "calls": [], "replans": []}
     if runner is None:
         return {**fallback, "source": "Model not configured: engine explanation."}
+    if not model_rate_limiter(request.app).allow():
+        return {**fallback, "source": "Too many explanations this minute. Showing the engine explanation."}
     context = {"confirmed": confirmed, "engine_plan": plan}
     try:
         answer = await asyncio.wait_for(runner(AGENT_QUESTION_V2, context), timeout=AGENT_TIMEOUT_SECONDS)
@@ -795,7 +821,11 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
     calls = [c for c in answer.get("calls", []) if isinstance(c, dict)]
     allowed = numbers_in_plan(context)
     for result in answer.get("results", []):
-        allowed |= numbers_in_plan(result if isinstance(result, (dict, list)) else {"value": result})
+        if not isinstance(result, dict):
+            continue
+        response = result.get("response")
+        if result.get("name") in GROUNDING_TOOLS and isinstance(response, dict) and "error" not in response:
+            allowed |= numbers_in_plan(response)
     text = drop_unallowed_number_tokens(_normalize_numbers(str(answer.get("text", ""))), allowed)
     saving = str(plan.get("saving_vs_usual_lkr", 0))
     if saving not in text:
@@ -810,10 +840,17 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
             "source": "Answer from the ADK agent (Gemini). Numbers are checked against the engine plan and the agent's own tool results."}
 
 
+def _call_args(args: Any, limit: int = 2000) -> str:
+    text = json.dumps(args or {}, sort_keys=True)
+    return text if len(text) <= limit else f"{text[:limit]} … ({len(text) - limit} more characters not shown)"
+
+
 def _render_why(explanation: dict[str, Any]) -> str:
     calls = "".join(
-        f'<li><code>{_e(c.get("name"))}({_e(json.dumps(c.get("args") or {}, sort_keys=True)[:300])})</code></li>' for c in explanation["calls"]
+        f'<li><code>{_e(c.get("name"))}({_e(_call_args(c.get("args")))})</code></li>' for c in explanation["calls"][:20]
     ) or "<li>No tool calls.</li>"
+    if len(explanation["calls"]) > 20:
+        calls += f'<li>{len(explanation["calls"]) - 20} more tool calls not shown.</li>'
     if explanation["replans"]:
         replan = "".join(f'<p class="notice">The agent re-planned with different inputs: {_e("; ".join(d))}. Its comparison is not the plan above.</p>'
                          for d in explanation["replans"])
@@ -871,7 +908,7 @@ def guest_page() -> str:
 
 @app.post("/ui", response_class=HTMLResponse)
 async def guest_action(request: Request) -> str:
-    form = parse_qs((await request.body()).decode("utf-8"), keep_blank_values=True)
+    form = parse_qs((await request.body()).decode("utf-8", errors="replace"), keep_blank_values=True)
     state = _parse_state(form)
     action = form.get("action", ["pantry"])[0]
     message: str | None = None

@@ -46,7 +46,11 @@ def history() -> list[dict[str, Any]]:
 
 def get_pantry(today: str) -> dict[str, Any]:
     """Return when each regular item runs low as of an ISO date, with the dates behind each estimate."""
-    return {"today": today, "items": pantry(history(), load_catalog(), _json(V2 / "history-map.json"), date.fromisoformat(today))}
+    try:
+        day = date.fromisoformat(today)
+    except (TypeError, ValueError):
+        return {"error": "today must be an ISO date such as 2026-10-22"}
+    return {"today": today, "items": pantry(history(), load_catalog(), _json(V2 / "history-map.json"), day)}
 
 
 def plan_day(
@@ -83,7 +87,7 @@ root_agent = build_agent(os.environ.get("GEMINI_MODEL", ""))
 
 
 async def ask_agent(question: str, context: dict[str, Any], agent: Agent | None = None) -> dict[str, Any]:
-    """Run one agent turn; return its text, the tools it called with arguments, and their results."""
+    """Run one agent turn; return its text, the tools it called with arguments, and each result named by its tool."""
     from google.adk.runners import InMemoryRunner
     from google.genai import types
 
@@ -99,7 +103,7 @@ async def ask_agent(question: str, context: dict[str, Any], agent: Agent | None 
         new_message=types.Content(role="user", parts=[types.Part(text=prompt)]),
     ):
         calls.extend({"name": call.name, "args": dict(call.args or {})} for call in event.get_function_calls())
-        results.extend(response.response for response in event.get_function_responses())
+        results.extend({"name": response.name, "response": response.response} for response in event.get_function_responses())
         if event.is_final_response() and event.content and event.content.parts:
             text = "".join(part.text or "" for part in event.content.parts)
     return {"text": text, "tools": [c["name"] for c in calls], "calls": calls, "results": results}

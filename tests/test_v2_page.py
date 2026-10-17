@@ -21,6 +21,7 @@ from google.genai import types
 from savvycart.agent import ask_agent, build_agent
 from savvycart.http import V2_BANNER, app
 from savvycart.planner import plan_day
+from savvycart.receipts import ExtractRateLimiter
 
 ROOT = Path(__file__).resolve().parents[1]
 V2 = ROOT / "fixtures" / "v2"
@@ -119,7 +120,7 @@ def test_plan_step_shows_store_bills_and_savings():
         calls_seen.append(context)
         return {"text": "Glomark with Nations Trust Bank credit is cheapest.", "tools": ["load_offers", "plan_day"],
                 "calls": [{"name": "load_offers", "args": {}}, {"name": "plan_day", "args": context["confirmed"]}],
-                "results": [{}, context["engine_plan"]]}
+                "results": [{"name": "load_offers", "response": {}}, {"name": "plan_day", "response": context["engine_plan"]}]}
 
     app.state.agent_runner = fake_runner
     try:
@@ -144,6 +145,7 @@ def test_plan_step_shows_store_bills_and_savings():
     assert "status OPTIMAL" in page
     tools = re.search(r'<ul class="tools" id="agent-tools">(.*?)</ul>', page, re.S).group(1)
     assert "load_offers(" in tools and "plan_day(" in tools
+    assert html.escape(json.dumps(confirmed, sort_keys=True), quote=True) in tools  # full arguments, not cut
     assert "The agent did not change your inputs." in page
 
 
@@ -151,10 +153,14 @@ def test_agent_replan_is_disclosed_and_numbers_are_grounded():
     async def replanning_runner(question, context):
         other = dict(context["confirmed"], day="2026-10-23")
         return {
-            "text": "On Friday it would cost 4,999 LKR. Thursday saves you more. You save 99999 LKR on everything!",
-            "tools": ["plan_day"],
-            "calls": [{"name": "plan_day", "args": other}],
-            "results": [{"effective_cost_lkr": 4999}],
+            "text": ("On Friday it would cost 4,999 LKR. Thursday saves you more. You save 99999 LKR on everything! "
+                     "Glomark saves you 98765 LKR. Five stores would cost 31337 LKR."),
+            "tools": ["plan_day", "explain_plan_numbers", "plan_day"],
+            "calls": [{"name": "plan_day", "args": other}, {"name": "explain_plan_numbers", "args": {"plan": {"saving": 98765}}},
+                      {"name": "plan_day", "args": dict(other, max_stores=5)}],
+            "results": [{"name": "plan_day", "response": {"effective_cost_lkr": 4999}},
+                        {"name": "explain_plan_numbers", "response": {"allowed_numbers": ["98765"]}},
+                        {"name": "plan_day", "response": {"error": "31337 is not a valid max_stores"}}],
         }
 
     app.state.agent_runner = replanning_runner
@@ -165,6 +171,8 @@ def test_agent_replan_is_disclosed_and_numbers_are_grounded():
         app.state.agent_runner = None
     text = re.search(r'<p id="explanation-text">(.*?)</p>', page, re.S).group(1)
     assert "4999" in text and "99999" not in text
+    # Echoed or error tool output never grounds a number.
+    assert "98765" not in text and "31337" not in text
     assert "The agent re-planned with different inputs: day 2026-10-23 instead of 2026-10-22" in page
     assert "Its comparison is not the plan above." in page
 
@@ -188,6 +196,40 @@ def test_engine_explanation_without_model_and_logged_fallback(caplog):
         app.state.agent_runner = None
     assert "The agent call failed. Showing the engine explanation." in failed
     assert any("agent call failed: PermissionError" in r.getMessage() for r in caplog.records)
+
+
+def test_model_explanations_are_rate_limited():
+    runs = []
+
+    async def counting(question, context):
+        runs.append(1)
+        return {"text": "ok", "tools": [], "calls": [], "results": []}
+
+    class CountingClient:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def explain(self, plan_json, instruction):
+            self.calls += 1
+            return "ok"
+
+    client = CountingClient()
+    capped = json.loads((ROOT / "fixtures/baskets/capped.json").read_text(encoding="utf-8"))
+    v1_body = {"line_ids": capped["lines"], "day": {"weekday": "saturday", "date": "2026-10-17"},
+               "card_product_id": "commercial_bank_credit", "usual_store": "keells", "store_id": "keells"}
+    app.state.agent_runner, app.state.model_client = counting, client
+    app.state.model_rate_limiter = ExtractRateLimiter(clock=lambda: 0.0, limit=1)
+    try:
+        with TestClient(app) as http:
+            fields = _defaults(http.get("/").text)
+            first, second = _post(http, "explain", fields), _post(http, "explain", fields)
+            app.state.model_rate_limiter = ExtractRateLimiter(clock=lambda: 0.0, limit=1)
+            v1 = [http.post("/v1/explain", json=v1_body).json()["source"] for _ in range(2)]
+    finally:
+        app.state.agent_runner = app.state.model_client = app.state.model_rate_limiter = None
+    assert "Too many explanations" not in first and len(runs) == 1
+    assert "Too many explanations this minute. Showing the engine explanation." in second
+    assert v1 == ["model", "engine"] and client.calls == 1
 
 
 def test_injection_text_never_reaches_the_agent():
@@ -229,9 +271,11 @@ def test_malformed_form_state_is_safe():
     with TestClient(app) as http:
         for fields in ([("receipt_json", "not json")], [("receipt_json", '{"x": 1}')], [("today", "yesterday")],
                        [("trip_cost", "-50"), ("qty_bread_450g", "-3"), ("sku", "bread_450g"), ("pantry_set", "1"), ("wallet_set", "1")],
-                       [("bank", "<script>")]):
+                       [("bank", "<script>")], [("trip_cost", "inf"), ("budget", "1e400")], [("today", "9999-12-30")],
+                       [("receipt_json", '[{"raw": "BANANA - AMBUL", "qty": 1, "date": "9999-12-31"}]')]):
             page = _post(http, "plan", fields)
             assert "<script>" not in page
+        assert http.post("/ui", content=b"action=plan&today=\xff\xfe", headers=FORM).status_code == 200
 
 
 class ScriptedLlm(BaseLlm):
@@ -256,6 +300,7 @@ def test_ask_agent_runs_the_adk_tool_loop_with_v2_tools():
     assert result["tools"] == ["get_pantry", "plan_day"]
     assert result["calls"][1]["args"]["day"] == TODAY
     pantry_result, plan_result = result["results"]
-    assert pantry_result["today"] == TODAY and pantry_result["items"]
-    assert plan_result["solver_status"] == "OPTIMAL"
+    assert [pantry_result["name"], plan_result["name"]] == ["get_pantry", "plan_day"]
+    assert pantry_result["response"]["today"] == TODAY and pantry_result["response"]["items"]
+    assert plan_result["response"]["solver_status"] == "OPTIMAL"
     assert result["text"] == "Glomark is cheapest this Thursday."

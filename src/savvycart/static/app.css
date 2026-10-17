@@ -110,5 +110,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .ok-note { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 10px 12px; border-radius: 6px; margin: 10px 0; }
 .mock { border: 2px dashed var(--warn); border-radius: var(--radius); padding: 14px; background: var(--warn-soft); }
 .tools { font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; background: #f1f1ed; border-radius: 6px; padding: 10px; overflow-x: auto; }
+.tools code { overflow-wrap: anywhere; }
 details summary { cursor: pointer; color: var(--accent); font-weight: 600; }
 footer.site { color: var(--muted); font-size: 0.85rem; padding: 24px 0; }
