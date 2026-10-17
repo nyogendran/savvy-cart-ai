@@ -18,7 +18,8 @@ from google.adk.models.llm_request import LlmRequest
 from google.adk.models.llm_response import LlmResponse
 from google.genai import types
 
-from savvycart.agent import ask_agent, build_agent
+from savvycart.agent import ask_agent, build_agent, get_pantry
+from savvycart.agent import plan_day as agent_plan_day
 from savvycart.http import V2_BANNER, app
 from savvycart.planner import plan_day
 from savvycart.receipts import ExtractRateLimiter
@@ -158,7 +159,7 @@ def test_agent_replan_is_disclosed_and_numbers_are_grounded():
             "tools": ["plan_day", "explain_plan_numbers", "plan_day"],
             "calls": [{"name": "plan_day", "args": other}, {"name": "explain_plan_numbers", "args": {"plan": {"saving": 98765}}},
                       {"name": "plan_day", "args": dict(other, max_stores=5)}],
-            "results": [{"name": "plan_day", "response": {"effective_cost_lkr": 4999}},
+            "results": [{"name": "plan_day", "response": {"day": {"date": "2026-10-23", "weekday": "friday"}, "effective_cost_lkr": 4999}},
                         {"name": "explain_plan_numbers", "response": {"allowed_numbers": ["98765"]}},
                         {"name": "plan_day", "response": {"error": "31337 is not a valid max_stores"}}],
         }
@@ -175,6 +176,71 @@ def test_agent_replan_is_disclosed_and_numbers_are_grounded():
     assert "98765" not in text and "31337" not in text
     assert "The agent re-planned with different inputs: day 2026-10-23 instead of 2026-10-22" in page
     assert "Its comparison is not the plan above." in page
+
+
+def test_echoed_tool_arguments_never_ground_a_number():
+    echoing_plan = {"day": {"date": "2026-10-23", "weekday": "friday"}, "trip_cost_lkr": 4321, "max_stores": 2,
+                    "unpriced": ["unknown_98765"], "baseline_usual": {"store_id": "keells", "total_lkr": 5940, "missing": ["sku_11111"]},
+                    "stores": [{"store_id": "glomark", "lines": [{"sku_id": "banana_ambul", "qty": 1.98765, "shelf_lkr": 247}]}],
+                    "effective_cost_lkr": 5033}
+    far_plan = {"day": {"date": "2031-01-01", "weekday": "wednesday"}, "effective_cost_lkr": 77777}
+    pantry_echo = {"today": "2026-10-22", "items": [{"sku_id": "tea_bun", "days_left": 54321, "reason": "due in 22222 days", "cadence_days": 6}]}
+
+    async def echoing_runner(question, context):
+        return {"text": "Friday costs 5033 LKR. Save 98765, 4321, 11111, 77777, 54321 or 22222 LKR.",
+                "calls": [{"name": "plan_day", "args": {}}],
+                "results": [{"name": "plan_day", "response": echoing_plan}, {"name": "plan_day", "response": far_plan},
+                            {"name": "get_pantry", "response": pantry_echo}]}
+
+    app.state.agent_runner = echoing_runner
+    try:
+        with TestClient(app) as http:
+            page = _post(http, "explain", _defaults(http.get("/").text))
+    finally:
+        app.state.agent_runner = None
+    text = re.search(r'<p id="explanation-text">(.*?)</p>', page, re.S).group(1)
+    assert "5033" in text
+    for invented in ("98765", "4321", "11111", "77777", "54321", "22222"):
+        assert invented not in text
+
+
+def test_agent_tools_refuse_inputs_outside_the_catalog():
+    ok = {"lines": [{"sku_id": "banana_ambul", "qty": 1}], "day": TODAY, "banks": BANKS, "max_stores": 1,
+          "trip_cost_lkr": 250, "usual_store": "keells"}
+    assert agent_plan_day(**ok)["solver_status"] == "OPTIMAL"
+    for bad in ({"lines": [{"sku_id": "unknown_98765", "qty": 1}]}, {"lines": [{"sku_id": "banana_ambul", "qty": "bad"}]},
+                {"lines": ["junk"]}, {"lines": []}, {"usual_store": "store_54321"}, {"usual_store": ["keells"]},
+                {"banks": [None]}, {"banks": "HNB"}, {"day": "9999-12-31"}, {"day": None}, {"max_stores": 3}, {"trip_cost_lkr": "x"}):
+        assert "error" in agent_plan_day(**{**ok, **bad}), bad
+    assert agent_plan_day(**{**ok, "lines": [{"sku_id": "banana_ambul", "qty": 1.98765}]})["stores"][0]["lines"][0]["qty"] == 1.988
+    assert "error" in get_pantry("9999-12-31") and "error" in get_pantry(None)
+
+
+class MalformedCallLlm(BaseLlm):
+    """Calls plan_day with arguments of the wrong types, then answers."""
+
+    async def generate_content_async(self, llm_request: LlmRequest, stream: bool = False) -> AsyncGenerator[LlmResponse, None]:
+        answered = any(p.function_response is not None for c in llm_request.contents for p in (c.parts or []))
+        if not answered:
+            parts = [types.Part.from_function_call(name="plan_day", args={"lines": [{"sku_id": "banana_ambul", "qty": "bad"}, "junk"],
+                                                                         "day": TODAY, "banks": [None, 7], "max_stores": 1,
+                                                                         "trip_cost_lkr": 250, "usual_store": "keells"})]
+        else:
+            parts = [types.Part(text="Explanation text.")]
+        yield LlmResponse(content=types.Content(role="model", parts=parts))
+
+
+def test_malformed_agent_tool_calls_do_not_break_the_page():
+    async def runner(question, context):
+        return await ask_agent(question, context, agent=build_agent(MalformedCallLlm(model="malformed")))
+
+    app.state.agent_runner = runner
+    try:
+        with TestClient(app) as http:
+            page = _post(http, "explain", _defaults(http.get("/").text))
+    finally:
+        app.state.agent_runner = None
+    assert "The agent re-planned with different inputs" in page and "a different basket" in page
 
 
 def test_engine_explanation_without_model_and_logged_fallback(caplog):

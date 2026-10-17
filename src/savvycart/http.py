@@ -383,6 +383,11 @@ STATUS_TEXT = {"due": "Due", "soon": "Soon", "ok": "OK", "unknown": "Not enough 
 AGENT_TIMEOUT_SECONDS = 60
 # explain_plan_numbers only echoes numbers from a plan the model supplies, so it cannot widen the filter.
 GROUNDING_TOOLS = ("get_pantry", "load_catalog", "load_offers", "plan_day")
+# Fields that echo or derive from model-chosen tool arguments rather than engine data.
+ECHOED_FIELDS = {
+    "plan_day": {"qty", "trip_cost_lkr", "max_stores", "unpriced", "missing"},
+    "get_pantry": {"today", "days_left", "reason"},
+}
 AGENT_QUESTION_V2 = (
     "Explain to the shopper, in a few short sentences, why this is the cheapest way to buy these groceries: "
     "which store and card for which items, and what they save against their usual store. "
@@ -786,18 +791,39 @@ def _confirmed(plan: dict[str, Any], state: dict[str, Any], lines: list[dict[str
 
 
 def _replan_differences(call_args: dict[str, Any], confirmed: dict[str, Any]) -> list[str]:
+    """What a model's plan_day call changed; its arguments are untrusted JSON of any shape."""
     diffs = []
     for key in ("day", "max_stores", "trip_cost_lkr", "usual_store"):
         if key in call_args and call_args[key] != confirmed[key]:
             diffs.append(f"{key} {call_args[key]} instead of {confirmed[key]}")
-    if "banks" in call_args and sorted(call_args["banks"] or []) != sorted(confirmed["banks"]):
-        diffs.append(f"cards {', '.join(call_args['banks'] or []) or 'none'} instead of {', '.join(confirmed['banks']) or 'none'}")
+    if "banks" in call_args:
+        asked = call_args["banks"] if isinstance(call_args["banks"], list) else [call_args["banks"]]
+        asked = [str(b) for b in asked if b is not None]
+        if sorted(asked) != sorted(confirmed["banks"]):
+            diffs.append(f"cards {', '.join(asked) or 'none'} instead of {', '.join(confirmed['banks']) or 'none'}")
     if "lines" in call_args:
-        def key_of(lines):
-            return sorted((str(l.get("sku_id")), float(l.get("qty", 0))) for l in lines or [] if isinstance(l, dict))
-        if key_of(call_args["lines"]) != key_of(confirmed["lines"]):
+        def qty_key(value: Any) -> str:
+            try:
+                return repr(value) if isinstance(value, bool) else f"{float(value):.3f}"
+            except (TypeError, ValueError):
+                return repr(value)
+
+        def key_of(lines: Any) -> list[tuple[str, str]]:
+            rows = lines if isinstance(lines, list) else [lines]
+            return sorted((str(l.get("sku_id")), qty_key(l.get("qty"))) if isinstance(l, dict) else ("", repr(l)) for l in rows)
+        if key_of(call_args["lines"]) != key_of([{"sku_id": l["sku_id"], "qty": l["qty"]} for l in confirmed["lines"]]):
             diffs.append("a different basket")
     return diffs
+
+
+def _grounding_view(name: str, response: Any) -> Any:
+    """An engine tool result without the fields that echo model-chosen arguments."""
+    drop = ECHOED_FIELDS.get(name, set())
+    if isinstance(response, dict):
+        return {k: _grounding_view(name, v) for k, v in response.items() if k not in drop}
+    if isinstance(response, list):
+        return [_grounding_view(name, v) for v in response]
+    return response
 
 
 async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, Any], lines: list[dict[str, Any]]) -> dict[str, Any]:
@@ -820,12 +846,21 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
         return {**fallback, "source": "The agent call failed. Showing the engine explanation."}
     calls = [c for c in answer.get("calls", []) if isinstance(c, dict)]
     allowed = numbers_in_plan(context)
+    window_start = state["today"].isoformat()
+    window_end = (state["today"] + _timedelta(days=7)).isoformat()
     for result in answer.get("results", []):
         if not isinstance(result, dict):
             continue
-        response = result.get("response")
-        if result.get("name") in GROUNDING_TOOLS and isinstance(response, dict) and "error" not in response:
-            allowed |= numbers_in_plan(response)
+        name, response = result.get("name"), result.get("response")
+        if name not in GROUNDING_TOOLS or not isinstance(response, dict) or "error" in response:
+            continue
+        planned = response.get("day")
+        planned_date = str(planned.get("date", "")) if isinstance(planned, dict) else ""
+        if name == "plan_day" and not window_start <= planned_date <= window_end:
+            continue
+        if name == "get_pantry" and response.get("today") != window_start:
+            continue
+        allowed |= numbers_in_plan(_grounding_view(name, response))
     text = drop_unallowed_number_tokens(_normalize_numbers(str(answer.get("text", ""))), allowed)
     saving = str(plan.get("saving_vs_usual_lkr", 0))
     if saving not in text:

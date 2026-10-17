@@ -44,13 +44,39 @@ def history() -> list[dict[str, Any]]:
     return _json(ROOT / "samples" / "purchase-history.json")["bills"] + _json(V2 / "history-fictional.json")["bills"]
 
 
+def _iso_day(value: Any) -> date | None:
+    try:
+        day = date.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+    return day if date(2000, 1, 1) <= day <= date(2100, 12, 31) else None
+
+
 def get_pantry(today: str) -> dict[str, Any]:
     """Return when each regular item runs low as of an ISO date, with the dates behind each estimate."""
-    try:
-        day = date.fromisoformat(today)
-    except (TypeError, ValueError):
+    day = _iso_day(today)
+    if day is None:
         return {"error": "today must be an ISO date such as 2026-10-22"}
-    return {"today": today, "items": pantry(history(), load_catalog(), _json(V2 / "history-map.json"), day)}
+    return {"today": day.isoformat(), "items": pantry(history(), load_catalog(), _json(V2 / "history-map.json"), day)}
+
+
+def _store_ids(catalog: dict[str, Any]) -> set[str]:
+    return {s if isinstance(s, str) else s["id"] for s in catalog["stores"]}
+
+
+def _checked_lines(lines: Any, sku_ids: set[str]) -> list[dict[str, Any]] | None:
+    """Only known SKUs with a plain quantity rounded to the pantry's 3 decimals; anything else is refused."""
+    if not isinstance(lines, list) or not lines:
+        return None
+    checked = []
+    for line in lines:
+        if not isinstance(line, dict) or line.get("sku_id") not in sku_ids:
+            return None
+        qty = line.get("qty")
+        if isinstance(qty, bool) or not isinstance(qty, (int, float)):
+            return None
+        checked.append({"sku_id": line["sku_id"], "qty": round(float(qty), 3)})
+    return checked
 
 
 def plan_day(
@@ -62,9 +88,21 @@ def plan_day(
     usual_store: str,
 ) -> dict[str, Any]:
     """Plan lines of {sku_id, qty} for an ISO day across at most max_stores stores using cards from these banks."""
+    catalog, offers = load_catalog(), load_offers()
+    checked = _checked_lines(lines, {s["id"] for s in catalog["skus"]})
+    if checked is None:
+        return {"error": "lines must be a non-empty list of {sku_id, qty} with sku_id from load_catalog"}
+    the_day = _iso_day(day)
+    if the_day is None:
+        return {"error": "day must be an ISO date such as 2026-10-22"}
+    known_banks = {o["bank"] for o in offers["card_offers"]}
+    if not isinstance(banks, list) or any(not isinstance(b, str) or b not in known_banks for b in banks):
+        return {"error": "banks must name card issuers from load_offers"}
+    if not isinstance(usual_store, str) or usual_store not in _store_ids(catalog):
+        return {"error": "usual_store must be a store id from load_catalog"}
     try:
-        return _plan_day(load_catalog(), load_offers(), lines, day, banks, max_stores, trip_cost_lkr, usual_store)
-    except ValueError as exc:
+        return _plan_day(catalog, offers, checked, the_day.isoformat(), banks, max_stores, trip_cost_lkr, usual_store)
+    except (TypeError, ValueError) as exc:
         return {"error": str(exc)}
 
 
