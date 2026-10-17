@@ -362,6 +362,7 @@ from datetime import timedelta as _timedelta
 from fastapi.staticfiles import StaticFiles
 
 from savvycart.pantry import pantry as compute_pantry
+from savvycart.partners import router as partners_router
 from itertools import combinations
 
 from savvycart.planner import MAX_QTY, MAX_STORES, WEEKDAYS, day_sweep
@@ -370,6 +371,7 @@ from savvycart.planner import plan_day as engine_plan_day
 V2 = FIXTURES / "v2"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.include_router(partners_router)
 
 V2_BANNER = (
     "Sample data, not live. Keells prices come from one shopper's real receipts. Nations Trust Bank and Commercial Bank offers "
