@@ -130,6 +130,21 @@ def test_day_sweep_stays_before_run_out():
     assert sweep["best"] in sweep["days"]
 
 
+def test_rejects_impossible_inputs():
+    import pytest
+
+    args = (_catalog(), {"card_offers": [_offer()]})
+    for bad_lines in ([{"sku_id": "s1", "qty": -5}], [{"sku_id": "s1", "qty": 0}], [{"sku_id": "s1", "qty": 1000}],
+                      [{"sku_id": "s1", "qty": True}], [{"sku_id": None, "qty": 1}]):
+        with pytest.raises(ValueError):
+            plan_day(*args, bad_lines, DAY, WALLET, max_stores=2, trip_cost_lkr=50, usual_store="a")
+    for bad_trip in (-500, 10**6, 2.5):
+        with pytest.raises(ValueError):
+            plan_day(*args, BASKET, DAY, WALLET, max_stores=2, trip_cost_lkr=bad_trip, usual_store="a")
+    with pytest.raises(ValueError):
+        plan_day(*args, BASKET, DAY, WALLET, max_stores=3, trip_cost_lkr=50, usual_store="a")
+
+
 def test_plans_are_deterministic_with_tie_breaks():
     args = (_catalog(), {"card_offers": [_offer()]}, BASKET, DAY, WALLET)
     assert plan_day(*args, max_stores=2, trip_cost_lkr=50, usual_store="a") == plan_day(*args, max_stores=2, trip_cost_lkr=50, usual_store="a")

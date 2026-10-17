@@ -158,7 +158,8 @@ def main() -> int:
         "bills": bills,
     }
     output = json.dumps(document, indent=2, ensure_ascii=False) + "\n"
-    leaked = sorted(t for t in tokens if t in output)
+    folded = output.casefold()
+    leaked = sorted(t for t in tokens if t.casefold() in folded)
     if leaked:
         print(f"refusing to write: {len(leaked)} header value(s) would appear in the output", file=sys.stderr)
         return 1

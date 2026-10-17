@@ -11,6 +11,8 @@ from ortools.sat.python import cp_model
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 # Objective = cost * COST_SCALE + tie-break score; the tie-break score stays far below COST_SCALE.
 COST_SCALE = 1000
+MAX_QTY = 50
+MAX_TRIP_COST_LKR = 5000
 
 
 def _lkr(value: float) -> int:
@@ -59,6 +61,12 @@ def plan_day(
     """Cheapest legal plan for the confirmed lines on one day."""
     if max_stores not in (1, 2):
         raise ValueError("max_stores must be 1 or 2")
+    if not isinstance(trip_cost_lkr, int) or not 0 <= trip_cost_lkr <= MAX_TRIP_COST_LKR:
+        raise ValueError(f"trip_cost_lkr must be an integer from 0 to {MAX_TRIP_COST_LKR}")
+    for line in lines:
+        qty = line.get("qty")
+        if not isinstance(line.get("sku_id"), str) or isinstance(qty, bool) or not isinstance(qty, (int, float)) or not 0 < qty <= MAX_QTY:
+            raise ValueError(f"each line needs a sku_id and a quantity above 0 and at most {MAX_QTY}")
     the_day = date.fromisoformat(day)
     stores: list[str] = list(catalog["stores"])
     rank = {store: (0 if store == usual_store else 1 + i) for i, store in enumerate(stores)}
