@@ -5,7 +5,6 @@
   "edges": [],
   "id": "SC-012",
   "rails": [
-    "fixtures/**",
     "src/savvycart/optimizer.py",
     "src/savvycart/receipts.py",
     "src/savvycart/explain.py",
@@ -14,7 +13,6 @@
     "Dockerfile",
     "scripts/check_deploy_docs.py",
     "scripts/check_judge_readme.py",
-    "pyproject.toml",
     "tests/test_fixtures.py",
     "tests/test_optimizer.py",
     "tests/test_guardrail.py",
