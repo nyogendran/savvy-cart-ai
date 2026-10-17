@@ -1,15 +1,19 @@
-"""FastAPI app: plans, mock approve, and receipt extract."""
+"""FastAPI app: guest page, plans, mock approve, receipt extract, explain."""
 
 from __future__ import annotations
 
+import html
 import json
 import time
 import uuid
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import parse_qs
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from savvycart.explain import explain_plan
@@ -178,12 +182,16 @@ def create_plans(
     # Successful path still must not call the model in SC-004 (receipts are later).
     _ = model_client
 
+    tools: list[str] = []
     catalog = _load_catalog()
+    tools.append("catalog")
     offers = _load_offers()
+    tools.append("offers")
     lines = [line.model_dump() for line in body.line_ids]
     day = body.day.model_dump()
 
     result = optimize(catalog, offers, lines, day, body.usual_store)
+    tools.append("optimizer")
     baseline_result = optimize(catalog, [], lines, day, body.usual_store)
     baseline = _plan_summary(baseline_result["winner"])
 
@@ -216,6 +224,7 @@ def create_plans(
         "day_sweep": day_sweep,
         "data_label": DATA_LABEL,
         "winner": _plan_summary(winner),
+        "tools": tools,
         "card_product_id": body.card_product_id,
         "usual_store": body.usual_store,
         "day": day,
@@ -276,3 +285,456 @@ def explain(
         "text": explained["text"],
         "cited_fields": explained["cited_fields"],
     }
+
+
+# --- Guest page (server-rendered, no login) ---------------------------------
+
+SAMPLE_LABEL = "fixture lines for the sample path"
+LIVE_LABEL = "live extract"
+CONFIDENCE_FLOOR = 0.6
+STORES = ["keells", "cargills", "spar"]
+CARD_PRODUCTS = [("commercial_bank:credit", "Commercial Bank credit")]
+DEMO_DATES = {
+    "monday": "2026-10-12",
+    "tuesday": "2026-10-13",
+    "wednesday": "2026-10-14",
+    "thursday": "2026-10-15",
+    "friday": "2026-10-16",
+    "saturday": "2026-10-17",
+    "sunday": "2026-10-18",
+}
+DEFAULT_PERSONA = {
+    "weekday": "saturday",
+    "usual_store": "keells",
+    "budget": "12000",
+    "card_product_id": "commercial_bank:credit",
+}
+
+
+@lru_cache(maxsize=None)
+def _load_fixture(name: str) -> Any:
+    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+
+
+def _sku_names() -> dict[str, str]:
+    return {sku["id"]: sku["name"] for sku in _load_catalog()["skus"]}
+
+
+def _substitutions() -> dict[str, str]:
+    return {p["sku_id"]: p["alternate_sku_id"] for p in _load_fixture("substitutions.json")["pairs"]}
+
+
+async def _internal_post(request: Request, path: str, **kwargs: Any) -> httpx.Response:
+    transport = httpx.ASGITransport(app=request.app, raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://savvycart.internal") as client:
+        return await client.post(path, **kwargs)
+
+
+def _checked_receipt_ids(lines: list[dict[str, Any]]) -> list[str]:
+    return [
+        line["sku_id"]
+        for line in lines
+        if line.get("sku_id") and float(line.get("confidence", 0)) >= CONFIDENCE_FLOOR
+    ]
+
+
+def _basket(
+    receipt_lines: list[dict[str, Any]],
+    checked: set[str],
+    staples_checked: set[str],
+    swap: str,
+) -> list[dict[str, Any]]:
+    """Ordered union of confirmed receipt lines and checked staples, swap applied."""
+    qty: dict[str, int] = {}
+    for line in receipt_lines:
+        if line.get("sku_id") in checked:
+            qty.setdefault(line["sku_id"], int(line.get("qty", 1)))
+    for line in _load_fixture("staples.json")["lines"]:
+        if line["sku_id"] in staples_checked:
+            qty.setdefault(line["sku_id"], int(line["qty"]))
+    subs = _substitutions() if swap == "applied" else {}
+    return [{"sku_id": subs.get(sku_id, sku_id), "qty": n} for sku_id, n in qty.items()]
+
+
+def _e(value: Any) -> str:
+    return html.escape(str(value), quote=True)
+
+
+def _render_persona(persona: dict[str, str]) -> str:
+    weekday_opts = "".join(
+        f'<option value="{d}"{" selected" if d == persona["weekday"] else ""}>{d.title()}</option>'
+        for d in DEMO_DATES
+    )
+    store_opts = "".join(
+        f'<option value="{s}"{" selected" if s == persona["usual_store"] else ""}>{s.title()}</option>'
+        for s in STORES
+    )
+    card_opts = "".join(
+        f'<option value="{_e(pid)}"{" selected" if pid == persona["card_product_id"] else ""}>{_e(label)}</option>'
+        for pid, label in CARD_PRODUCTS
+    )
+    return (
+        "<section id=\"persona\"><h2>Shopper</h2>"
+        "<p>Karuppan, Saturday, Commercial Bank credit, budget about LKR 12,000.</p>"
+        f'<label>Weekday <select name="weekday">{weekday_opts}</select></label> '
+        f'<label>Usual store <select name="usual_store">{store_opts}</select></label> '
+        f'<label>Budget (LKR) <input name="budget" type="number" min="0" value="{_e(persona["budget"])}"></label> '
+        f'<label>Card (issuer and product id) <select name="card_product_id">{card_opts}</select></label>'
+        "<p>The budget is shown only. It does not change the winner or the discount.</p>"
+        "</section>"
+    )
+
+
+def _render_staples(staples_checked: set[str]) -> str:
+    names = _sku_names()
+    rows = "".join(
+        "<li><label>"
+        f'<input type="checkbox" name="staple" value="{_e(line["sku_id"])}"'
+        f'{" checked" if line["sku_id"] in staples_checked else ""}> '
+        f'{_e(names.get(line["sku_id"], line["sku_id"]))}'
+        f'{" (running low)" if line["running_low"] else ""}'
+        "</label></li>"
+        for line in _load_fixture("staples.json")["lines"]
+    )
+    return (
+        "<section id=\"staples\"><h2>Staples</h2>"
+        "<p>Running low only pre-checks a row. It does not change the optimizer.</p>"
+        f"<ul>{rows}</ul></section>"
+    )
+
+
+def _render_receipt(lines: list[dict[str, Any]], checked: set[str], label: str | None) -> str:
+    if not lines:
+        return "<section id=\"receipt\"><h2>Receipt</h2><p>No receipt lines yet.</p></section>"
+    rows = "".join(
+        "<li><label>"
+        f'<input type="checkbox" name="line" value="{_e(line["sku_id"])}"'
+        f'{" checked" if line["sku_id"] in checked else ""}> '
+        f'{_e(line["raw"])} — {_e(line["sku_id"])} (confidence {_e(line["confidence"])})'
+        "</label></li>"
+        if line.get("sku_id")
+        else f'<li>{_e(line["raw"])} — not matched, ignored</li>'
+        for line in lines
+    )
+    return (
+        "<section id=\"receipt\"><h2>Receipt</h2>"
+        f'<p id="receipt-label">Showing {_e(label or SAMPLE_LABEL)}.</p>'
+        f"<ul>{rows}</ul>"
+        f'<input type="hidden" name="receipt_json" value="{_e(json.dumps(lines))}">'
+        f'<input type="hidden" name="receipt_label" value="{_e(label or SAMPLE_LABEL)}">'
+        "</section>"
+    )
+
+
+def _render_plans(plans: dict[str, Any], swap: str, basket: list[dict[str, Any]]) -> str:
+    names = _sku_names()
+    offers = {o["id"]: o for o in _load_offers()}
+    winner_store = (plans.get("winner") or {}).get("store_id")
+    rows = "".join(
+        "<tr>"
+        f'<td>{_e(p["store_id"].title())}{" (winner)" if p["store_id"] == winner_store else ""}</td>'
+        f'<td>{_e(p["shelf_total"])} LKR</td>'
+        f'<td>{_e(p["discount"])} LKR</td>'
+        f'<td>{_e(p["effective_cost"])} LKR</td>'
+        f'<td>{_e(p["offer_id"] or "no offer")}</td>'
+        f'<td>{"complete" if p["complete"] else "incomplete (missing price)"}'
+        f'{" — rule ended in this snapshot" if p["reason"] == "expired" else ""}</td>'
+        "</tr>"
+        for p in plans["plans"]
+    )
+    headline = ""
+    for p in plans["plans"]:
+        offer = offers.get(p["offer_id"]) if p["offer_id"] else None
+        if offer is None:
+            continue
+        percent = f'{offer["rate_bps"] // 100}% off'
+        shown = f"<s>{percent}</s>" if p["naive_discount"] > p["discount"] else percent
+        headline += (
+            f'<p class="headline">{_e(p["store_id"].title())} card headline: {shown}. '
+            f'Legal saving: {_e(p["discount"])} LKR. Offer valid_to {_e(offer["valid_to"])}.</p>'
+        )
+    sweep = "".join(
+        f'<li>Keells {_e(day.title())}: legal saving {_e(s["discount"])} LKR '
+        f'on the same shelf total of {_e(s["shelf_total"])} LKR</li>'
+        for day, s in plans["day_sweep"].items()
+        if s is not None
+    )
+    valid_to = "".join(
+        f'<li>{_e(o["id"])}: valid_to {_e(o["valid_to"])}</li>' for o in offers.values()
+    )
+    baseline = plans.get("baseline") or {}
+    swap_note = ""
+    for original, alternate in _substitutions().items():
+        if swap == "applied" and any(line["sku_id"] == alternate for line in basket):
+            swap_note = (
+                f'<p id="swap">Swap applied: {_e(names.get(original, original))} → '
+                f'{_e(names.get(alternate, alternate))}.</p>'
+            )
+        elif swap == "rejected":
+            swap_note = f'<p id="swap">Swap rejected: {_e(names.get(original, original))} restored.</p>'
+    tools = ", ".join(plans.get("tools", []))
+    return (
+        "<section id=\"plans\"><h2>One-store plans</h2>"
+        f"{swap_note}"
+        f'<p>Baseline at your usual store, no offer: {_e(baseline.get("shelf_total", "n/a"))} LKR.</p>'
+        f"{headline}"
+        "<table><thead><tr><th>Store</th><th>Shelf total</th><th>Legal saving</th>"
+        "<th>Effective cost</th><th>Offer</th><th>Status</th></tr></thead>"
+        f"<tbody>{rows}</tbody></table>"
+        f"<h3>Other offer-day</h3><ul>{sweep}</ul>"
+        f"<h3>Offer end dates</h3><ul>{valid_to}</ul>"
+        f'<p id="tools">Tools run: {_e(tools)}</p>'
+        "</section>"
+    )
+
+
+def _option_summary(plans: dict[str, Any]) -> dict[str, Any]:
+    """Winner cost and whether the offer minimum is met, all from engine output."""
+    offers = {o["id"]: o for o in _load_offers()}
+    winner = plans.get("winner") or {}
+    offer_plan = next((p for p in plans["plans"] if p["offer_id"]), None)
+    note = "No card offer applies on this day."
+    if offer_plan is not None:
+        offer = offers[offer_plan["offer_id"]]
+        shortfall = int(offer["min_bill_lkr"]) - int(offer_plan["eligible_subtotal"])
+        if offer_plan["reason"] == "expired":
+            note = "The offer rule ended in this snapshot."
+        elif shortfall > 0:
+            note = (
+                f'Eligible items are {shortfall} LKR below the {offer["min_bill_lkr"]} LKR offer minimum, '
+                "so the offer pays 0."
+            )
+        else:
+            note = f'Offer minimum met. Legal saving at {offer_plan["store_id"].title()}: {offer_plan["discount"]} LKR.'
+    return {
+        "store_id": winner.get("store_id"),
+        "effective_cost": winner.get("effective_cost"),
+        "discount": winner.get("discount"),
+        "note": note,
+    }
+
+
+def _render_options(options: dict[str, Any]) -> str:
+    names = _sku_names()
+    original, alternate = next(iter(_substitutions().items()))
+    rows_spec = [
+        ("applied", "Option A — buy what you need", names.get(alternate, alternate)),
+        ("rejected", f"Option B — restore {names.get(original, original)}", names.get(original, original)),
+    ]
+    summaries = {state: _option_summary(options[state]) for state, _, _ in rows_spec}
+    rows = "".join(
+        f'<tr class="option" data-option="{state}">'
+        f"<td>{_e(label)}{' (selected)' if options['selected'] == state else ''}</td>"
+        f"<td>{_e(item)}</td>"
+        f'<td>{_e((summaries[state]["store_id"] or "none").title())}</td>'
+        f'<td>{_e(summaries[state]["effective_cost"])} LKR</td>'
+        f'<td>{_e(summaries[state]["discount"])} LKR</td>'
+        f'<td>{_e(summaries[state]["note"])}</td>'
+        "</tr>"
+        for state, label, item in rows_spec
+    )
+    a = summaries["applied"]["effective_cost"]
+    b = summaries["rejected"]["effective_cost"]
+    if a is None or b is None:
+        verdict = "One option has no complete plan."
+    elif a < b:
+        verdict = f"Buying what you need costs {b - a} LKR less than restoring the original item."
+    elif b < a:
+        verdict = f"Restoring the original item costs {a - b} LKR less, because the offer pays."
+    else:
+        verdict = "Both options cost the same."
+    return (
+        '<section id="options"><h2>Your options</h2>'
+        "<p>You choose. The page never adds items to reach an offer minimum.</p>"
+        "<table><thead><tr><th>Option</th><th>Item</th><th>Winner</th><th>Effective cost</th>"
+        "<th>Legal saving</th><th>Offer</th></tr></thead>"
+        f"<tbody>{rows}</tbody></table>"
+        f'<p id="options-verdict">{_e(verdict)}</p>'
+        "</section>"
+    )
+
+
+def _render_page(
+    *,
+    persona: dict[str, str],
+    staples_checked: set[str],
+    receipt_lines: list[dict[str, Any]],
+    checked: set[str],
+    receipt_label: str | None,
+    swap: str,
+    plans: dict[str, Any] | None = None,
+    basket: list[dict[str, Any]] | None = None,
+    message: str | None = None,
+    approve: dict[str, Any] | None = None,
+    options: dict[str, Any] | None = None,
+) -> str:
+    can_reject = plans is not None and swap == "applied" and any(
+        line["sku_id"] in _substitutions().values() for line in (basket or [])
+    )
+    can_keep = plans is not None and swap == "rejected" and any(
+        line["sku_id"] in _substitutions() for line in (basket or [])
+    )
+    can_approve = plans is not None and plans.get("winner") is not None
+    controls = (
+        "<section id=\"controls\">"
+        '<button type="submit" name="action" value="sample">Use sample receipt</button> '
+        '<button type="submit" name="action" value="extract">Extract this image</button> '
+        f'<button type="submit" name="action" value="reject_swap"{"" if can_reject else " disabled"}>Reject swap</button> '
+        f'<button type="submit" name="action" value="keep_swap"{"" if can_keep else " disabled"}>Keep swap</button> '
+        f'<button type="submit" name="action" value="approve"{"" if can_approve else " disabled"}>Approve plan</button> '
+        '<button type="submit" name="action" value="refused">Show a basket this offer refuses</button>'
+        "</section>"
+    )
+    body = [
+        f'<p id="banner"><strong>{_e(DATA_LABEL)}</strong></p>',
+        f'<p id="message">{_e(message)}</p>' if message else "",
+        '<form method="post" action="/ui">',
+        _render_persona(persona),
+        _render_staples(staples_checked),
+        _render_receipt(receipt_lines, checked, receipt_label),
+        f'<input type="hidden" name="swap" value="{_e(swap)}">',
+        controls,
+        "</form>",
+        _render_options(options) if options else "",
+        _render_plans(plans, swap, basket or []) if plans is not None else "",
+        (
+            '<section id="approve"><h2>Order preview — MOCK</h2>'
+            f'<p>MOCK preview {_e(approve["preview_id"])}. No order is sent.</p></section>'
+            if approve
+            else ""
+        ),
+    ]
+    return (
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+        "<title>Savvy Cart AI</title></head><body><h1>Savvy Cart AI</h1>"
+        + "".join(body)
+        + "</body></html>"
+    )
+
+
+def _default_staples() -> set[str]:
+    return {line["sku_id"] for line in _load_fixture("staples.json")["lines"] if line["running_low"]}
+
+
+@app.get("/", response_class=HTMLResponse)
+def guest_page() -> str:
+    return _render_page(
+        persona=dict(DEFAULT_PERSONA),
+        staples_checked=_default_staples(),
+        receipt_lines=[],
+        checked=set(),
+        receipt_label=None,
+        swap="applied",
+    )
+
+
+@app.post("/ui", response_class=HTMLResponse)
+async def guest_action(request: Request) -> str:
+    form = parse_qs((await request.body()).decode("utf-8"), keep_blank_values=True)
+
+    def get(key: str, default: str) -> str:
+        return form.get(key, [default])[0]
+
+    persona = {
+        "weekday": get("weekday", DEFAULT_PERSONA["weekday"]),
+        "usual_store": get("usual_store", DEFAULT_PERSONA["usual_store"]),
+        "budget": get("budget", DEFAULT_PERSONA["budget"]),
+        "card_product_id": get("card_product_id", DEFAULT_PERSONA["card_product_id"]),
+    }
+    if persona["weekday"] not in DEMO_DATES:
+        persona["weekday"] = DEFAULT_PERSONA["weekday"]
+    if persona["usual_store"] not in STORES:
+        persona["usual_store"] = DEFAULT_PERSONA["usual_store"]
+    if persona["card_product_id"] not in dict(CARD_PRODUCTS):
+        persona["card_product_id"] = DEFAULT_PERSONA["card_product_id"]
+
+    action = get("action", "plan")
+    staples_checked = set(form.get("staple", []))
+    try:
+        receipt_lines = json.loads(get("receipt_json", "[]"))
+    except json.JSONDecodeError:
+        receipt_lines = []
+    receipt_label = get("receipt_label", "") or None
+    checked = set(form.get("line", []))
+    swap = get("swap", "applied")
+    if swap not in ("applied", "rejected"):
+        swap = "applied"
+    message: str | None = None
+
+    sample_lines = _load_fixture("receipt-expected.json")["lines"]
+    if action == "sample":
+        receipt_lines, receipt_label, swap = sample_lines, SAMPLE_LABEL, "applied"
+        checked = set(_checked_receipt_ids(receipt_lines))
+    elif action == "extract":
+        png = (FIXTURES / "receipt-sample.png").read_bytes()
+        extracted = await _internal_post(
+            request,
+            "/v1/receipts",
+            content=png,
+            headers={"content-type": "image/png"},
+        )
+        if extracted.status_code == 200:
+            receipt_lines, receipt_label = extracted.json()["lines"], LIVE_LABEL
+        else:
+            receipt_lines, receipt_label = sample_lines, SAMPLE_LABEL
+            message = "The live extract failed. The sample lines stay."
+        checked = set(_checked_receipt_ids(receipt_lines))
+        swap = "applied"
+    elif action == "reject_swap":
+        swap = "rejected"
+    elif action == "keep_swap":
+        swap = "applied"
+
+    if action == "refused":
+        basket = [dict(line) for line in _load_fixture("baskets/refused.json")["lines"]]
+        message = "Control basket from fixtures/baskets/refused.json: the eligible subtotal misses the minimum."
+    else:
+        basket = _basket(receipt_lines, checked, staples_checked, swap)
+
+    identity = {
+        "line_ids": basket,
+        "day": {"weekday": persona["weekday"], "date": DEMO_DATES[persona["weekday"]]},
+        "card_product_id": persona["card_product_id"],
+        "usual_store": persona["usual_store"],
+    }
+    plans: dict[str, Any] | None = None
+    approve: dict[str, Any] | None = None
+    response = await _internal_post(request, "/v1/plans", json=identity)
+    if response.status_code == 200:
+        plans = response.json()
+    elif not basket:
+        message = message or "Confirm at least one line to price a plan."
+    else:
+        message = message or "The plan request failed."
+
+    options: dict[str, Any] | None = None
+    needed = _basket(receipt_lines, checked, staples_checked, "rejected")
+    if action != "refused" and plans is not None and any(line["sku_id"] in _substitutions() for line in needed):
+        other = "rejected" if swap == "applied" else "applied"
+        other_basket = _basket(receipt_lines, checked, staples_checked, other)
+        compared = await _internal_post(request, "/v1/plans", json={**identity, "line_ids": other_basket})
+        if compared.status_code == 200:
+            options = {swap: plans, other: compared.json(), "selected": swap}
+
+    if action == "approve" and plans and plans.get("winner"):
+        approved = await _internal_post(
+            request,
+            "/v1/approve",
+            json={**identity, "store_id": plans["winner"]["store_id"]},
+        )
+        if approved.status_code == 200:
+            approve = approved.json()
+
+    return _render_page(
+        persona=persona,
+        staples_checked=staples_checked,
+        receipt_lines=receipt_lines,
+        checked=checked,
+        receipt_label=receipt_label,
+        swap=swap if action != "refused" else "applied",
+        plans=plans,
+        basket=basket,
+        message=message,
+        approve=approve,
+        options=options,
+    )
