@@ -113,3 +113,20 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .tools code { overflow-wrap: anywhere; }
 details summary { cursor: pointer; color: var(--accent); font-weight: 600; }
 footer.site { color: var(--muted); font-size: 0.85rem; padding: 24px 0; }
+
+/* v2.1 wizard */
+.wizard-nav { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.wizard-nav .actions { margin: 0; }
+.actions.tight { margin-top: 8px; }
+.inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.inline select { flex: 1 1 200px; }
+.inline input[type="number"] { width: 90px; }
+button.linklike { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; min-height: 0; }
+select { appearance: none; -webkit-appearance: none; padding: 9px 36px 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%235c5c57' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 12px center; font: inherit; color: var(--ink); }
+input[type="file"] { font: inherit; padding: 8px; border: 1px dashed var(--line); border-radius: 8px; background: var(--bg); width: 100%; }
+.add-item { margin-top: 14px; }
+.suggestion { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+.suggestion p { margin: 4px 0; }
+.recap { background: var(--bg); border-radius: 8px; padding: 8px 12px; }
+.ok-note ul { margin: 4px 0 0; padding-left: 20px; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }

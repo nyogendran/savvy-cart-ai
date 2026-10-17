@@ -362,7 +362,9 @@ from datetime import timedelta as _timedelta
 from fastapi.staticfiles import StaticFiles
 
 from savvycart.pantry import pantry as compute_pantry
-from savvycart.planner import MAX_QTY, WEEKDAYS, day_sweep
+from itertools import combinations
+
+from savvycart.planner import MAX_QTY, MAX_STORES, WEEKDAYS, day_sweep
 from savvycart.planner import plan_day as engine_plan_day
 
 V2 = FIXTURES / "v2"
@@ -370,16 +372,23 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 V2_BANNER = (
-    "Sample data, not live. Keells prices come from one shopper's real receipts; "
-    "Cargills, SPAR and Glomark prices and every card offer are fictional demo shapes."
+    "Sample data, not live. Keells prices come from one shopper's real receipts. Nations Trust Bank and Commercial Bank offers "
+    "are their published headlines from 18 Oct 2026 with assumed terms. Other prices, store promotions, and HNB offers are fictional demo shapes."
 )
 STEPS = ["Pantry", "Wallet", "Plan", "Why", "Approve"]
+STEP_ACTIONS = ["pantry", "wallet", "plan", "explain", "approve"]
 STORE_NAMES = {"keells": "Keells", "cargills": "Cargills", "spar": "SPAR", "glomark": "Glomark"}
 WALLET_CARDS = [("Commercial Bank", "credit"), ("Nations Trust Bank", "credit"), ("HNB", "credit")]
-V2_DEFAULTS = {"today": "2026-10-22", "usual_store": "keells", "max_stores": "2", "trip_cost": "250", "budget": "12000"}
+V2_DEFAULTS = {"today": "2026-10-22", "usual_store": "keells", "max_stores": "2", "trip_cost": "250", "budget": "12000",
+               "delivery_fee": "350"}
+PLAN_DATES = [(_date(2026, 10, 17) + _timedelta(days=n)) for n in range(15)]
+SUGGEST_DAYS = 14
+TERMS_NOTE = "Minimum and cap are assumptions; check the bank's terms."
+NO_DELIVERY_INTEGRATION = "No booking is made. Savvy Cart is not integrated with Uber, PickMe, or any store."
 SAMPLE_RECEIPT_V2 = ROOT / "samples" / "receipts" / "keells-2026-10-17.expected.json"
-SAMPLE_PHOTO_V2 = ROOT / "samples" / "receipts" / "keells-2026-10-17-redacted.jpg"
-STATUS_TEXT = {"due": "Due", "soon": "Soon", "ok": "OK", "unknown": "Not enough history", "stale": "Not bought for a while"}
+RECEIPT_TYPES = {"image/jpeg", "image/png"}
+STATUS_TEXT = {"due": "Due", "soon": "Soon", "ok": "OK", "unknown": "Not enough history", "stale": "Not bought for a while",
+               "added": "Added by you"}
 AGENT_TIMEOUT_SECONDS = 60
 # explain_plan_numbers only echoes numbers from a plan the model supplies, so it cannot widen the filter.
 GROUNDING_TOOLS = ("get_pantry", "load_catalog", "load_offers", "plan_day")
@@ -475,8 +484,8 @@ def _added_bills(added: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return list(bills.values())
 
 
-def _receipt_rows(lines: list[dict[str, Any]], today: str) -> tuple[list[dict[str, Any]], int]:
-    rows, skipped = [], 0
+def _receipt_rows(lines: list[dict[str, Any]], today: str) -> tuple[list[dict[str, Any]], list[str]]:
+    rows, left_out = [], []
     for line in lines:
         raw = _canonical_raw(line.get("raw", ""))
         try:
@@ -486,8 +495,8 @@ def _receipt_rows(lines: list[dict[str, Any]], today: str) -> tuple[list[dict[st
         if raw and 0 < qty <= MAX_QTY:
             rows.append({"raw": raw, "qty": qty, "date": today})
         else:
-            skipped += 1
-    return rows, skipped
+            left_out.append(str(line.get("raw", "")))
+    return rows, left_out
 
 
 def _is_stale(item: dict[str, Any]) -> bool:
@@ -511,7 +520,11 @@ def _parse_state(form: dict[str, list[str]]) -> dict[str, Any]:
             value = int(default)
         return min(max(value, low), high)
 
-    today = _form_date(get("today", V2_DEFAULTS["today"])) or _date.fromisoformat(V2_DEFAULTS["today"])
+    today = _form_date(get("today", V2_DEFAULTS["today"]))
+    if today not in PLAN_DATES:
+        today = _date.fromisoformat(V2_DEFAULTS["today"])
+    max_stores = get("max_stores", V2_DEFAULTS["max_stores"])
+    sku_ids = {sku["id"] for sku in _v2_catalog()["skus"]}
     banks_known = [bank for bank, _ in WALLET_CARDS]
     if "wallet_set" in form:
         banks = [b for b in banks_known if b in form.get("bank", [])]
@@ -525,15 +538,19 @@ def _parse_state(form: dict[str, list[str]]) -> dict[str, Any]:
     return {
         "today": today,
         "usual_store": usual if usual in STORE_NAMES else V2_DEFAULTS["usual_store"],
-        "max_stores": 2 if get("max_stores", V2_DEFAULTS["max_stores"]) == "2" else 1,
+        "max_stores": int(max_stores) if max_stores in {str(n) for n in range(1, MAX_STORES + 1)} else int(V2_DEFAULTS["max_stores"]),
         "trip_cost": bounded_int("trip_cost", V2_DEFAULTS["trip_cost"], 0, 5000),
         "budget": bounded_int("budget", V2_DEFAULTS["budget"], 0, 1_000_000),
         "banks": banks,
+        "wallet_set": "wallet_set" in form,
         "day": get("day", ""),
         "added": added,
         "pantry_set": "pantry_set" in form,
-        "checked": set(form.get("sku", [])),
-        "qty": {key[4:]: get(key, "") for key in form if key.startswith("qty_")},
+        "checked": set(form.get("sku", [])) & sku_ids,
+        "extra": [s for s in dict.fromkeys(form.get("extra", [])) if s in sku_ids],
+        "qty": {key[4:]: get(key, "") for key in form if key.startswith("qty_") and key[4:] in sku_ids},
+        "fulfilment": "delivery" if get("fulfilment", "pickup") == "delivery" else "pickup",
+        "delivery_fee": bounded_int("delivery_fee", V2_DEFAULTS["delivery_fee"], 0, 5000),
     }
 
 
@@ -541,8 +558,10 @@ def _pantry_view(state: dict[str, Any]) -> list[dict[str, Any]]:
     bills = list(_v2_history()) + _added_bills(state["added"])
     items = compute_pantry(bills, _v2_catalog(), _v2_history_map(), state["today"])
     for item in items:
-        item["display_status"] = "stale" if _is_stale(item) else item["status"]
-        default_on = item["status"] in ("due", "soon") and not _is_stale(item)
+        upcoming = item["status"] in ("due", "soon")
+        added_by_shopper = item["sku_id"] in state["extra"] and not upcoming
+        item["display_status"] = "stale" if _is_stale(item) else ("added" if added_by_shopper else item["status"])
+        default_on = (upcoming and not _is_stale(item)) or added_by_shopper
         item["checked"] = (item["sku_id"] in state["checked"]) if state["pantry_set"] else default_on
         try:
             qty = float(state["qty"].get(item["sku_id"], ""))
@@ -574,37 +593,28 @@ def _engine_plan(state: dict[str, Any], items: list[dict[str, Any]]) -> tuple[di
     return plan, sweep
 
 
-def _near_misses(plan: dict[str, Any], banks: list[str]) -> list[str]:
-    """Card offers that were active for a bill but paid nothing, and why (facts only)."""
-    notes = []
-    the_day = _date.fromisoformat(plan["day"]["date"])
-    for bill in plan["stores"]:
-        for offer in _v2_offers()["card_offers"]:
-            if offer["bank"] not in banks or offer["store_id"] != bill["store_id"]:
-                continue
-            if WEEKDAYS[the_day.weekday()] not in offer["days"] or the_day > _date.fromisoformat(offer["valid_to"]):
-                continue
-            if bill["card"] and bill["card"]["offer_id"] == offer["id"]:
-                continue
-            include = offer.get("include_categories") or []
-            exclude = offer.get("exclude_categories") or []
-            eligible = sum(l["promoted_lkr"] for l in bill["lines"] if (not include or l["category"] in include) and l["category"] not in exclude)
-            if eligible < offer["min_bill_lkr"]:
-                notes.append(
-                    f'{offer["bank"]} at {STORE_NAMES[bill["store_id"]]}: needs {_money(offer["min_bill_lkr"])} of '
-                    f'{", ".join(include) or "eligible"} items; this bill has {_money(eligible)}, so it pays 0.'
-                )
-    return notes
-
-
 def _step_nav(current: int) -> str:
     items = []
     for index, name in enumerate(STEPS):
         attrs = ' aria-current="step"' if index == current else ""
         cls = ' class="done"' if index < current else ""
-        label = f'<a href="#{name.lower()}">{name}</a>' if index <= current else name
+        if index < current:
+            label = f'<button type="submit" class="linklike" name="action" value="{STEP_ACTIONS[index]}">{name}</button>'
+        else:
+            label = f"<span>{name}</span>"
         items.append(f"<li{cls}{attrs}>{label}</li>")
     return f'<nav class="steps" aria-label="Steps"><ol>{"".join(items)}</ol></nav>'
+
+
+def _nav(back: str | None, buttons: list[tuple[str, str, bool]]) -> str:
+    """Back on the left; forward actions on the right, the primary one last."""
+    back_html = f'<button type="submit" name="action" value="{back}" class="back">Back</button>' if back else "<span></span>"
+    primary_class = ' class="primary"'
+    forward = "".join(
+        f'<button type="submit" name="action" value="{value}"{primary_class if primary else ""}>{_e(label)}</button>'
+        for value, label, primary in buttons
+    )
+    return f'<div class="wizard-nav">{back_html}<div class="actions">{forward}</div></div>'
 
 
 def _short_date(iso: str) -> str:
@@ -625,41 +635,62 @@ def _reason_text(item: dict[str, Any]) -> str:
     return text
 
 
+def _qty_text(qty: Any) -> str:
+    return f"{float(qty):g}"
+
+
 def _render_pantry(items: list[dict[str, Any]], state: dict[str, Any], note: str | None) -> str:
     def row(item: dict[str, Any]) -> str:
         sku = _e(item["sku_id"])
         status = item["display_status"]
-        reason = _reason_text(item)
+        reason = "You added this item." if status == "added" else _reason_text(item)
         return (
             '<div class="item">'
             f'<input type="checkbox" id="sku_{sku}" name="sku" value="{sku}"{" checked" if item["checked"] else ""}>'
             f'<label class="name" for="sku_{sku}">{_e(item["name"])} <span class="status {_e(status)}">{_e(STATUS_TEXT[status])}</span></label>'
             f'<span><label class="sr-only" for="qty_{sku}">Quantity of {_e(item["name"])}</label>'
-            f'<input type="number" id="qty_{sku}" name="qty_{sku}" min="0.001" max="{MAX_QTY}" step="any" value="{_e(item["qty"])}"></span>'
+            f'<input type="number" id="qty_{sku}" name="qty_{sku}" min="0.001" max="{MAX_QTY}" step="any" value="{_qty_text(item["qty"])}"></span>'
             f'<span class="reason">{_e(reason)}</span>'
             "</div>"
         )
 
-    upcoming = [i for i in items if i["display_status"] in ("due", "soon", "stale")]
+    upcoming = [i for i in items if i["display_status"] in ("due", "soon", "stale", "added")]
     later = [i for i in items if i["display_status"] in ("ok", "unknown")]
-    added = f'<p class="ok-note">{_e(note)}</p>' if note else ""
+    dates = "".join(
+        f'<option value="{d.isoformat()}"{" selected" if d == state["today"] else ""}>{d:%a} {d.day} {d:%b} {d.year}</option>'
+        for d in PLAN_DATES
+    )
+    addable = "".join(f'<option value="{_e(i["sku_id"])}">{_e(i["name"])}</option>' for i in later)
+    add_html = (
+        '<div class="field add-item"><label for="add_sku">Add an item</label>'
+        f'<div class="inline"><select id="add_sku" name="add_sku">{addable}</select>'
+        '<label class="sr-only" for="add_qty">Quantity to add</label>'
+        f'<input type="number" id="add_qty" name="add_qty" min="0.001" max="{MAX_QTY}" step="any" value="1">'
+        '<button type="submit" name="action" value="add">Add</button></div>'
+        '<p class="source">Only items in the catalog can be added, because only they have prices.</p></div>'
+    ) if later else ""
     return (
         '<section class="step" id="pantry" aria-labelledby="pantry-h">'
         '<h2 id="pantry-h">1. Pantry: what is running low</h2>'
         '<p class="lead">Estimated from purchase history: the usual gap between buys, and the last purchase date. No guessing model.</p>'
-        f"{added}"
+        f"{note or ''}"
         '<div class="grid two">'
-        f'<div class="field"><label for="today">Planning date (demo control; the history ends 17 Oct 2026)</label>'
-        f'<input type="date" id="today" name="today" value="{_e(state["today"].isoformat())}"></div>'
-        '<div class="field"><span>Add a receipt to the history</span><div class="actions" style="margin-top:0">'
-        '<button type="submit" name="action" formaction="/ui#pantry" value="sample">Use sample receipt</button>'
-        '<button type="submit" name="action" formaction="/ui#pantry" value="extract">Extract this image</button></div></div>'
+        '<div class="field"><label for="today">Pretend today is (demo control; the history ends 17 Oct 2026)</label>'
+        f'<div class="inline"><select id="today" name="today">{dates}</select>'
+        '<button type="submit" name="action" value="pantry" id="date-update">Update</button></div></div>'
+        '<div class="field"><label for="receipt_photo">Add a receipt to the history (JPEG or PNG photo)</label>'
+        '<input type="file" id="receipt_photo" name="receipt_photo" accept="image/jpeg,image/png">'
+        '<div class="actions tight"><button type="submit" name="action" value="upload">Upload a receipt photo</button>'
+        '<button type="submit" name="action" value="sample">Use sample receipt</button></div>'
+        '<p class="source">Photos go to Gemini to read the items, and are never stored. Only regular items are kept.</p></div>'
         "</div>"
         f'<h3>Due or soon ({len(upcoming)})</h3>{"".join(row(i) for i in upcoming) or "<p>Nothing runs out within 7 days.</p>"}'
         f'<details><summary>Later or not enough history ({len(later)})</summary>{"".join(row(i) for i in later)}</details>'
+        f"{add_html}"
         '<input type="hidden" name="pantry_set" value="1">'
-        '<div class="actions"><button class="primary" type="submit" name="action" formaction="/ui#wallet" value="wallet">Continue to wallet</button></div>'
+        f'{_nav(None, [("wallet", "Next: wallet", True)])}'
         "</section>"
+        '<script>document.getElementById("today").addEventListener("change",function(){document.getElementById("date-update").click();});</script>'
     )
 
 
@@ -672,6 +703,10 @@ def _render_wallet(state: dict[str, Any]) -> str:
     stores = "".join(
         f'<option value="{s}"{" selected" if s == state["usual_store"] else ""}>{_e(name)}</option>' for s, name in STORE_NAMES.items()
     )
+    store_counts = "".join(
+        f'<option value="{n}"{" selected" if state["max_stores"] == n else ""}>{"One store" if n == 1 else f"Up to {n} stores"}</option>'
+        for n in range(1, MAX_STORES + 1)
+    )
     return (
         '<section class="step" id="wallet" aria-labelledby="wallet-h">'
         '<h2 id="wallet-h">2. Wallet and trip</h2>'
@@ -680,34 +715,43 @@ def _render_wallet(state: dict[str, Any]) -> str:
         f'<fieldset><legend>Cards you hold</legend>{cards}</fieldset>'
         "<fieldset><legend>Trip</legend>"
         f'<div class="field"><label for="usual_store">Usual store</label><select id="usual_store" name="usual_store">{stores}</select></div>'
-        '<div class="field"><label for="max_stores">Stores in one day</label><select id="max_stores" name="max_stores">'
-        f'<option value="1"{" selected" if state["max_stores"] == 1 else ""}>One store</option>'
-        f'<option value="2"{" selected" if state["max_stores"] == 2 else ""}>Up to two stores</option></select></div>'
+        f'<div class="field"><label for="max_stores">Stores in one day</label><select id="max_stores" name="max_stores">{store_counts}</select></div>'
         f'<div class="field"><label for="trip_cost">Cost of an extra store visit (LKR, your estimate)</label>'
         f'<input type="number" id="trip_cost" name="trip_cost" min="0" max="5000" step="10" value="{state["trip_cost"]}"></div>'
         f'<div class="field"><label for="budget">Budget (LKR, shown only)</label>'
         f'<input type="number" id="budget" name="budget" min="0" step="100" value="{state["budget"]}"></div>'
         "</fieldset></div>"
         '<input type="hidden" name="wallet_set" value="1">'
-        '<div class="actions"><button class="primary" type="submit" name="action" formaction="/ui#plan" value="plan">Plan my shopping</button>'
-        '<button type="submit" name="action" formaction="/ui#plan" value="refused">Show a basket this offer refuses</button></div>'
+        f'{_nav("pantry", [("refused", "Show a basket this offer refuses", False), ("plan", "Next: plan my shopping", True)])}'
         "</section>"
     )
+
+
+def _offer(offer_id: str) -> dict[str, Any]:
+    return next(o for o in _v2_offers()["card_offers"] if o["id"] == offer_id)
 
 
 def _render_bill(bill: dict[str, Any]) -> str:
     rows = "".join(
         "<tr>"
         f'<td>{_e(l["name"])} <span class="source">({_e("receipt price" if l["price_source"] == "receipt" else "fictional price")})</span></td>'
-        f'<td class="num">{_e(l["qty"])}</td><td class="num">{_money(l["shelf_lkr"])}</td>'
+        f'<td class="num">{_qty_text(l["qty"])}</td><td class="num">{_money(l["shelf_lkr"])}</td>'
         f'<td class="num">{_money(l["promo_saving_lkr"]) if l["promo_saving_lkr"] else "-"}</td>'
         "</tr>"
         for l in bill["lines"]
     )
-    card = (
-        f'<span class="card-used">Pay with {_e(bill["card"]["bank"])} {_e(bill["card"]["product"])}</span>'
-        if bill["card"] else '<span class="source">No card offer applies</span>'
-    )
+    terms = ""
+    if bill["card"]:
+        card = f'<span class="card-used">Pay with {_e(bill["card"]["bank"])} {_e(bill["card"]["product"])}</span>'
+        offer = _offer(bill["card"]["offer_id"])
+        if offer.get("source") == "published":
+            terms = (f'<p class="source">Offer: &ldquo;{_e(offer["headline"])}&rdquo; '
+                     f'(<a href="{_e(offer["source_url"])}" rel="noopener noreferrer">bank page</a>, captured {_e(offer["captured_on"])}). '
+                     f"{_e(TERMS_NOTE)}</p>")
+        else:
+            terms = '<p class="source">Offer: fictional demo shape.</p>'
+    else:
+        card = '<span class="source">No card offer applies</span>'
     return (
         f'<article class="bill" data-store="{_e(bill["store_id"])}">'
         f'<header><h3>{_e(STORE_NAMES[bill["store_id"]])}</h3>{card}</header>'
@@ -715,11 +759,97 @@ def _render_bill(bill: dict[str, Any]) -> str:
         f"<tbody>{rows}</tbody><tfoot>"
         f'<tr><td colspan="3">Card discount</td><td class="num">{_money(bill["card_discount_lkr"])}</td></tr>'
         f'<tr><td colspan="3">Bill total</td><td class="num">{_money(bill["bill_lkr"])}</td></tr>'
-        "</tfoot></table></article>"
+        f"</tfoot></table>{terms}</article>"
     )
 
 
-def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict[str, Any], title_note: str = "") -> str:
+def _missed_offers(plan: dict[str, Any], banks: list[str]) -> list[tuple[dict[str, Any], dict[str, Any], int]]:
+    """(bill, offer, eligible subtotal) for card offers active at a bill's store and day that paid nothing."""
+    missed = []
+    the_day = _date.fromisoformat(plan["day"]["date"])
+    for bill in plan["stores"]:
+        for offer in _v2_offers()["card_offers"]:
+            if offer["bank"] not in banks or offer["store_id"] != bill["store_id"]:
+                continue
+            if WEEKDAYS[the_day.weekday()] not in offer["days"] or the_day > _date.fromisoformat(offer["valid_to"]):
+                continue
+            if bill["card"] and bill["card"]["offer_id"] == offer["id"]:
+                continue
+            eligible = sum(l["promoted_lkr"] for l in bill["lines"] if _offer_covers(offer, l["category"]))
+            if eligible < offer["min_bill_lkr"]:
+                missed.append((bill, offer, eligible))
+    return missed
+
+
+def _offer_covers(offer: dict[str, Any], category: str) -> bool:
+    include = offer.get("include_categories") or []
+    return (not include or category in include) and category not in (offer.get("exclude_categories") or [])
+
+
+def _near_misses(plan: dict[str, Any], banks: list[str]) -> list[str]:
+    """Card offers that were active for a bill but paid nothing, and why (facts only)."""
+    return [
+        f'{offer["bank"]} at {STORE_NAMES[bill["store_id"]]}: needs {_money(offer["min_bill_lkr"])} of '
+        f'{", ".join(offer.get("include_categories") or []) or "eligible"} items; this bill has {_money(eligible)}, so it pays 0.'
+        for bill, offer, eligible in _missed_offers(plan, banks)
+    ]
+
+
+def _suggestions(plan: dict[str, Any], state: dict[str, Any], items: list[dict[str, Any]],
+                 lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """For a missed minimum: the cheapest set of at most three of the shopper's own soon-due items that reaches it.
+
+    An entry with no names means nothing the shopper needs soon would reach that minimum.
+    """
+    basket = {line["sku_id"] for line in lines}
+    horizon = (state["today"] + _timedelta(days=SUGGEST_DAYS)).isoformat()
+    candidates = [i for i in items if i["sku_id"] not in basket and i.get("next_due") and i["next_due"] <= horizon and not _is_stale(i)]
+    skus = {sku["id"]: sku for sku in _v2_catalog()["skus"]}
+    found = []
+    for bill, offer, eligible in _missed_offers(plan, state["banks"])[:3]:
+        store = bill["store_id"]
+        pool = []
+        for item in candidates:
+            sku = skus[item["sku_id"]]
+            price = sku["prices"].get(store)
+            if price and _offer_covers(offer, sku["category"]):
+                pool.append((item, int(price["amount_lkr"] * float(item["qty"]) + 0.5)))
+        gap = offer["min_bill_lkr"] - eligible
+        best = None
+        for size in (1, 2, 3):
+            for combo in combinations(pool, size):
+                cost = sum(c for _, c in combo)
+                if cost >= gap and (best is None or cost < best[0]):
+                    best = (cost, combo)
+        entry = {"bank": offer["bank"], "store_id": store, "minimum": offer["min_bill_lkr"], "names": []}
+        if best is not None:
+            added = [{"sku_id": item["sku_id"], "qty": item["qty"]} for item, _ in best[1]]
+            replan = engine_plan_day(_v2_catalog(), _v2_offers(), lines + added, plan["day"]["date"], state["banks"],
+                                     plan["max_stores"], plan["trip_cost_lkr"], state["usual_store"], _with_baselines=False)
+            if replan["effective_cost_lkr"] < plan["effective_cost_lkr"] + best[0]:
+                entry.update({"names": [item["name"] for item, _ in best[1]], "shelf_lkr": best[0],
+                              "replanned_lkr": replan["effective_cost_lkr"], "current_lkr": plan["effective_cost_lkr"]})
+        found.append(entry)
+    return found
+
+
+def _render_suggestion(s: dict[str, Any]) -> str:
+    if not s["names"]:
+        return (f'<p class="source">{_e(s["bank"])} at {_e(STORE_NAMES[s["store_id"]])}: none of your eligible items due within '
+                f'{SUGGEST_DAYS} days would reach the {_money(s["minimum"])} minimum, so Savvy Cart suggests nothing.</p>')
+    extra = s["replanned_lkr"] - s["current_lkr"]
+    return (
+        '<div class="suggestion">'
+        f'<p><strong>{_e(s["bank"])} at {_e(STORE_NAMES[s["store_id"]])}:</strong> adding {_e(", ".join(s["names"]))} '
+        f'({_money(s["shelf_lkr"])} at shelf price) reaches the {_money(s["minimum"])} minimum. '
+        f'The engine&#39;s plan with them is {_money(s["replanned_lkr"])}, against {_money(s["current_lkr"])} now, '
+        f'so those items would cost you {_money(extra)} instead of {_money(s["shelf_lkr"])}.</p>'
+        "<p>Only if you need these soon. Savvy Cart does not add them.</p></div>"
+    )
+
+
+def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict[str, Any], title_note: str = "",
+                 suggestions: list[dict[str, Any]] | None = None) -> str:
     usual = plan.get("baseline_usual", {})
     single = plan.get("baseline_single", {})
     weekday = plan["day"]["weekday"].title()
@@ -740,15 +870,22 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
         )
         sweep_html = (
             f'<h3>Best day before items run out (by {_e(sweep["window_end"])})</h3><ul class="sweep">{days}</ul>'
-            f'<div class="field"><label for="day">Shop on</label><select id="day" name="day">{choices}</select></div>'
+            f'<div class="field"><label for="day">Shop on</label><div class="inline"><select id="day" name="day">{choices}</select>'
+            '<button type="submit" name="action" value="plan">Update plan</button></div></div>'
         )
+    else:
+        sweep_html = f'<input type="hidden" name="day" value="{_e(state["day"])}">'
     misses = "".join(f'<p class="notice">{_e(n)}</p>' for n in _near_misses(plan, state["banks"]))
+    ideas = "".join(_render_suggestion(s) for s in suggestions or [])
+    if ideas:
+        ideas = f'<h3>Reach a card minimum with items you need soon?</h3>{ideas}'
     unpriced = f'<p class="notice">Not priced at any store: {_e(", ".join(plan["unpriced"]))}.</p>' if plan["unpriced"] else ""
-    extra = f' plus {_money(plan["extra_trip_cost_lkr"])} for the extra trip' if plan["extra_trip_cost_lkr"] else ""
+    extra = f' plus {_money(plan["extra_trip_cost_lkr"])} for extra trips' if plan["extra_trip_cost_lkr"] else ""
+    allowed = "" if title_note else f' (you allowed up to {plan["max_stores"]})'
     return (
         '<section class="step" id="plan" aria-labelledby="plan-h">'
         f'<h2 id="plan-h">3. Plan for {_e(weekday)} {_e(plan["day"]["date"])}{_e(title_note)}</h2>'
-        f'<p class="lead">{len(plan["stores"])} store{"s" if len(plan["stores"]) != 1 else ""}, chosen by an exact optimizer '
+        f'<p class="lead">{len(plan["stores"])} store{"s" if len(plan["stores"]) != 1 else ""}{allowed}, chosen by an exact optimizer '
         f'(OR-Tools CP-SAT, status {_e(plan["solver_status"])}). Store promotions apply first, then at most one card offer per bill.</p>'
         '<div class="summary">'
         f'<div class="metric highlight"><div class="value">{_money(plan["effective_cost_lkr"])}</div><div class="label">Plan total{_e(extra)}</div></div>'
@@ -760,11 +897,9 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
         f'<div class="bar" role="img" aria-label="Plan total is {pct} percent of the usual-store shelf total"><span style="width:{pct}%"></span></div>'
         f'<p class="bar-label">Plan total as a share of buying everything at your usual store at shelf price. {_e(budget_note)}</p>'
         f'<div class="grid two">{"".join(_render_bill(b) for b in plan["stores"])}</div>'
-        f"{misses}{unpriced}{sweep_html}"
+        f"{misses}{ideas}{unpriced}{sweep_html}"
         f'<p class="source">Engine steps: pantry (purchase history), catalog and offers, planner (OR-Tools CP-SAT). Trip cost {_money(plan["trip_cost_lkr"])} per extra store.</p>'
-        '<div class="actions"><button type="submit" name="action" formaction="/ui#plan" value="plan">Update plan</button>'
-        '<button class="primary" type="submit" name="action" formaction="/ui#why" value="explain">Explain this plan</button>'
-        '<button type="submit" name="action" formaction="/ui#approve" value="approve">Approve plan</button></div>'
+        f'{_nav("wallet", [("approve", "Approve plan", False), ("explain", "Next: explain this plan", True)])}'
         "</section>"
     )
 
@@ -880,7 +1015,7 @@ def _call_args(args: Any, limit: int = 2000) -> str:
     return text if len(text) <= limit else f"{text[:limit]} … ({len(text) - limit} more characters not shown)"
 
 
-def _render_why(explanation: dict[str, Any]) -> str:
+def _render_why(explanation: dict[str, Any], plan: dict[str, Any]) -> str:
     calls = "".join(
         f'<li><code>{_e(c.get("name"))}({_e(_call_args(c.get("args")))})</code></li>' for c in explanation["calls"][:20]
     ) or "<li>No tool calls.</li>"
@@ -896,107 +1031,205 @@ def _render_why(explanation: dict[str, Any]) -> str:
     return (
         '<section class="step" id="why" aria-labelledby="why-h">'
         '<h2 id="why-h">4. Why this plan</h2>'
+        f'<p class="recap">The plan above: {_e(_engine_summary(plan))}</p>'
         f'<p class="source" id="explanation-source">{_e(explanation["source"])}</p>'
         f'<p id="explanation-text">{_e(explanation["text"])}</p>'
         f"{replan}"
         f'<h3>Agent tools called</h3><ul class="tools" id="agent-tools">{calls}</ul>'
+        f'{_nav("plan", [("approve", "Next: approve", True)])}'
         "</section>"
     )
 
 
-def _render_approve(preview: dict[str, Any] | None) -> str:
+def _render_approve(preview: dict[str, Any] | None, plan: dict[str, Any], state: dict[str, Any]) -> str:
     body = (f'<p><strong>MOCK</strong> preview {_e(preview["preview_id"])}.</p>' if preview else "<p><strong>MOCK</strong> preview unavailable.</p>")
+    delivery = state["fulfilment"] == "delivery"
+    choice = "".join(
+        f'<div class="check"><input type="radio" id="fulfilment_{value}" name="fulfilment" value="{value}"{" checked" if state["fulfilment"] == value else ""}>'
+        f'<label for="fulfilment_{value}">{label}</label></div>'
+        for value, label in (("pickup", "Pickup: I shop at the stores myself"), ("delivery", "Delivery (MOCK)"))
+    )
+    fees = ""
+    if delivery:
+        rows = "".join(
+            f'<li>{_e(STORE_NAMES[b["store_id"]])}: bill {_money(b["bill_lkr"])}, delivery {_money(state["delivery_fee"])} (assumption)</li>'
+            for b in plan["stores"]
+        )
+        total = plan["effective_cost_lkr"] + state["delivery_fee"] * len(plan["stores"])
+        fees = (f'<ul class="sweep">{rows}</ul><p>Total with delivery: <strong>{_money(total)}</strong>.</p>'
+                f"<p>{_e(NO_DELIVERY_INTEGRATION)}</p>")
     return (
         '<section class="step" id="approve" aria-labelledby="approve-h">'
         '<h2 id="approve-h">5. Approve</h2>'
+        f'<p class="recap">{_e(_engine_summary(plan))}</p>'
+        f'<fieldset><legend>How you get the groceries</legend>{choice}'
+        '<div class="field"><label for="delivery_fee">Delivery fee per store bill (LKR, an assumption you can change)</label>'
+        f'<input type="number" id="delivery_fee" name="delivery_fee" min="0" max="5000" step="10" value="{state["delivery_fee"]}"></div>'
+        "</fieldset>"
+        f"{fees}"
         f'<div class="mock">{body}<p>No order is sent. Savvy Cart does not contact any store or bank.</p></div>'
+        f'{_nav("plan", [("approve", "Update", True)])}'
         "</section>"
     )
 
 
-def _layout(current: int, inner: str, state: dict[str, Any], message: str | None) -> str:
+def _hidden_state(state: dict[str, Any], items: list[dict[str, Any]], step: int) -> str:
+    """Every choice made on other steps travels in hidden fields, so Back and Next keep it."""
+    fields: list[tuple[str, str]] = [("extra", s) for s in state["extra"]]
+    if step != 0:
+        fields += [("today", state["today"].isoformat()), ("pantry_set", "1")]
+        fields += [("sku", i["sku_id"]) for i in items if i["checked"]]
+        fields += [(f"qty_{i['sku_id']}", _qty_text(i["qty"])) for i in items]
+    if step != 1:
+        fields += [("wallet_set", "1")] + [("bank", b) for b in state["banks"]]
+        fields += [("usual_store", state["usual_store"]), ("max_stores", str(state["max_stores"])),
+                   ("trip_cost", str(state["trip_cost"])), ("budget", str(state["budget"]))]
+    if step != 2 and state["day"]:
+        fields.append(("day", state["day"]))
+    if step != 4:
+        fields += [("fulfilment", state["fulfilment"]), ("delivery_fee", str(state["delivery_fee"]))]
+    return "".join(f'<input type="hidden" name="{_e(k)}" value="{_e(v)}">' for k, v in fields)
+
+
+def _layout(current: int, inner: str, state: dict[str, Any], items: list[dict[str, Any]], message: str | None) -> str:
     alert = f'<p class="notice" role="status">{_e(message)}</p>' if message else ""
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>Savvy Cart AI</title>"
         '<link rel="stylesheet" href="/static/app.css"></head><body>'
-        '<a class="skip-link" href="#main">Skip to the plan</a>'
+        '<a class="skip-link" href="#main">Skip to the current step</a>'
         f'<div class="banner" id="banner"><div class="wrap">{_e(V2_BANNER)}</div></div>'
         '<header class="site"><div class="wrap"><h1>Savvy Cart AI</h1>'
         "<p class=\"tagline\">Karuppan's next shop: when to buy, where, and with which card.</p></div></header>"
-        f'<main id="main"><div class="wrap">{_step_nav(current)}{alert}'
-        '<form method="post" action="/ui">'
+        '<main id="main"><div class="wrap">'
+        '<form method="post" action="/ui" enctype="multipart/form-data">'
+        f"{_step_nav(current)}{alert}"
         f'<input type="hidden" name="receipt_json" value="{_e(json.dumps(state["added"]))}">'
+        f"{_hidden_state(state, items, current)}"
         f"{inner}</form></div></main>"
         '<footer class="site"><div class="wrap">Prototype for the Google Cloud AI Builder Cup. Pricing runs in code; Gemini explains it. '
         "No login, no card numbers, no real orders.</div></footer></body></html>"
     )
 
 
+def _mask_digits(text: str) -> str:
+    return _re.sub(r"\d{4,}", "####", text)[:40]
+
+
+def _receipt_note(rows: list[dict[str, Any]], left_out: list[str], label: str, today: str) -> str:
+    names = {sku["id"]: sku["name"] for sku in _v2_catalog()["skus"]}
+    added = "".join(f"<li>{_e(names.get(_v2_history_map().get(r['raw'], ''), r['raw']))} x {_qty_text(r['qty'])}</li>" for r in rows)
+    left = "".join(f"<li>{_e(_mask_digits(raw))}</li>" for raw in left_out[:20])
+    return (
+        '<div class="ok-note" role="status">'
+        f"<p>Added {len(rows)} lines from {_e(label)} as purchases on {_e(today)}.</p>"
+        f'{f"<ul>{added}</ul>" if added else ""}'
+        f'{f"<p>Left out ({len(left_out)}, not regular items):</p><ul>{left}</ul>" if left_out else ""}'
+        "</div>"
+    )
+
+
+async def _read_form(request: Request) -> tuple[dict[str, list[str]], Any]:
+    if request.headers.get("content-type", "").startswith("multipart/form-data"):
+        data = await request.form()
+        form: dict[str, list[str]] = {}
+        for key, value in data.multi_items():
+            if isinstance(value, str):
+                form.setdefault(key, []).append(value)
+        upload = data.get("receipt_photo")
+        return form, (upload if upload is not None and not isinstance(upload, str) else None)
+    return parse_qs((await request.body()).decode("utf-8", errors="replace"), keep_blank_values=True), None
+
+
+async def _extract_upload(request: Request, upload: Any) -> tuple[list[dict[str, Any]] | None, str | None]:
+    """Forward an uploaded photo to /v1/receipts; the bytes are never written anywhere."""
+    if upload is None or not getattr(upload, "filename", ""):
+        return None, "Choose a receipt photo first, or use the sample receipt."
+    if upload.content_type not in RECEIPT_TYPES:
+        return None, "Upload a JPEG or PNG photo."
+    data = await upload.read(MAX_RECEIPT_BYTES + 1)
+    if len(data) > MAX_RECEIPT_BYTES:
+        return None, "That photo is larger than 4 MB. Nothing was added."
+    response = await _internal_post(request, "/v1/receipts", content=data, headers={"content-type": upload.content_type})
+    if response.status_code == 200:
+        return response.json().get("lines", []), None
+    if response.status_code == 503:
+        return None, "The live extract is unavailable here (no model is configured). Nothing was added; use the sample receipt instead."
+    if response.status_code == 429:
+        return None, "Too many receipt extracts this minute. Nothing was added; try again shortly."
+    return None, "The live extract failed. Nothing was added; use the sample receipt instead."
+
+
 @app.get("/", response_class=HTMLResponse)
 def guest_page() -> str:
     state = _parse_state({})
     items = _pantry_view(state)
-    return _layout(0, _render_pantry(items, state, None), state, None)
+    return _layout(0, _render_pantry(items, state, None), state, items, None)
+
+
+STEP_OF = {"pantry": 0, "sample": 0, "upload": 0, "add": 0, "wallet": 1, "plan": 2, "refused": 2, "explain": 3, "approve": 4}
 
 
 @app.post("/ui", response_class=HTMLResponse)
 async def guest_action(request: Request) -> str:
-    form = parse_qs((await request.body()).decode("utf-8", errors="replace"), keep_blank_values=True)
+    form, upload = await _read_form(request)
     state = _parse_state(form)
     action = form.get("action", ["pantry"])[0]
+    step = STEP_OF.get(action, 0)
     message: str | None = None
     note: str | None = None
 
-    if action in ("sample", "extract"):
+    if action in ("sample", "upload"):
         if action == "sample":
-            lines = json.loads(SAMPLE_RECEIPT_V2.read_text(encoding="utf-8"))["lines"]
-            label = "the sample receipt"
+            lines, problem, label = json.loads(SAMPLE_RECEIPT_V2.read_text(encoding="utf-8"))["lines"], None, "the sample receipt"
         else:
-            response = await _internal_post(request, "/v1/receipts", content=SAMPLE_PHOTO_V2.read_bytes(),
-                                            headers={"content-type": "image/jpeg"})
-            lines = response.json().get("lines", []) if response.status_code == 200 else None
-            label = "the live extract"
-        if lines is None:
-            message = "The live extract failed. Nothing was added; use the sample receipt instead."
+            (lines, problem), label = await _extract_upload(request, upload), "your receipt photo"
+        if problem:
+            message = problem
         else:
-            rows, skipped = _receipt_rows(lines, state["today"].isoformat())
+            rows, left_out = _receipt_rows(lines or [], state["today"].isoformat())
             state["added"] = state["added"] + rows
             state["pantry_set"] = False
-            note = (f"Added {len(rows)} lines from {label} as purchases on {state['today'].isoformat()}; "
-                    f"{skipped} lines are not regular items and were left out.")
+            note = _receipt_note(rows, left_out, label, state["today"].isoformat())
+    if action == "add":
+        sku = form.get("add_sku", [""])[0]
+        if sku in {s["id"] for s in _v2_catalog()["skus"]}:
+            state["extra"] = list(dict.fromkeys(state["extra"] + [sku]))
+            state["checked"].add(sku)
+            state["qty"][sku] = form.get("add_qty", ["1"])[0]
+        else:
+            message = "Only items in the catalog can be added."
 
     items = _pantry_view(state)
-    sections = [_render_pantry(items, state, note)]
-    current = 0
-    if action in ("wallet", "plan", "explain", "approve", "refused"):
-        sections.append(_render_wallet(state))
-        current = 1
-    if action in ("plan", "explain", "approve"):
+    plan = None
+    if step >= 2 and action != "refused":
         if not _lines(items):
-            message = "Pick at least one item in the pantry to plan a shop."
+            message, step = "Pick at least one item in the pantry to plan a shop.", 0
         else:
             plan, sweep = _engine_plan(state, items)
-            sections.append(_render_plan(plan, sweep, state))
-            current = 2
-            if action == "explain":
-                sections.append(_render_why(await _explain_v2(request, plan, state, _lines(items))))
-                current = 3
-            if action == "approve":
-                lines = [{"sku_id": l["sku_id"], "qty": max(1, round(l["qty"]))} for l in _lines(items)]
-                approved = await _internal_post(request, "/v1/approve", json={
-                    "line_ids": lines, "day": {"weekday": plan["day"]["weekday"], "date": plan["day"]["date"]},
-                    "card_product_id": ",".join(state["banks"]) or "none", "usual_store": state["usual_store"],
-                    "store_id": plan["stores"][0]["store_id"] if plan["stores"] else None})
-                sections.append(_render_approve(approved.json() if approved.status_code == 200 else None))
-                current = 4
-    if action == "refused":
+
+    if step == 0:
+        inner = _render_pantry(items, state, note)
+    elif step == 1:
+        inner = _render_wallet(state)
+    elif action == "refused":
         today = state["today"]
         saturday = today + _timedelta(days=(5 - today.weekday()) % 7)
-        control = engine_plan_day(_v2_catalog(), _v2_offers(), [{"sku_id": "banana_ambul", "qty": 1}, {"sku_id": "tomatoes", "qty": 0.5}],
-                                  saturday.isoformat(), [b for b, _ in WALLET_CARDS], 1, state["trip_cost"], "keells")
-        sections.append(_render_plan(control, None, state, " (control basket)"))
-        current = 2
+        control_lines = [{"sku_id": "banana_ambul", "qty": 1}, {"sku_id": "tomatoes", "qty": 0.5}]
+        control = engine_plan_day(_v2_catalog(), _v2_offers(), control_lines, saturday.isoformat(), [b for b, _ in WALLET_CARDS], 1,
+                                  state["trip_cost"], "keells")
+        inner = _render_plan(control, None, state, " (control basket)", _suggestions(control, state, items, control_lines))
         message = "Control basket: two fresh items at Keells. The card offers have minimum bills, so this basket earns no card discount."
-    return _layout(current, "".join(sections), state, message)
+    elif step == 2:
+        inner = _render_plan(plan, sweep, state, suggestions=_suggestions(plan, state, items, _lines(items)))
+    elif step == 3:
+        inner = _render_why(await _explain_v2(request, plan, state, _lines(items)), plan)
+    else:
+        lines = [{"sku_id": l["sku_id"], "qty": max(1, round(l["qty"]))} for l in _lines(items)]
+        approved = await _internal_post(request, "/v1/approve", json={
+            "line_ids": lines, "day": {"weekday": plan["day"]["weekday"], "date": plan["day"]["date"]},
+            "card_product_id": ",".join(state["banks"]) or "none", "usual_store": state["usual_store"],
+            "store_id": plan["stores"][0]["store_id"] if plan["stores"] else None})
+        inner = _render_approve(approved.json() if approved.status_code == 200 else None, plan, state)
+    return _layout(step, inner, state, items, message)

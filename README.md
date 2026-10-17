@@ -1,24 +1,26 @@
 # Savvy Cart AI
 
-A Colombo household holds three credit cards and shops at four supermarket chains. Every chain runs item promotions, and every bank runs card offers tied to one store, one weekday, a category, a minimum bill, and a cap. The household cannot tell when the staples will run out, which store and card to use for which items, or what a promotion really saves. Savvy Cart AI reads the purchase history, lists what is running low, and plans the cheapest way to buy it on a chosen day: up to two stores, one card per bill, every rule applied in code. Then the shopper decides.
+A Colombo household holds three credit cards and shops at four supermarket chains. Every chain runs item promotions, and every bank runs card offers tied to one store, one weekday, a category, a minimum bill, and a cap. The household cannot tell when the staples will run out, which store and card to use for which items, or what a promotion really saves. Savvy Cart AI reads the purchase history, lists what is running low, and plans the cheapest way to buy it on a chosen day: up to four stores, one card per bill, every rule applied in code. Then the shopper decides.
 
 The evidence is one real shopper's 26 Keells e-bills (5 May to 17 Oct 2026, de-identified): promotions were item-level, not bill-wide, and on four days the shopper paid at more than one store.
 
 Built for the [Google Cloud AI Builder Cup 2026](https://aibuildercup.com/), Retail & Commerce theme.
 
-**Sample catalog — not live shelf prices.** Keells prices come from that shopper's real receipts. Cargills, SPAR, and Glomark prices stay within 10% of Keells and are fictional, and so is every card offer and store promotion.
+**Sample catalog — not live shelf prices.** Keells prices come from that shopper's real receipts. Cargills, SPAR, and Glomark prices stay within 10% of Keells and are fictional. Nations Trust Bank and Commercial Bank card offers are their published supermarket headlines, captured from the banks' promotion pages on 18 Oct 2026; their minimum bills and caps are not published there, so those are labeled assumptions. HNB offers and every store promotion are fictional demo shapes.
 
 ## Judge path (about three minutes, no login)
 
-Open the judge URL. The first load can take tens of seconds while Cloud Run starts an instance from zero. The page is one guided flow: **Pantry, Wallet, Plan, Why, Approve**. The sample-data banner stays on every step.
+Open the judge URL. The first load can take tens of seconds while Cloud Run starts an instance from zero. The page is a five-step wizard, one step at a time: **Pantry, Wallet, Plan, Why, Approve**, with Back and Next on every step. The sample-data banner stays on every step.
 
-1. **Pantry.** The planning date is a demo control set to Thursday 22 Oct 2026, because the history ends on 17 Oct. From the usual gap between purchases and the last purchase date, the pantry lists 12 items as due or soon, each with its reason, for example "Bought on 17 days, about every 8 days. Last bought 17 Oct, so due 25 Oct (in 3 days)." No model guesses this. Tea bun is overdue by more than its own cycle, so it is marked "Not bought for a while" and starts unchecked.
-2. Press **Use sample receipt** to add a redacted Keells receipt to the history, dated on the planning day. The list drops from 12 to 9: eggs, milk, and yoghurt were just bought, and bananas and dish wash move their due dates later. **Extract this image** sends the same redacted photo to Gemini when a model is configured.
-3. **Wallet.** Karuppan holds Commercial Bank, Nations Trust Bank, and HNB credit cards, shown as issuer and product only. Choose the cards, the usual store, at most one or two stores, and the cost of an extra trip (LKR 250 by default, labeled an assumption).
-4. **Plan.** Press **Plan my shopping**. An exact optimizer (Google OR-Tools CP-SAT) assigns every checked item to a store, applies store promotions first, then picks at most one card offer per bill. On the default inputs the cheapest plan is Glomark with Nations Trust Bank credit, LKR 4,660, which is LKR 1,280 less than buying everything at Keells at shelf price. The page shows each store bill line by line, both baselines (usual store at shelf price, best single store), and the best day to shop before items run out.
-5. Press **Show a basket this offer refuses**. A small Saturday basket at Keells misses both Keells card minimums, the card discount is LKR 0, and the page says how far each offer was from paying.
-6. **Why.** Press **Explain this plan**. The one ADK agent explains the plan and may re-plan, for example to compare another day or a smaller wallet. The page lists every tool it called with its arguments and says plainly when it re-planned with different inputs. Any number in the answer that no engine output produced is dropped before it is shown. If no model is configured, the agent call fails, or the service has reached its limit of 20 explanations a minute, the page says so and shows the engine's own explanation.
-7. **Approve.** Press **Approve plan**. The page shows a MOCK order preview. No order is sent.
+1. **Pantry.** "Pretend today is" is a demo control set to Thursday 22 Oct 2026; it offers 17 to 31 Oct because the history ends on 17 Oct, and only purchases up to that date count. From the usual gap between purchases and the last purchase date, the pantry lists 12 items as due or soon, each with its reason, for example "Bought on 17 days, about every 8 days. Last bought 17 Oct, so due 25 Oct (in 3 days)." No model guesses this. Tea bun is overdue by more than its own cycle, so it is marked "Not bought for a while" and starts unchecked. **Add an item** puts any other catalog item in the basket.
+2. Press **Use sample receipt** to add a redacted Keells receipt to the history, dated on the planning day. The page lists the lines it added, and the list drops from 12 to 9: eggs, milk, and yoghurt were just bought. **Upload a receipt photo** sends your own JPEG or PNG to Gemini when a model is configured; the photo is never stored, and only regular items are kept.
+3. **Wallet.** Karuppan holds Commercial Bank, Nations Trust Bank, and HNB credit cards, shown as issuer and product only. Choose the cards, the usual store, up to four stores in one day, and the cost of an extra trip (LKR 250 by default, labeled an assumption).
+4. **Plan.** Press **Next: plan my shopping**. An exact optimizer (Google OR-Tools CP-SAT) assigns every checked item to a store, applies the store promotion that saves most on each line (a percent off, or a fixed price for up to a number of units), then picks at most one card offer per bill. On the default inputs the cheapest day is Friday 23 Oct at Cargills with HNB credit, LKR 4,860, which is LKR 1,080 less than buying everything at Keells at shelf price. The page shows each bill line by line, the offer's published headline and source when it is a real bank offer, both baselines, and the best day to shop before items run out. When a card offer misses its minimum, the page may suggest up to three items you need within 14 days that would reach it, with the engine's re-planned total; it never adds them, and says so when nothing you need would reach it.
+5. On the Wallet step, press **Show a basket this offer refuses**. A small Saturday basket at Keells misses the Commercial Bank minimum, the card discount is LKR 0, and the page says how far the offer was from paying.
+6. **Why.** Press **Next: explain this plan**. The one ADK agent explains the plan and may re-plan, for example to compare another day or a smaller wallet. The page lists every tool it called with its arguments and says plainly when it re-planned with different inputs. Any number in the answer that no engine output produced is dropped before it is shown. If no model is configured, the agent call fails, or the service has reached its limit of 20 explanations a minute, the page says so and shows the engine's own explanation.
+7. **Approve.** Choose Pickup or Delivery (MOCK). Delivery adds an assumed fee per store bill (LKR 350, editable) and says that no booking is made and Savvy Cart is not integrated with Uber, PickMe, or any store. The page shows a MOCK order preview. No order is sent.
+
+Mock partner endpoints, `GET /mock/stores`, `GET /mock/stores/{store_id}/catalog`, `GET /mock/banks`, and `GET /mock/banks/{bank_id}/offers`, serve the same labeled data the engine reads, the way store and bank APIs would.
 
 ## The original single-store API
 
@@ -46,7 +48,8 @@ This prototype does not provide:
 - live prices or live stock from any retailer
 - real orders, payments, or partner checkout (approve is a MOCK preview)
 - card numbers: it never asks for, stores, or logs a card number, only an issuer and product
-- bank affiliation: the offers are fictional demo shapes, and Savvy Cart AI is not affiliated with or endorsed by Commercial Bank, Nations Trust Bank, HNB, or any retailer
+- bank affiliation: two banks' published offer headlines are shown with their source and assumed terms, HNB offers are fictional, and Savvy Cart AI is not affiliated with or endorsed by Commercial Bank, Nations Trust Bank, HNB, or any retailer
+- delivery or partner integrations: the delivery option and the partner endpoints are mocks
 - forecasting beyond the purchase gaps: due dates come from the median gap between purchases, not a trained model
 
 ## Run it locally
@@ -57,7 +60,7 @@ python -m pytest -q
 uvicorn savvycart.http:app --reload
 ```
 
-Open http://127.0.0.1:8000/. Without a configured model the whole flow works: **Extract this image** reports that the live extract failed, and **Explain this plan** shows the engine explanation.
+Open http://127.0.0.1:8000/. Without a configured model the whole flow works: **Upload a receipt photo** says the live extract is unavailable, and **Next: explain this plan** shows the engine explanation.
 
 `samples/purchase-history.json` is built from the shopper's e-bill PDFs by `scripts/build_history.py`. The PDFs stay on the shopper's machine and are never committed. Only dates, chains, line items, amounts, and promotions are kept.
 

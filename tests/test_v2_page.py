@@ -54,7 +54,7 @@ class _Audit(HTMLParser):
             self.open_labels -= 1
 
 
-def _assert_accessible(page: str) -> None:
+def _assert_accessible(page: str, has_controls: bool = True) -> None:
     audit = _Audit()
     audit.feed(page)
     tags = audit.tags
@@ -63,7 +63,7 @@ def _assert_accessible(page: str) -> None:
     assert any(t == "meta" and a.get("name") == "viewport" for t, a in tags)
     assert any(t == "html" and a.get("lang") for t, a in tags)
     controls = [a for t, a in tags if t == "select" or (t == "input" and a.get("type") not in ("hidden", "submit"))]
-    assert controls
+    assert controls or not has_controls
     for attrs in controls:
         assert attrs.get("id") and (attrs["id"] in audit.label_for or attrs["id"] in audit.wrapped), f"unlabeled control {attrs}"
 
@@ -89,21 +89,23 @@ def _engine_plan(fields: list[tuple[str, str]]) -> dict[str, Any]:
 def test_guided_flow_is_accessible():
     with TestClient(app) as http:
         home = http.get("/").text
-        plan = _post(http, "plan", _defaults(home))
+        wallet, plan, why, approve = (_post(http, action, _defaults(home)) for action in ("wallet", "plan", "explain", "approve"))
         assert http.get("/static/app.css").status_code == 200
-    for page in (home, plan):
-        _assert_accessible(page)
+    for page in (home, wallet, plan, why, approve):
+        _assert_accessible(page, has_controls=page is not why)
         assert html.escape(V2_BANNER, quote=True) in page
     steps = re.search(r'<nav class="steps" aria-label="Steps"><ol>(.*?)</ol></nav>', home).group(1)
     assert [re.sub("<[^>]+>", "", s) for s in re.findall(r"<li[^>]*>(.*?)</li>", steps)] == ["Pantry", "Wallet", "Plan", "Why", "Approve"]
     assert 'aria-current="step"' in steps
-    for control in ("Use sample receipt", "Extract this image", "Continue to wallet"):
+    for control in ("Use sample receipt", "Upload a receipt photo", "Next: wallet"):
         assert f">{control}</button>" in home
-    for control in ("Plan my shopping", "Show a basket this offer refuses", "Explain this plan", "Approve plan"):
+    for control in ("Next: plan my shopping", "Show a basket this offer refuses"):
+        assert f">{control}</button>" in wallet
+    for control in ("Next: explain this plan", "Approve plan"):
         assert f">{control}</button>" in plan
     # Browsers refuse to submit a form whose number fields break their own step or range, so every
     # pre-filled quantity must be valid as rendered (real quantities such as 1.034 kg are not multiples of 0.1).
-    for attrs in re.findall(r'<input type="number"[^>]*>', home + plan):
+    for attrs in re.findall(r'<input type="number"[^>]*>', home + wallet + plan + approve):
         value = float(re.search(r'value="([^"]+)"', attrs).group(1))
         low = float(re.search(r'min="([^"]+)"', attrs).group(1))
         high = float(re.search(r'max="([^"]+)"', attrs).group(1)) if 'max="' in attrs else float("inf")
@@ -127,7 +129,8 @@ def test_plan_step_shows_store_bills_and_savings():
     try:
         with TestClient(app) as http:
             fields = _defaults(http.get("/").text)
-            page = _post(http, "explain", fields)
+            page = _post(http, "plan", fields)
+            why = _post(http, "explain", fields)
     finally:
         app.state.agent_runner = None
 
@@ -144,10 +147,10 @@ def test_plan_step_shows_store_bills_and_savings():
     assert f'LKR {plan["saving_vs_usual_lkr"]:,}' in page and "Saved against Keells at shelf price" in page
     assert f'LKR {plan["saving_vs_single_lkr"]:,}' in page and "Saved against the best single store" in page
     assert "status OPTIMAL" in page
-    tools = re.search(r'<ul class="tools" id="agent-tools">(.*?)</ul>', page, re.S).group(1)
+    tools = re.search(r'<ul class="tools" id="agent-tools">(.*?)</ul>', why, re.S).group(1)
     assert "load_offers(" in tools and "plan_day(" in tools
     assert html.escape(json.dumps(confirmed, sort_keys=True), quote=True) in tools  # full arguments, not cut
-    assert "The agent did not change your inputs." in page
+    assert "The agent did not change your inputs." in why
 
 
 def test_agent_replan_is_disclosed_and_numbers_are_grounded():
