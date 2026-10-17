@@ -1,7 +1,8 @@
 """Manual live check: send a receipt photo to Gemini and compare with a transcription.
 
-Never run in CI. Needs GEMINI_MODEL plus GEMINI_API_KEY or GOOGLE_API_KEY
-(or GOOGLE_GENAI_USE_VERTEXAI=true with GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION).
+Never run in CI. Needs GEMINI_MODEL plus GEMINI_API_KEY or GOOGLE_API_KEY, or
+GOOGLE_GENAI_USE_ENTERPRISE=true (Gemini Enterprise Agent Platform, formerly Vertex AI)
+with GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_LOCATION, and Application Default Credentials.
 """
 
 from __future__ import annotations
@@ -24,9 +25,12 @@ def missing_credentials() -> list[str]:
     if not os.environ.get("GEMINI_MODEL"):
         missing.append("GEMINI_MODEL")
     has_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
-    if not (has_key or vertex):
-        missing.append("GEMINI_API_KEY (or GOOGLE_API_KEY, or GOOGLE_GENAI_USE_VERTEXAI=true)")
+    enterprise = any(
+        os.environ.get(flag, "").lower() == "true"
+        for flag in ("GOOGLE_GENAI_USE_ENTERPRISE", "GOOGLE_GENAI_USE_VERTEXAI")
+    )
+    if not (has_key or enterprise):
+        missing.append("GOOGLE_GENAI_USE_ENTERPRISE=true with GOOGLE_CLOUD_PROJECT (or GEMINI_API_KEY)")
     return missing
 
 

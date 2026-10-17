@@ -122,8 +122,12 @@ def _load_offers() -> list[dict[str, Any]]:
 def _model_configured() -> bool:
     model = os.environ.get("GEMINI_MODEL", "")
     has_key = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
-    vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
-    return bool(model and (has_key or vertex))
+    # Agent Platform (formerly Vertex AI) authenticates with the runtime service account; no key.
+    enterprise = any(
+        os.environ.get(flag, "").lower() == "true"
+        for flag in ("GOOGLE_GENAI_USE_ENTERPRISE", "GOOGLE_GENAI_USE_VERTEXAI")
+    )
+    return bool(model and (has_key or enterprise))
 
 
 def _default_model_client() -> ModelClient:

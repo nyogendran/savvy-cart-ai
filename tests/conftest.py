@@ -6,7 +6,15 @@ import pytest
 
 from savvycart.http import app
 
-LIVE_MODEL_ENV = ("GEMINI_MODEL", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI")
+LIVE_MODEL_ENV = (
+    "GEMINI_MODEL",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "GOOGLE_GENAI_USE_VERTEXAI",
+    "GOOGLE_GENAI_USE_ENTERPRISE",
+    "GOOGLE_CLOUD_PROJECT",
+    "GOOGLE_CLOUD_LOCATION",
+)
 
 
 @pytest.fixture(autouse=True)

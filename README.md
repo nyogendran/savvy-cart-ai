@@ -36,9 +36,9 @@ The explanation API, `POST /v1/explain`, works the same way: Gemini writes from 
 | Piece | Role |
 | --- | --- |
 | Cloud Run | Serves the guest page and the API. Minimum instances 0. |
-| Gemini | Reads the receipt image into structured lines. Writes the plan explanation from the plan JSON through the explain API. |
+| Gemini on Agent Platform | Gemini runs on Gemini Enterprise Agent Platform (formerly Vertex AI). It reads the receipt image into structured lines and writes the plan explanation from the plan JSON. The Cloud Run service account authenticates, so no API key exists in the default deploy. |
 | Agent Development Kit | One agent, `root_agent`, with four tools: catalog, offers, optimizer, explain. **Explain this plan** runs it and shows the tools it called. Pricing itself calls the same functions directly, so plans work without a model. |
-| Secret Manager | Holds the model API key and configuration. Nothing secret is in this repo. |
+| Secret Manager | Holds the Gemini model configuration, mounted into Cloud Run at deploy time. Nothing secret is in this repo. |
 
 The model is never the source of a price, a discount, or a total. A deterministic optimizer computes every rupee.
 

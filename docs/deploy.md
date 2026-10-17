@@ -17,18 +17,45 @@ If the chosen Gemini model is not callable from `asia-southeast1`, deploy to the
 
 ## Configuration and secrets
 
-`GEMINI_MODEL` and the model API key come from Secret Manager or the Cloud Run environment at deploy time, never from the `Dockerfile` or this document. Without them the app still serves the full sample path, and **Extract this image** reports that the live extract failed.
+Gemini runs on Gemini Enterprise Agent Platform (formerly Vertex AI). The Cloud Run service account authenticates with Application Default Credentials, so the default deploy has **no API key**. Secret Manager holds the model configuration (`GEMINI_MODEL`), mounted at deploy time. Nothing in the `Dockerfile` or this document is a secret, and no project id is written here. Without a configured model the app still serves the full sample path; **Extract this image** reports that the live extract failed and **Explain this plan** shows the engine explanation.
 
-1. Store the key once in Secret Manager. Read it from a prompt so it never lands in shell history:
+Set shell variables first. `PROJECT_ID` is your project; the values stay in your shell, not in git:
+
+```bash
+PROJECT_ID=$(gcloud config get-value project)
+SA=savvy-cart-run@${PROJECT_ID}.iam.gserviceaccount.com
+```
+
+1. Enable the APIs:
 
    ```bash
-   gcloud secrets create gemini-api-key --replication-policy=automatic
-   read -rs GEMINI_KEY && printf '%s' "$GEMINI_KEY" | gcloud secrets versions add gemini-api-key --data-file=- && unset GEMINI_KEY
+   gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
+     secretmanager.googleapis.com aiplatform.googleapis.com
    ```
 
-2. Grant the Cloud Run runtime service account `roles/secretmanager.secretAccessor` on that secret.
+2. Create the runtime service account and let it call Gemini on Agent Platform:
 
-3. Deploy from the repo root. Replace `<model-id>` with the model you chose; the project comes from your active gcloud configuration, not from this repo:
+   ```bash
+   gcloud iam service-accounts create savvy-cart-run --display-name "Savvy Cart Cloud Run runtime"
+   gcloud projects add-iam-policy-binding "$PROJECT_ID" --member "serviceAccount:$SA" --role roles/aiplatform.user
+   ```
+
+3. Store the model id in Secret Manager and let the runtime read it. Pick a Gemini model available on Agent Platform; the id is configuration, not code:
+
+   ```bash
+   printf '%s' "<model-id>" | gcloud secrets create savvy-cart-gemini-model --replication-policy=automatic --data-file=-
+   gcloud secrets add-iam-policy-binding savvy-cart-gemini-model --member "serviceAccount:$SA" --role roles/secretmanager.secretAccessor
+   ```
+
+4. Source deploys build with the default compute service account. On a new project it needs the Cloud Run builder role:
+
+   ```bash
+   PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+     --member "serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" --role roles/run.builder
+   ```
+
+5. Deploy from the repo root:
 
    ```bash
    gcloud run deploy savvy-cart \
@@ -38,15 +65,28 @@ If the chosen Gemini model is not callable from `asia-southeast1`, deploy to the
      --min-instances=0 \
      --timeout=120 \
      --allow-unauthenticated \
-     --set-secrets GEMINI_API_KEY=gemini-api-key:latest \
-     --set-env-vars GEMINI_MODEL=<model-id>
+     --service-account "$SA" \
+     --set-secrets GEMINI_MODEL=savvy-cart-gemini-model:latest \
+     --set-env-vars GOOGLE_GENAI_USE_ENTERPRISE=true,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=global
    ```
 
-4. Read the service URL and put it at the top of the judge path in `README.md`:
+   `GOOGLE_CLOUD_LOCATION` is where the model is called, separate from the Cloud Run region. `global` serves current Gemini models; use `asia-southeast1` instead if your model is offered there.
+
+6. Read the service URL and put it at the top of the judge path in `README.md`:
 
    ```bash
    gcloud run services describe savvy-cart --region asia-southeast1 --format='value(status.url)'
    ```
+
+### Alternative: Gemini Developer API key
+
+If you use an API key instead of Agent Platform, store it in Secret Manager from a hidden prompt so it never lands in shell history, grant the runtime `roles/secretmanager.secretAccessor` on it, and replace the enterprise variables with the key:
+
+```bash
+gcloud secrets create gemini-api-key --replication-policy=automatic
+read -rs GEMINI_KEY && printf '%s' "$GEMINI_KEY" | gcloud secrets versions add gemini-api-key --data-file=- && unset GEMINI_KEY
+# deploy with: --set-secrets GEMINI_MODEL=savvy-cart-gemini-model:latest,GEMINI_API_KEY=gemini-api-key:latest
+```
 
 ## Keep-alive window (19 Oct – 6 Nov 2026)
 

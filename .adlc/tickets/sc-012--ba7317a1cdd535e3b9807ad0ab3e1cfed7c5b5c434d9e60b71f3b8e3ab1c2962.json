@@ -1,0 +1,38 @@
+{
+  "body": "Approved spec: .adlc/specs/SC-001-product-vision.md (Cloud Run judge URL, Gemini reads the receipt and writes the explanation, secrets and project config in Secret Manager). Do not edit that file or specs/001-product-vision/spec.md. Do not call Gemini or any live API in tests. Do not commit secrets or the project id. Rails freeze fixtures/**, the optimizer, receipts, explain, gemini, agent, the Dockerfile, the existing checker scripts, pyproject.toml, and every existing test file except tests/conftest.py.\n\nIn April 2026 Vertex AI became Gemini Enterprise Agent Platform. google-genai and google-adk read GOOGLE_GENAI_USE_ENTERPRISE=true (GOOGLE_GENAI_USE_VERTEXAI is the legacy alias) with GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION, and authenticate with Application Default Credentials, so a Cloud Run service account needs no API key.\n\n1. src/savvycart/http.py: a model counts as configured when GEMINI_MODEL is set and either GEMINI_API_KEY or GOOGLE_API_KEY is set, or GOOGLE_GENAI_USE_ENTERPRISE or GOOGLE_GENAI_USE_VERTEXAI is true.\n2. scripts/extract_receipt_live.py accepts the same settings and names GOOGLE_GENAI_USE_ENTERPRISE in its missing-credentials message.\n3. tests/conftest.py also removes GOOGLE_GENAI_USE_ENTERPRISE, GOOGLE_CLOUD_PROJECT, and GOOGLE_CLOUD_LOCATION for every test.\n4. docs/deploy.md describes the Agent Platform path as the default: enable run, cloudbuild, artifactregistry, secretmanager, and aiplatform APIs; a dedicated runtime service account with roles/aiplatform.user; the model id stored in Secret Manager and mounted as GEMINI_MODEL; GOOGLE_GENAI_USE_ENTERPRISE=true, GOOGLE_CLOUD_PROJECT, and GOOGLE_CLOUD_LOCATION as environment variables; the build service account permission source deploys need. The API key path stays as an alternative. No project id, key, or secret value appears in the doc. python scripts/check_deploy_docs.py still passes.\n5. README.md says Gemini runs on Gemini Enterprise Agent Platform (formerly Vertex AI), that no API key exists in the default deploy, and that Secret Manager holds the model configuration. python scripts/check_judge_readme.py still passes.\n\ntests/test_deploy_config.py checks the configuration rules without constructing a live client.\n\nAcceptance criteria:\n1. The enterprise flag counts as configured, and nothing counts without a model id. Verify: python -m pytest tests/test_deploy_config.py::test_enterprise_flag_configures_the_model -q\n2. The live script accepts the enterprise flag. Verify: python -m pytest tests/test_deploy_config.py::test_live_script_accepts_enterprise_flag -q\n3. Tests never see the enterprise settings. Verify: python -m pytest tests/test_deploy_config.py::test_suite_hides_enterprise_settings -q\n4. Deploy docs and README checkers pass. Verify: python scripts/check_deploy_docs.py && python scripts/check_judge_readme.py\n",
+  "category": "feature",
+  "duration": 1,
+  "edges": [],
+  "id": "SC-012",
+  "rails": [
+    "fixtures/**",
+    "src/savvycart/optimizer.py",
+    "src/savvycart/receipts.py",
+    "src/savvycart/explain.py",
+    "src/savvycart/gemini.py",
+    "src/savvycart/agent.py",
+    "Dockerfile",
+    "scripts/check_deploy_docs.py",
+    "scripts/check_judge_readme.py",
+    "pyproject.toml",
+    "tests/test_fixtures.py",
+    "tests/test_optimizer.py",
+    "tests/test_guardrail.py",
+    "tests/test_plans_api.py",
+    "tests/test_approve.py",
+    "tests/test_receipt_api.py",
+    "tests/test_explain.py",
+    "tests/test_guest_page.py",
+    "tests/test_real_receipt.py",
+    "tests/test_agent_page.py"
+  ],
+  "scope": [
+    "src/savvycart/http.py",
+    "scripts/extract_receipt_live.py",
+    "tests/conftest.py",
+    "tests/test_deploy_config.py",
+    "docs/deploy.md",
+    "README.md"
+  ],
+  "title": "Configure Gemini on Agent Platform for the Cloud Run deploy"
+}
