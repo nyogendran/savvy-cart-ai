@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import html
 import json
+import logging
 import os
 import time
 import uuid
@@ -17,7 +19,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from savvycart.explain import ensure_discount_sentence, explain_plan
+from savvycart.explain import drop_unallowed_number_tokens, ensure_discount_sentence, explain_plan, numbers_in_plan
 from savvycart.gemini import ModelResponseError, UnsupportedImage
 from savvycart.optimizer import optimize
 from savvycart.receipts import (
@@ -36,6 +38,7 @@ FIXTURES = ROOT / "fixtures"
 DATA_LABEL = "Sample catalog — not live shelf prices."
 
 app = FastAPI(title="Savvy Cart AI", version="0.1.0")
+logger = logging.getLogger("savvycart")
 
 
 class ModelClient(Protocol):
@@ -46,6 +49,10 @@ class ModelClient(Protocol):
     def extract(self, image_bytes: bytes, schema: dict[str, Any]) -> dict[str, Any] | str: ...
 
     def explain(self, plan_json: dict[str, Any], instruction: str) -> str: ...
+
+
+class ModelNotConfigured(RuntimeError):
+    pass
 
 
 class NullModelClient:
@@ -60,11 +67,11 @@ class NullModelClient:
     def extract(self, image_bytes: bytes, schema: dict[str, Any]) -> dict[str, Any] | str:
         self.calls += 1
         self.last_extract = (image_bytes, schema)
-        raise RuntimeError("configure a receipt model client on app.state.model_client")
+        raise ModelNotConfigured("no receipt model is configured")
 
     def explain(self, plan_json: dict[str, Any], instruction: str) -> str:
         self.calls += 1
-        raise RuntimeError("configure an explain model client on app.state.model_client")
+        raise ModelNotConfigured("no explain model is configured")
 
 
 class LineId(BaseModel):
@@ -112,14 +119,18 @@ def _load_offers() -> list[dict[str, Any]]:
     return json.loads((FIXTURES / "offers.json").read_text(encoding="utf-8"))["offers"]
 
 
-def _default_model_client() -> ModelClient:
+def _model_configured() -> bool:
     model = os.environ.get("GEMINI_MODEL", "")
     has_key = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
     vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
-    if model and (has_key or vertex):
+    return bool(model and (has_key or vertex))
+
+
+def _default_model_client() -> ModelClient:
+    if _model_configured():
         from savvycart.gemini import GeminiModelClient
 
-        return GeminiModelClient(model)
+        return GeminiModelClient(os.environ["GEMINI_MODEL"])
     return NullModelClient()
 
 
@@ -162,6 +173,15 @@ def _plan_summary(plan: dict[str, Any] | None) -> dict[str, Any] | None:
         "effective_cost": plan["effective_cost"],
         "reason": plan["reason"],
         "offer_id": plan["offer_id"],
+        "lines": [
+            {
+                "sku_id": line["sku_id"],
+                "qty": line["qty"],
+                "status": line["status"],
+                "shelf_lkr": line["shelf_lkr"],
+            }
+            for line in plan["lines"]
+        ],
     }
 
 
@@ -277,6 +297,8 @@ async def create_receipt(
         raise HTTPException(status_code=429, detail="extract rate limit exceeded") from None
     except UnsupportedImage:
         raise HTTPException(status_code=415, detail="send a PNG or JPEG receipt image") from None
+    except ModelNotConfigured:
+        raise HTTPException(status_code=503, detail="receipt model not configured") from None
     except ModelResponseError:
         raise HTTPException(status_code=502, detail="the receipt model did not return usable lines") from None
 
@@ -297,13 +319,16 @@ def explain(
         raise HTTPException(status_code=400, detail="no complete plan for store_id")
     summary = _plan_summary(plan)
     assert summary is not None
+    source = "model"
     try:
         explained = explain_plan(summary, model_client=model_client)
-    except ModelResponseError:
+    except (ModelNotConfigured, ModelResponseError):
+        source = "engine"
         explained = {"text": ensure_discount_sentence("", int(summary["discount"])), "cited_fields": ["discount"]}
     return {
         "text": explained["text"],
         "cited_fields": explained["cited_fields"],
+        "source": source,
     }
 
 
@@ -531,7 +556,106 @@ def _render_plans(plans: dict[str, Any], swap: str, basket: list[dict[str, Any]]
         f"<tbody>{rows}</tbody></table>"
         f"<h3>Other offer-day</h3><ul>{sweep}</ul>"
         f"<h3>Offer end dates</h3><ul>{valid_to}</ul>"
+        f"{_render_line_check(plans)}"
         f'<p id="tools">Tools run: {_e(tools)}</p>'
+        "</section>"
+    )
+
+
+def _line_reason(status: str, category: str, offer: dict[str, Any] | None, plan: dict[str, Any]) -> str:
+    """Why a line is or is not discounted, from the offer rule fields only."""
+    if status == "unpriced":
+        return "no price at this store in the snapshot"
+    if offer is None:
+        return "no card offer applies at this store on this day"
+    if plan["reason"] == "expired":
+        return "the offer rule ended in this snapshot"
+    if status == "eligible":
+        return f"{category} — in the offer categories"
+    if category in (offer.get("exclude_categories") or []):
+        return f"{category} — this offer excludes {category} items"
+    covered = ", ".join(offer.get("include_categories") or [])
+    return f"{category} — the offer covers {covered} items only"
+
+
+def _render_line_check(plans: dict[str, Any]) -> str:
+    offers = {o["id"]: o for o in _load_offers()}
+    plan = next((p for p in plans["plans"] if p["offer_id"]), None)
+    if plan is None:
+        return '<h3>Line check</h3><p id="line-check">No card offer applies on this day, so no line is discounted.</p>'
+    offer = offers[plan["offer_id"]]
+    skus = {sku["id"]: sku for sku in _load_catalog()["skus"]}
+    rows = "".join(
+        f'<tr class="line-check" data-sku="{_e(line["sku_id"])}">'
+        f'<td>{_e(skus.get(line["sku_id"], {}).get("name", line["sku_id"]))}</td>'
+        f'<td>{_e(line["shelf_lkr"] if line["shelf_lkr"] is not None else "n/a")}</td>'
+        f'<td>{_e(line["status"])}</td>'
+        f'<td>{_e(_line_reason(line["status"], skus.get(line["sku_id"], {}).get("category", "unknown"), offer, plan))}</td>'
+        "</tr>"
+        for line in plan.get("lines", [])
+    )
+    return (
+        f'<h3>Line check at {_e(plan["store_id"].title())} ({_e(offer["id"])})</h3>'
+        '<table id="line-check"><thead><tr><th>Item</th><th>Shelf LKR</th><th>Status</th><th>Why</th></tr></thead>'
+        f"<tbody>{rows}</tbody></table>"
+    )
+
+
+EXPLAIN_QUESTION = (
+    "Explain to the shopper why this is the cheapest one-store plan, "
+    "and why any item in the basket is not discounted by the card offer."
+)
+AGENT_TIMEOUT_SECONDS = 60
+
+
+def _engine_explanation(winner: dict[str, Any]) -> str:
+    return (
+        f'{winner["store_id"].title()} has the lowest effective cost: {winner["effective_cost"]} LKR. '
+        + ensure_discount_sentence("", int(winner["discount"]))
+    )
+
+
+async def _explain_for_page(
+    request: Request,
+    plans: dict[str, Any],
+    basket: list[dict[str, Any]],
+    persona: dict[str, str],
+) -> dict[str, Any]:
+    winner = plans["winner"]
+    runner = getattr(request.app.state, "agent_runner", None)
+    if runner is None and _model_configured():
+        from savvycart.agent import ask_agent
+
+        runner = ask_agent
+    if runner is None:
+        return {"source": "Model not configured: engine explanation.", "text": _engine_explanation(winner), "tools": []}
+    try:
+        answer = await asyncio.wait_for(
+            runner(EXPLAIN_QUESTION, basket, persona["weekday"], DEMO_DATES[persona["weekday"]], persona["usual_store"]),
+            timeout=AGENT_TIMEOUT_SECONDS,
+        )
+    except Exception as exc:
+        logger.warning("agent call failed: %s: %.200s", type(exc).__name__, exc)
+        return {
+            "source": "The agent call failed. Showing the engine explanation.",
+            "text": _engine_explanation(winner),
+            "tools": [],
+        }
+    cleaned = drop_unallowed_number_tokens(str(answer.get("text", "")), numbers_in_plan(winner))
+    return {
+        "source": "Answer from the ADK agent (Gemini), numbers checked against the plan.",
+        "text": ensure_discount_sentence(cleaned, int(winner["discount"])),
+        "tools": [str(name) for name in answer.get("tools", [])],
+    }
+
+
+def _render_explanation(explanation: dict[str, Any]) -> str:
+    tools = ", ".join(explanation["tools"]) or "none"
+    return (
+        '<section id="explanation"><h2>Why this plan</h2>'
+        f'<p id="explanation-source">{_e(explanation["source"])}</p>'
+        f'<p id="explanation-text">{_e(explanation["text"])}</p>'
+        f'<p id="agent-tools">Agent tools called: {_e(tools)}</p>'
         "</section>"
     )
 
@@ -615,6 +739,7 @@ def _render_page(
     message: str | None = None,
     approve: dict[str, Any] | None = None,
     options: dict[str, Any] | None = None,
+    explanation: dict[str, Any] | None = None,
 ) -> str:
     can_reject = plans is not None and swap == "applied" and any(
         line["sku_id"] in _substitutions().values() for line in (basket or [])
@@ -630,6 +755,7 @@ def _render_page(
         f'<button type="submit" name="action" value="reject_swap"{"" if can_reject else " disabled"}>Reject swap</button> '
         f'<button type="submit" name="action" value="keep_swap"{"" if can_keep else " disabled"}>Keep swap</button> '
         f'<button type="submit" name="action" value="approve"{"" if can_approve else " disabled"}>Approve plan</button> '
+        '<button type="submit" name="action" value="explain">Explain this plan</button> '
         '<button type="submit" name="action" value="refused">Show a basket this offer refuses</button>'
         "</section>"
     )
@@ -643,6 +769,7 @@ def _render_page(
         f'<input type="hidden" name="swap" value="{_e(swap)}">',
         controls,
         "</form>",
+        _render_explanation(explanation) if explanation else "",
         _render_options(options) if options else "",
         _render_plans(plans, swap, basket or []) if plans is not None else "",
         (
@@ -764,6 +891,10 @@ async def guest_action(request: Request) -> str:
         if compared.status_code == 200:
             options = {swap: plans, other: compared.json(), "selected": swap}
 
+    explanation: dict[str, Any] | None = None
+    if action == "explain" and plans and plans.get("winner"):
+        explanation = await _explain_for_page(request, plans, basket, persona)
+
     if action == "approve" and plans and plans.get("winner"):
         approved = await _internal_post(
             request,
@@ -785,4 +916,5 @@ async def guest_action(request: Request) -> str:
         message=message,
         approve=approve,
         options=options,
+        explanation=explanation,
     )

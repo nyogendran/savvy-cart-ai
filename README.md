@@ -17,17 +17,19 @@ Open the judge URL. The first load can take tens of seconds while Cloud Run star
    - the card headline percent crossed out, next to the legal saving the engine computed
    - the legal saving on the other offer day, on the same shelf prices
    - each offer's `valid_to`
+   - the line check: every item at the offer store, with why it is or is not discounted
    - the tool trail: catalog, offers, optimizer
 5. Read **Your options**. The page applies one cheaper substitute (budget chicken), which drops the fresh items below the offer minimum, so the offer pays 0. Option B restores the original chicken, meets the minimum, and earns the capped saving. The page shows both totals and says which one costs less. It never adds items to reach a minimum. Press **Reject swap** to choose Option B, or **Keep swap** to go back.
-6. Press **Approve plan**. The page shows a MOCK order preview. No order is sent.
-7. Press **Show a basket this offer refuses**. The eligible subtotal misses the minimum, and the legal saving is LKR 0.
+6. Press **Explain this plan**. The one ADK agent calls its tools, and the page lists the tools it actually called and shows its answer. Any number in the answer that is not in the winning plan is dropped before it is shown. If no model is configured, or the agent call fails, the page says so and shows the engine's own explanation instead.
+7. Press **Approve plan**. The page shows a MOCK order preview. No order is sent.
+8. Press **Show a basket this offer refuses**. The eligible subtotal misses the minimum, and the legal saving is LKR 0.
 
-Two questions the plans answer:
+Two questions the page answers:
 
-- **Why isn’t rice discounted?** Rice is a staple. The card offer covers fresh items only, so rice stays at shelf price in every plan.
+- **Why isn’t rice discounted?** Rice is a staple. The card offer covers fresh items only, so the line check marks rice as excluded and it stays at shelf price in every plan.
 - **Why does the cheaper basket get no card saving?** The budget chicken brings the fresh items under the offer minimum. Below the minimum the offer pays nothing.
 
-The explanation API, `POST /v1/explain`, has Gemini write from the optimizer's JSON only. Any number the model invents is dropped, and if the model call fails the engine's own sentence is returned. The guest page does not show this explanation yet.
+The explanation API, `POST /v1/explain`, works the same way: Gemini writes from the optimizer's JSON only, invented numbers are dropped, and without a model the engine's sentence is returned.
 
 ## How it works on Google Cloud
 
@@ -35,7 +37,7 @@ The explanation API, `POST /v1/explain`, has Gemini write from the optimizer's J
 | --- | --- |
 | Cloud Run | Serves the guest page and the API. Minimum instances 0. |
 | Gemini | Reads the receipt image into structured lines. Writes the plan explanation from the plan JSON through the explain API. |
-| Agent Development Kit | One agent, `root_agent`, with four tools: catalog, offers, optimizer, explain. The guest page calls the same functions directly, and its tool trail lists them. |
+| Agent Development Kit | One agent, `root_agent`, with four tools: catalog, offers, optimizer, explain. **Explain this plan** runs it and shows the tools it called. Pricing itself calls the same functions directly, so plans work without a model. |
 | Secret Manager | Holds the model API key and configuration. Nothing secret is in this repo. |
 
 The model is never the source of a price, a discount, or a total. A deterministic optimizer computes every rupee.
@@ -60,7 +62,7 @@ python -m pytest -q
 uvicorn savvycart.http:app --reload
 ```
 
-Open http://127.0.0.1:8000/. Without a configured model, the sample path works fully and **Extract this image** reports that the live extract failed.
+Open http://127.0.0.1:8000/. Without a configured model, the sample path works fully, **Extract this image** reports that the live extract failed, and **Explain this plan** shows the engine explanation.
 
 ## How this was built
 

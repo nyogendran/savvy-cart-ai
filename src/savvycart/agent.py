@@ -58,10 +58,46 @@ def explain_plan_numbers(plan: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-root_agent = Agent(
-    name="savvy_cart",
-    description="Prices a confirmed grocery basket at three stores and applies card offer rules.",
-    model=os.environ.get("GEMINI_MODEL", ""),
-    instruction=INSTRUCTION,
-    tools=[load_catalog, load_offers, run_optimizer, explain_plan_numbers],
-)
+def build_agent(model: Any) -> Agent:
+    return Agent(
+        name="savvy_cart",
+        description="Prices a confirmed grocery basket at three stores and applies card offer rules.",
+        model=model,
+        instruction=INSTRUCTION,
+        tools=[load_catalog, load_offers, run_optimizer, explain_plan_numbers],
+    )
+
+
+root_agent = build_agent(os.environ.get("GEMINI_MODEL", ""))
+
+
+async def ask_agent(
+    question: str,
+    lines: list[dict[str, Any]],
+    weekday: str,
+    date: str,
+    usual_store: str,
+    agent: Agent | None = None,
+) -> dict[str, Any]:
+    """Run one agent turn over the confirmed basket; return its text and the tools it called."""
+    from google.adk.runners import InMemoryRunner
+    from google.genai import types
+
+    runner = InMemoryRunner(agent=agent or root_agent, app_name="savvy_cart")
+    session = await runner.session_service.create_session(app_name="savvy_cart", user_id="guest")
+    prompt = (
+        f"{question}\n"
+        f"Confirmed basket lines: {json.dumps(lines)}\n"
+        f"Weekday: {weekday}. Date: {date}. Usual store: {usual_store}."
+    )
+    tools: list[str] = []
+    text = ""
+    async for event in runner.run_async(
+        user_id="guest",
+        session_id=session.id,
+        new_message=types.Content(role="user", parts=[types.Part(text=prompt)]),
+    ):
+        tools.extend(call.name for call in event.get_function_calls())
+        if event.is_final_response() and event.content and event.content.parts:
+            text = "".join(part.text or "" for part in event.content.parts)
+    return {"text": text, "tools": tools}
