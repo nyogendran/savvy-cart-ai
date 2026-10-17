@@ -366,6 +366,8 @@ from savvycart.partners import router as partners_router
 from itertools import combinations
 
 from savvycart.planner import MAX_QTY, MAX_STORES, WEEKDAYS, day_sweep
+from savvycart.planner import _best_promotion as best_promotion
+from savvycart.planner import _lkr as planner_lkr
 from savvycart.planner import plan_day as engine_plan_day
 
 V2 = FIXTURES / "v2"
@@ -807,6 +809,7 @@ def _suggestions(plan: dict[str, Any], state: dict[str, Any], items: list[dict[s
     horizon = (state["today"] + _timedelta(days=SUGGEST_DAYS)).isoformat()
     candidates = [i for i in items if i["sku_id"] not in basket and i.get("next_due") and i["next_due"] <= horizon and not _is_stale(i)]
     skus = {sku["id"]: sku for sku in _v2_catalog()["skus"]}
+    the_day = _date.fromisoformat(plan["day"]["date"])
     found = []
     for bill, offer, eligible in _missed_offers(plan, state["banks"])[:3]:
         store = bill["store_id"]
@@ -815,22 +818,27 @@ def _suggestions(plan: dict[str, Any], state: dict[str, Any], items: list[dict[s
             sku = skus[item["sku_id"]]
             price = sku["prices"].get(store)
             if price and _offer_covers(offer, sku["category"]):
-                pool.append((item, int(price["amount_lkr"] * float(item["qty"]) + 0.5)))
+                qty = float(item["qty"])
+                shelf = planner_lkr(price["amount_lkr"] * qty)
+                _, saving = best_promotion(_v2_offers().get("store_promotions", []), sku, store, the_day, shelf, price["amount_lkr"], qty)
+                pool.append((item, shelf, shelf - saving))
+        # The minimum counts promoted prices, exactly as the planner does.
         gap = offer["min_bill_lkr"] - eligible
-        best = None
-        for size in (1, 2, 3):
-            for combo in combinations(pool, size):
-                cost = sum(c for _, c in combo)
-                if cost >= gap and (best is None or cost < best[0]):
-                    best = (cost, combo)
+        ranked = sorted(
+            (combo for size in (1, 2, 3) for combo in combinations(pool, size) if sum(p for _, _, p in combo) >= gap),
+            key=lambda combo: (sum(s for _, s, _ in combo), [c[0]["sku_id"] for c in combo]),
+        )
         entry = {"bank": offer["bank"], "store_id": store, "minimum": offer["min_bill_lkr"], "names": []}
-        if best is not None:
-            added = [{"sku_id": item["sku_id"], "qty": item["qty"]} for item, _ in best[1]]
+        for combo in ranked[:5]:
+            shelf_cost = sum(s for _, s, _ in combo)
+            added = [{"sku_id": item["sku_id"], "qty": item["qty"]} for item, _, _ in combo]
             replan = engine_plan_day(_v2_catalog(), _v2_offers(), lines + added, plan["day"]["date"], state["banks"],
                                      plan["max_stores"], plan["trip_cost_lkr"], state["usual_store"], _with_baselines=False)
-            if replan["effective_cost_lkr"] < plan["effective_cost_lkr"] + best[0]:
-                entry.update({"names": [item["name"] for item, _ in best[1]], "shelf_lkr": best[0],
+            fires = any(b["store_id"] == store and b["card"] and b["card"]["offer_id"] == offer["id"] for b in replan["stores"])
+            if fires and replan["effective_cost_lkr"] < plan["effective_cost_lkr"] + shelf_cost:
+                entry.update({"names": [item["name"] for item, _, _ in combo], "shelf_lkr": shelf_cost,
                               "replanned_lkr": replan["effective_cost_lkr"], "current_lkr": plan["effective_cost_lkr"]})
+                break
         found.append(entry)
     return found
 

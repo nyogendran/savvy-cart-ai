@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 
 from fastapi.testclient import TestClient
 
-from savvycart.http import app, engine_plan_day, _v2_catalog, _v2_offers
+from savvycart.http import _pantry_view, _parse_state, _v2_catalog, _v2_offers, app, engine_plan_day
 from savvycart.receipts import MemoryStorage
 
 FORM = {"content-type": "application/x-www-form-urlencoded"}
@@ -161,27 +161,53 @@ def test_uploaded_receipt_adds_listed_lines():
     assert "Added 6 lines from the sample receipt" in sample and "<ul><li>" in sample
 
 
+SUGGEST_CASE = [("today", "2026-10-22"), ("pantry_set", "1"), ("wallet_set", "1"), ("bank", "Commercial Bank"), ("max_stores", "1"),
+                ("usual_store", "keells"), ("day", "2026-10-24"), ("sku", "flora_500g"), ("sku", "bread_450g"),
+                ("qty_flora_500g", "3"), ("qty_bread_450g", "4")]
+
+
 def test_offer_minimum_suggestions_use_only_items_due_soon():
+    form: dict[str, list[str]] = {}
+    for key, value in SUGGEST_CASE:
+        form.setdefault(key, []).append(value)
+    state = _parse_state(form)
+    items = {i["sku_id"]: i for i in _pantry_view(state)}
+    allowed = {i["name"]: i for i in items.values()
+               if not i["checked"] and i.get("next_due") and i["next_due"] <= "2026-11-05" and i["display_status"] != "stale"}
     with TestClient(app) as http:
-        home = http.get("/").text
-        basket = [s for s in re.findall(r'name="sku" value="([^"]+)" checked', home) if s != "coconut"]
-        page = _submit(http, home, "plan", [("day", "2026-10-23"), ("qty_coconut", "15")] + [("sku", s) for s in basket], drop=("sku",))
-        refused = _submit(http, home, "refused")
+        page = http.post("/ui", content=urlencode([("action", "plan")] + SUGGEST_CASE), headers=FORM).text
+        refused = _submit(http, http.get("/").text, "refused")
     blocks = re.findall(r'<div class="suggestion">(.*?)</div>', page, re.S)
-    assert blocks, "this basket misses the HNB minimum at Cargills by less than 15 coconuts"
+    assert blocks, "Commercial Bank at Keells on Saturday misses its minimum by less than the shopper's soon-due items"
     for block in blocks:
         text = html.unescape(re.sub(r"<[^>]+>", "", block))
         assert "Only if you need these soon. Savvy Cart does not add them." in text
         names = re.search(r"adding (.+?) \(LKR", text).group(1).split(", ")
-        assert set(names) <= {"Coconut", "Red dhal 1 kg"}  # not in the basket and due within 14 days of 22 Oct
+        assert names and set(names) <= set(allowed)  # not in the basket, due within 14 days of 22 Oct
         replanned = int(re.search(r"plan with them is LKR ([\d,]+)", text).group(1).replace(",", ""))
-        lines = [{"sku_id": s, "qty": float(re.search(rf'name="qty_{s}" [^>]*value="([^"]+)"', page).group(1))} for s in basket]
-        lines += [{"sku_id": {"Coconut": "coconut", "Red dhal 1 kg": "red_dhal_1kg"}[n], "qty": 15.0 if n == "Coconut" else 1.0} for n in names]
-        engine = engine_plan_day(_v2_catalog(), _v2_offers(), lines, "2026-10-23", BANKS, 2, 250, "keells", _with_baselines=False)
+        lines = [{"sku_id": "flora_500g", "qty": 3.0}, {"sku_id": "bread_450g", "qty": 4.0}]
+        lines += [{"sku_id": allowed[n]["sku_id"], "qty": allowed[n]["qty"]} for n in names]
+        engine = engine_plan_day(_v2_catalog(), _v2_offers(), lines, "2026-10-24", ["Commercial Bank"], 1, 250, "keells", _with_baselines=False)
         assert replanned == engine["effective_cost_lkr"]
+        assert engine["stores"][0]["card"] and engine["stores"][0]["card"]["bank"] == "Commercial Bank"  # the offer really fires
     # Never added: the basket the page carries forward is unchanged.
-    assert "coconut" not in re.findall(r'name="sku" value="([^"]+)" checked', page)
+    assert set(re.findall(r'<input type="hidden" name="sku" value="([^"]+)">', page)) | set(
+        re.findall(r'name="sku" value="([^"]+)" checked', page)) <= {"flora_500g", "bread_450g"}
     assert "suggests nothing" in refused  # the two-item control basket cannot honestly reach a minimum
+
+
+def test_suggestions_never_claim_a_minimum_the_engine_does_not_reach():
+    # Store promotions lower the promoted subtotal the minimum counts; shelf prices would wrongly reach it here.
+    fields = [("action", "plan"), ("today", "2026-10-22"), ("pantry_set", "1"), ("wallet_set", "1"), ("bank", "Commercial Bank"),
+              ("max_stores", "1"), ("usual_store", "keells"), ("day", "2026-10-24"), ("sku", "flora_500g"), ("sku", "bread_450g"),
+              ("qty_flora_500g", "3"), ("qty_bread_450g", "4")]
+    with TestClient(app) as http:
+        page = http.post("/ui", content=urlencode(fields), headers=FORM).text
+    assert "LKR 3,992" not in page
+    for block in re.findall(r'<div class="suggestion">(.*?)</div>', page, re.S):
+        text = html.unescape(re.sub(r"<[^>]+>", "", block))
+        replanned = int(re.search(r"plan with them is LKR ([\d,]+)", text).group(1).replace(",", ""))
+        assert replanned >= 4000 - 1250  # a fired Commercial Bank offer leaves the bill at or above minimum minus cap
 
 
 def test_approve_offers_a_mock_delivery_quote():
