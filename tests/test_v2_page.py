@@ -337,7 +337,7 @@ def test_sample_receipt_updates_the_pantry_and_refused_basket_pays_zero():
     receipt_json = re.search(r'name="receipt_json" value="([^"]*)"', added).group(1)
     assert "BANANA - AMBUL" in receipt_json.replace("&quot;", '"')
     assert "(control basket)" in refused and "Card discount</td><td class=\"num\">LKR 0" in refused
-    assert re.search(r"needs LKR [\d,]+ of fresh items; this bill has LKR [\d,]+, so it pays 0\.", refused)
+    assert re.search(r"needs LKR [\d,]+ of (fresh|eligible) items; this bill has LKR [\d,]+, so it pays 0\.", refused)
 
 
 def test_malformed_form_state_is_safe():

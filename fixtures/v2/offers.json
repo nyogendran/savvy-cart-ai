@@ -12,9 +12,7 @@
       "rate_bps": 2500,
       "min_bill_lkr": 3000,
       "cap_lkr": 1000,
-      "include_categories": [
-        "fresh"
-      ],
+      "include_categories": [],
       "exclude_categories": [],
       "valid_to": "2026-10-31",
       "stackable": false,
@@ -36,9 +34,7 @@
       "rate_bps": 2500,
       "min_bill_lkr": 3000,
       "cap_lkr": 1000,
-      "include_categories": [
-        "fresh"
-      ],
+      "include_categories": [],
       "exclude_categories": [],
       "valid_to": "2026-10-31",
       "stackable": false,
@@ -60,12 +56,8 @@
       "rate_bps": 2500,
       "min_bill_lkr": 4000,
       "cap_lkr": 1250,
-      "include_categories": [
-        "fresh"
-      ],
-      "exclude_categories": [
-        "staple"
-      ],
+      "include_categories": [],
+      "exclude_categories": [],
       "valid_to": "2026-10-31",
       "stackable": false,
       "source": "published",
@@ -86,9 +78,7 @@
       "rate_bps": 2500,
       "min_bill_lkr": 3000,
       "cap_lkr": 1000,
-      "include_categories": [
-        "fresh"
-      ],
+      "include_categories": [],
       "exclude_categories": [],
       "valid_to": "2026-10-30",
       "stackable": false,
