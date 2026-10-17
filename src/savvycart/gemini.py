@@ -19,12 +19,20 @@ EXTRACT_PROMPT = (
 )
 
 
+class UnsupportedImage(ValueError):
+    pass
+
+
+class ModelResponseError(RuntimeError):
+    pass
+
+
 def sniff_mime(data: bytes) -> str:
     if data.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
     if data[:3] == b"\xff\xd8\xff":
         return "image/jpeg"
-    raise ValueError("unsupported receipt image type; send PNG or JPEG")
+    raise UnsupportedImage("unsupported receipt image type; send PNG or JPEG")
 
 
 def catalog_names() -> dict[str, str]:
@@ -77,26 +85,35 @@ class GeminiModelClient:
     def extract(self, image_bytes: bytes, schema: dict[str, Any]) -> dict[str, Any]:
         from google.genai import types
 
+        mime_type = sniff_mime(image_bytes)
         names = catalog_names()
         prompt = EXTRACT_PROMPT + "".join(f"\n- {sku_id}: {name}" for sku_id, name in names.items())
-        response = self._client.models.generate_content(
-            model=self.model,
-            contents=[types.Part.from_bytes(data=image_bytes, mime_type=sniff_mime(image_bytes)), prompt],
-            config=types.GenerateContentConfig(
-                temperature=0,
-                response_mime_type="application/json",
-                response_json_schema=schema,
-            ),
-        )
-        payload = json.loads(response.text or "{}")
-        return {"lines": normalize_lines(payload.get("lines", []), set(names))}
+        try:
+            response = self._client.models.generate_content(
+                model=self.model,
+                contents=[types.Part.from_bytes(data=image_bytes, mime_type=mime_type), prompt],
+                config=types.GenerateContentConfig(
+                    temperature=0,
+                    response_mime_type="application/json",
+                    response_json_schema=schema,
+                ),
+            )
+            payload = json.loads(response.text or "")
+        except Exception as exc:
+            raise ModelResponseError("receipt model call failed or returned non-JSON") from exc
+        if not isinstance(payload, dict) or not isinstance(payload.get("lines"), list):
+            raise ModelResponseError("receipt model answer is not an object with a lines list")
+        return {"lines": normalize_lines(payload["lines"], set(names))}
 
     def explain(self, plan_json: dict[str, Any], instruction: str) -> str:
         from google.genai import types
 
-        response = self._client.models.generate_content(
-            model=self.model,
-            contents=[instruction, json.dumps(plan_json, sort_keys=True)],
-            config=types.GenerateContentConfig(temperature=0),
-        )
+        try:
+            response = self._client.models.generate_content(
+                model=self.model,
+                contents=[instruction, json.dumps(plan_json, sort_keys=True)],
+                config=types.GenerateContentConfig(temperature=0),
+            )
+        except Exception as exc:
+            raise ModelResponseError("explain model call failed") from exc
         return response.text or ""

@@ -97,6 +97,58 @@ def test_gemini_client_normalizes_lines():
     assert lines[2]["qty"] == 1 and lines[2]["confidence"] == 0.0
 
 
+def test_bad_upload_and_bad_model_answer_are_typed_errors():
+    image = SAMPLE.read_bytes()
+    cases = [
+        ("a list, not an object", image, FakeGenai([])),
+        ("an object without lines", image, FakeGenai({"items": []})),
+        ("a GIF upload", b"GIF89a" + b"\x00" * 16, FakeGenai(_model_answer())),
+    ]
+    expected_status = [502, 502, 415]
+    for (label, body, genai), status in zip(cases, expected_status):
+        app.state.model_client = GeminiModelClient("test-model", client=genai)
+        app.state.extract_rate_limiter = None
+        try:
+            with TestClient(app) as http:
+                response = http.post("/v1/receipts", content=body)
+        finally:
+            app.state.model_client = None
+            app.state.extract_rate_limiter = None
+        assert response.status_code == status, label
+
+
+def test_explain_falls_back_when_the_model_fails():
+    class FailingGenai:
+        models = SimpleNamespace(generate_content=lambda **_: (_ for _ in ()).throw(TimeoutError("upstream")))
+
+    capped = json.loads((ROOT / "fixtures/baskets/capped.json").read_text(encoding="utf-8"))
+    app.state.model_client = GeminiModelClient("test-model", client=FailingGenai())
+    try:
+        with TestClient(app) as http:
+            response = http.post(
+                "/v1/explain",
+                json={
+                    "line_ids": capped["lines"],
+                    "day": {"weekday": "saturday", "date": "2026-10-17"},
+                    "card_product_id": "commercial_bank:credit",
+                    "usual_store": "keells",
+                    "store_id": "keells",
+                },
+            )
+    finally:
+        app.state.model_client = None
+    assert response.status_code == 200
+    assert response.json()["text"] == "Legal saving: 1000 LKR."
+
+
+def test_suite_hides_live_credentials():
+    for name in ("GEMINI_MODEL", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI"):
+        assert name not in os.environ
+    from savvycart.http import NullModelClient, _default_model_client
+
+    assert isinstance(_default_model_client(), NullModelClient)
+
+
 def test_expected_transcription_sums_to_gross():
     expected = json.loads(EXPECTED.read_text(encoding="utf-8"))
     assert len(expected["lines"]) == 15

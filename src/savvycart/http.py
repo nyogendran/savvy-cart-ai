@@ -17,7 +17,8 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from savvycart.explain import explain_plan
+from savvycart.explain import ensure_discount_sentence, explain_plan
+from savvycart.gemini import ModelResponseError, UnsupportedImage
 from savvycart.optimizer import optimize
 from savvycart.receipts import (
     EXTRACTS_PER_MINUTE,
@@ -274,6 +275,10 @@ async def create_receipt(
         raise HTTPException(status_code=413, detail="receipt image exceeds 4 MB") from None
     except RateLimited:
         raise HTTPException(status_code=429, detail="extract rate limit exceeded") from None
+    except UnsupportedImage:
+        raise HTTPException(status_code=415, detail="send a PNG or JPEG receipt image") from None
+    except ModelResponseError:
+        raise HTTPException(status_code=502, detail="the receipt model did not return usable lines") from None
 
 
 @app.post("/v1/explain")
@@ -292,7 +297,10 @@ def explain(
         raise HTTPException(status_code=400, detail="no complete plan for store_id")
     summary = _plan_summary(plan)
     assert summary is not None
-    explained = explain_plan(summary, model_client=model_client)
+    try:
+        explained = explain_plan(summary, model_client=model_client)
+    except ModelResponseError:
+        explained = {"text": ensure_discount_sentence("", int(summary["discount"])), "cited_fields": ["discount"]}
     return {
         "text": explained["text"],
         "cited_fields": explained["cited_fields"],
