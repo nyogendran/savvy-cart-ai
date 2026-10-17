@@ -7,7 +7,7 @@ name = "savvycart"
 version = "0.1.0"
 description = "Condition-aware grocery basket optimizer for the Google Cloud AI Builder Cup"
 requires-python = ">=3.11"
-dependencies = ["fastapi>=0.115", "httpx>=0.27", "google-adk>=2.0"]
+dependencies = ["fastapi>=0.115", "httpx>=0.27", "google-adk>=2.0", "ortools>=9.10"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pillow>=10.0", "pdfplumber>=0.11"]
