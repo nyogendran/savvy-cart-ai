@@ -1,6 +1,6 @@
 # SC-032 — v2.6: truthful category offers, responsive Gemini steps, a mock cart, plan with a checked card, leaner calls
 
-**Status:** READY_FOR_APPROVAL (revision 2; revision 1 approved) · **Ticket:** SC-032 (spec) · build ticket SC-033
+**Status:** APPROVED (revision 2) · **Ticket:** SC-032 (spec) · build ticket SC-033
 
 Builds on SC-030 (revision 4). Every earlier rule stays unless it is listed under **Supersedes**. Prototype deadline 18 Oct 2026; SC-025's 17:00 Colombo deploy cut-off applies.
 
