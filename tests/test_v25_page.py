@@ -119,6 +119,35 @@ def test_a_refused_replan_is_disclosed_as_refused():
     assert _last(".bill thead th.num", "white-space") == "normal"  # long numeric headers wrap instead of overlapping
 
 
+def test_each_plan_day_call_is_paired_with_its_own_response():
+    refusal = {"error": "Use a day in the shopper's window."}
+
+    async def mixed(question, context):
+        ok = dict(context["confirmed"], day="2026-10-24")
+        bad = dict(context["confirmed"], day="<img src=x onerror=alert(1)>", max_stores=5)
+        return {"text": "Plan total 4604 LKR.",
+                "calls": [{"name": "plan_day", "args": ok}, {"name": "load_offers", "args": {}},
+                          {"name": "plan_day", "args": bad}, {"name": "plan_day", "args": bad}],
+                "results": [{"name": "plan_day", "response": {"day": {"date": "2026-10-24"}}},
+                            {"name": "load_offers", "response": {"error": "not this one"}},
+                            {"name": "plan_day", "response": refusal}, {"name": "plan_day", "response": refusal}]}
+
+    app.state.agent_runner = mixed
+    try:
+        with TestClient(app) as http:
+            why = _submit(http, http.get("/").text, "explain")
+    finally:
+        app.state.agent_runner = None
+    confirmed_day = re.search(r"<strong>Engine figures:</strong> Shop on \w+ ([\d-]+):", why).group(1)
+    notices = re.findall(r'<p class="notice">(The agent (?:re-planned|tried)[^<]*)</p>', why)
+    assert notices == [
+        f"The agent re-planned with different inputs: day 2026-10-24 instead of {confirmed_day}. Its comparison is not the plan above.",
+        f"The agent tried to re-plan with different inputs (day &lt;img src=x onerror=alert(1)&gt; instead of {confirmed_day}; "
+        "max_stores 5 instead of 2); the call was refused, so nothing was re-planned.",
+    ]  # paired by tool and order, the retried refusal shown once, model input escaped
+    assert "<img src=x" not in why
+
+
 def test_bill_marks_fictional_rows_when_sources_are_mixed():
     from savvycart.http import _render_bill
 

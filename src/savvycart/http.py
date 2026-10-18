@@ -1103,8 +1103,9 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
     for index, call in enumerate(c for c in calls if c.get("name") == "plan_day"):
         response = plan_responses[index] if index < len(plan_responses) else None
         diffs = _replan_differences(call.get("args") or {}, confirmed)
-        if diffs:
-            (refused if isinstance(response, dict) and "error" in response else replans).append(diffs)
+        target = refused if isinstance(response, dict) and "error" in response else replans
+        if diffs and diffs not in target:  # an agent often retries the same refused call
+            target.append(diffs)
     return {"text": text, "calls": calls, "replans": replans, "refused": refused,
             "source": "Answer from the ADK agent (Gemini). Numbers are checked against the engine plan and the agent's own tool results."}
 

@@ -1,6 +1,6 @@
 # SC-030 — v2.5: UI polish (pantry spacing, quantity steps, bill tables, demo wording)
 
-**Status:** APPROVED (revision 3) · **Ticket:** SC-030 (spec) · build ticket SC-031 · absorbs SC-029 (README wording)
+**Status:** READY_FOR_APPROVAL (revision 4; revision 3 approved) · **Ticket:** SC-030 (spec) · build ticket SC-031 · absorbs SC-029 (README wording)
 
 Builds on the approved SC-027 spec (revision 7). Every SC-027, SC-025, and SC-023 rule stays unless it is listed under **Supersedes**. Prototype deadline 18 Oct 2026.
 
@@ -25,7 +25,7 @@ Builds on the approved SC-027 spec (revision 7). Every SC-027, SC-025, and SC-02
 | The date control label "Pretend today is (demo control; the history ends 17 Oct 2026)" | The label is "Planning date (17 to 31 Oct 2026)"; why the range exists moves into the banner's "What is real in this demo?" block |
 | `tests/test_v21_page.py` asserts the old date label and the added papaya's `min="0.001" ... step="any"`; `tests/test_v22_page.py` asserts `step="any"` for carrot and "saving 1331 LKR" | Those four assertions change to the v2.5 rules above; every other assertion in those files is unchanged |
 | Revision 2 (human-approved on 18 Oct 2026): frozen tests that assert figures computed on the default basket | Re-baselined numbers only, no logic change: `tests/test_guardrails.py` (the live default total and saving 4,609 / 1,331 become 4,604 / 1,328 in the scripted agent answer and its expected text), `tests/test_v22_page.py` (sample offer headline LKR 594 becomes 593 and the shortfall LKR 2,468 becomes 2,475; pasted offer "not LKR 594" becomes 593 and "not LKR 1,188" becomes 1,186), and `tests/test_v2_page.py` (the scripted re-plan's Banana ambul quantity 1.034 becomes 1, to match the shopper's basket) |
-| Revision 3 (human-approved on 18 Oct 2026): SC-019/SC-023 disclose every agent `plan_day` call with different inputs as "The agent re-planned with different inputs", even when the call was refused or failed; `tests/test_v2_page.py::test_malformed_agent_tool_calls_do_not_break_the_page` asserts that wording; `tests/test_v22_page.py` line 149 checks "You save 4609" | A refused or failed `plan_day` call (its response has `error`) is disclosed as "The agent tried to re-plan with different inputs ({differences}); the call was refused, so nothing was re-planned.", visible outside `details.how`; successful re-plans keep the existing notice. The malformed-call assertion changes to the new wording, and line 149 checks "You save 4604" |
+| Revision 3 (human-approved on 18 Oct 2026): SC-019/SC-023 disclose every agent `plan_day` call with different inputs as "The agent re-planned with different inputs", even when the call was refused or failed; `tests/test_v2_page.py::test_malformed_agent_tool_calls_do_not_break_the_page` asserts that wording; `tests/test_v22_page.py` line 149 checks "You save 4609" | A refused or failed `plan_day` call (its response has `error`) is disclosed as "The agent tried to re-plan with different inputs ({differences}); the call was refused, so nothing was re-planned.", visible outside `details.how`; successful re-plans keep the existing notice. The malformed-call assertion changes to the new wording and gains one added line asserting the refused wording and the absence of the old one, and line 149 checks "You save 4604". Identical refused attempts (the agent retrying) are shown once |
 
 ## In scope
 
@@ -62,7 +62,7 @@ Builds on the approved SC-027 spec (revision 7). Every SC-027, SC-025, and SC-02
 6. Given any page, the date control is labelled "Planning date (17 to 31 Oct 2026)", the words "Pretend" and "demo control" do not appear, and the banner `details` contains the escaped `V2_BANNER` plus the planning-date paragraph. **Verified by** `python -m pytest tests/test_v25_page.py::test_demo_wording_is_consolidated -q`.
 7. Given README.md, the judge path names "How this was calculated", the pantry timing label, the profile card, the Plan recommendation, and LKR 4,604 / 1,328, and no longer states LKR 4,609. **Verified by** `python -m pytest tests/test_v25_page.py::test_readme_describes_v25 -q` and `python scripts/check_judge_readme.py`.
 8. Given a 375 px viewport on Pantry, Plan, Why, and the Offer Reality Check, `document.documentElement.scrollWidth <= 375` and every visible control other than pantry-row summaries is at least 44 px tall. **Verified by** a `Runtime.evaluate` check in the Cursor browser recorded in `.adlc/evidence/SC-031-p6/`.
-9. Every test passes, with only the superseded assertions (the four above plus the revision-2 re-baselines) changed in earlier test files. **Verified by** `python -m pytest -q` and `git diff ec794e4 -- tests/test_v2_page.py tests/test_v21_page.py tests/test_v22_page.py tests/test_guardrails.py` showing only those assertions (12 changed lines).
+9. Every test passes, with only the superseded assertions (the four above plus the revision-2 re-baselines) changed in earlier test files. **Verified by** `python -m pytest -q` and `git diff ec794e4 -- tests/test_v2_page.py tests/test_v21_page.py tests/test_v22_page.py tests/test_guardrails.py` showing only those assertions (14 changed lines and 1 added assertion line).
 
 ## Approved assumptions
 
@@ -70,6 +70,7 @@ Builds on the approved SC-027 spec (revision 7). Every SC-027, SC-025, and SC-02
 | --- | --- |
 | G1 | Half-kilo steps match how loose produce is sold; the 0.5 kg minimum applies to every weighed item, including receipt-added amounts (the receipt note keeps the receipt quantity). |
 | G7 | No deck or video-script files outside the repo state the old figures yet. |
+| G9 | Every agent `plan_day` call has a recorded response (the real ADK loop records one, including guardrail refusals); a call with no recorded response, which only scripted test runners produce, is treated as a completed re-plan. |
 | G8 | Browsers block submitting an off-step weight (for example 0.74 kg) with a native validation message; server-side snapping covers non-browser clients and the agent. Accepted. |
 | G2 | 28 px pantry-row summaries meet WCAG 2.2 target size (24 px minimum); the main controls keep 44 px. |
 | G3 | Unit price comes from the catalog (`prices[store].amount_lkr`), which is what the engine multiplies by quantity. |
