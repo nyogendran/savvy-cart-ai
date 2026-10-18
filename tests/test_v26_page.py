@@ -241,6 +241,14 @@ def test_plan_with_a_checked_card():
     assert "The offer you checked (Commercial Bank Test Credit at Keells) is not used</strong>: it is valid on Saturday, not Friday." in moved
 
 
+def test_unnamed_bank_notice_names_the_card_products():
+    with TestClient(app) as http:
+        read = _read(http, {**SMS, "bank": "not_stated"})  # live Gemini's answer for this SMS
+        page = _submit(http, read, "offer_plan")
+    assert "offer you checked (Mastercard Credit Cards at Keells)" in _text(page) and "not_stated" not in page
+    assert "Mastercard is a card network" in _text(read)
+
+
 def test_checked_offer_edges_are_disclosed_truthfully():
     glomark = {"bank": "HNB", "card_products": "Test", "store_name": "Glomark", "headline": "1% off", "percent_off": 1, "days": ["Tuesday"],
                "minimum_bill_lkr": 999999, "max_discount_lkr": None, "excluded_items": [], "valid_until": None, "combines_with_store_offers": True}

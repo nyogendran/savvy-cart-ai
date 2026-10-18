@@ -668,7 +668,7 @@ def _held_notice(plan: dict[str, Any]) -> str:
     else:
         lead = "<strong>The offer you checked is not used</strong>: no bill in this plan costs less with it."
     bank = "" if rule["bank"] == "Unnamed bank" else rule["bank"]
-    product = rule["card_products"] if rule["card_products"] and bank.lower() not in rule["card_products"].lower() else ""
+    product = rule["card_products"] if rule["card_products"] and not (bank and bank.lower() in rule["card_products"].lower()) else ""
     named = f" ({_e(' '.join(x for x in (bank, product) if x) or 'a card')} at {_e(STORE_NAMES[rule['store_id']])})"
     lead = lead.replace("offer you checked", f"offer you checked{named}", 1)
     return (f'<div class="callout"><div>{lead}</div>'
