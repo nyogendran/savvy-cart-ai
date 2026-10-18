@@ -1,16 +1,12 @@
 # ADLC runtime
 .adlc/*
 !.adlc/config.json
-!.adlc/tickets.json
-!.adlc/tickets/
-!.adlc/tickets/**
 !.adlc/ticket-archive/
 !.adlc/ticket-archive/**
 !.adlc/specs/
 !.adlc/specs/**
 !.adlc/lessons/
 !.adlc/lessons/**
-!.adlc/manifest.jsonl
 !.adlc/manifest.d/
 !.adlc/manifest.d/**
 .adlc/manifest.d/.lineage
