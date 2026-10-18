@@ -832,10 +832,14 @@ def _offer_covers(offer: dict[str, Any], category: str) -> bool:
     return (not include or category in include) and category not in (offer.get("exclude_categories") or [])
 
 
+def _offer_bank(offer: dict[str, Any]) -> str:
+    return offer["bank"] if offer.get("source") == "published" else f'{offer["bank"]} (fictional demo offer)'
+
+
 def _near_misses(plan: dict[str, Any], banks: list[str]) -> list[str]:
     """Card offers that were active for a bill but paid nothing, and why (facts only)."""
     return [
-        f'{offer["bank"]} at {STORE_NAMES[bill["store_id"]]}: needs {_money(offer["min_bill_lkr"])} of '
+        f'{_offer_bank(offer)} at {STORE_NAMES[bill["store_id"]]}: needs {_money(offer["min_bill_lkr"])} of '
         f'{", ".join(offer.get("include_categories") or []) or "eligible"} items; this bill has {_money(eligible)}, so it pays 0.'
         for bill, offer, eligible in _missed_offers(plan, banks)
     ]
@@ -870,7 +874,7 @@ def _suggestions(plan: dict[str, Any], state: dict[str, Any], items: list[dict[s
             (combo for size in (1, 2, 3) for combo in combinations(pool, size) if sum(p for _, _, p in combo) >= gap),
             key=lambda combo: (sum(s for _, s, _ in combo), [c[0]["sku_id"] for c in combo]),
         )
-        entry = {"bank": offer["bank"], "store_id": store, "minimum": offer["min_bill_lkr"], "names": []}
+        entry = {"bank": _offer_bank(offer), "store_id": store, "minimum": offer["min_bill_lkr"], "names": []}
         for combo in ranked[:5]:
             shelf_cost = sum(s for _, s, _ in combo)
             added = [{"sku_id": item["sku_id"], "qty": item["qty"]} for item, _, _ in combo]

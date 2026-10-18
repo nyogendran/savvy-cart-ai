@@ -91,7 +91,7 @@ def test_plan_leads_with_a_recommendation_built_from_the_engine_plan(monkeypatch
         control = _submit(http, wallet, "refused")
         hnb = _submit(http, wallet, "plan", [("bank", "HNB")], drop=("bank",))
         hnb_why, hnb_approve = (_submit(http, hnb, action) for action in ("explain", "approve"))
-        default_why = _submit(http, plan, "explain")
+        default_why, default_approve = (_submit(http, plan, action) for action in ("explain", "approve"))
         real = page_module.engine_plan_day
         monkeypatch.setattr(page_module, "engine_plan_day", lambda *a, **k: {**real(*a, **k), "solver_status": "FEASIBLE"})
         feasible = _submit(http, home, "plan")
@@ -110,9 +110,15 @@ def test_plan_leads_with_a_recommendation_built_from_the_engine_plan(monkeypatch
     assert 'class="notice">The optimizer stopped' not in plan
     hnb_rec = re.search(r'id="plan-recommendation">(.*?)</p>', hnb).group(1)
     assert re.search(r"Pay with HNB credit at \w+ \(fictional demo offer\)\.", hnb_rec), hnb_rec
-    note = '</p><p class="notice">HNB card offers in this plan are fictional demo offers, not published by the bank.</p>'
-    assert note in hnb_why and note in hnb_approve  # right after the engine recap, outside any details
-    assert "fictional demo offers, not published" not in default_why + plan
+    note = '<p class="notice">HNB card offers in this plan are fictional demo offers, not published by the bank.</p>'
+    assert re.search(r'<p class="recap"><strong>Engine figures:</strong> [^<]*</p>' + re.escape(note), hnb_why)
+    assert re.search(r'<p class="recap">[^<]*</p>' + re.escape(note), hnb_approve)
+    assert hnb_why.count(note) == hnb_approve.count(note) == 1
+    assert "fictional demo offers, not published" not in default_why + default_approve + plan
+    # The default plan holds HNB without paying with it; every visible mention of its offer still says it is fictional.
+    visible = _text(re.sub(r"<details.*?</details>", "", plan.split('<section class="step" id="plan"')[1], flags=re.S))
+    assert "HNB (fictional demo offer) at Cargills: needs" in visible
+    assert not re.findall(r"HNB(?! \(fictional demo offer\))", visible)
     control_rec = re.search(r'id="plan-recommendation">(.*?)</p>', control).group(1)
     assert control_rec.startswith("Control basket, priced with every demo card, one store, and Keells as the usual store: Shop on ")
     assert control_rec.endswith("No card offer applies to this basket.") and "Pay with" not in control_rec
