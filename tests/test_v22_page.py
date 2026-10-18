@@ -42,8 +42,8 @@ def test_sample_offer_shows_headline_against_terms_without_a_model():
         back = _submit(http, page, "wallet")
     assert _sections(page) == ["offer"] and re.search(r'<li aria-current="step"><span>Wallet</span></li>', page)
     text = _text(page)
-    assert "The headline says “10% off on Total Bill every Saturday” LKR 594" in text
-    assert "The terms pay you LKR 0" in text and "LKR 2,468 short of the LKR 8,000 minimum" in text
+    assert "The headline says “10% off on Total Bill every Saturday” LKR 593" in text
+    assert "The terms pay you LKR 0" in text and "LKR 2,475 short of the LKR 8,000 minimum" in text
     assert "also exclude Full cream milk powder 400 g, Red dhal 1 kg" in text
     assert "captured 2026-10-18" in text and "seylan.lk" in page
     assert "Reading an offer needs Gemini, which is not configured here." in _text(unavailable)
@@ -64,8 +64,8 @@ def test_pasted_offer_is_read_by_the_model_then_confirmed_and_rechecked():
         bogus = _submit(http, read, "offer_check", [("o_rate", "95")])
     assert model.calls and model.calls[0][0].startswith("10% off at Keells")
     assert "Read by Gemini into a fixed schema, then checked by code." in read
-    assert "This offer pays LKR 331, not LKR 594: 6 of your 11 items do not count." in _text(read)
-    assert "This offer pays LKR 663, not LKR 1,188" in _text(edited)
+    assert "This offer pays LKR 331, not LKR 593: 6 of your 11 items do not count." in _text(read)
+    assert "This offer pays LKR 663, not LKR 1,186" in _text(edited)
     assert "The percent is outside 0 to 90, so it was not used." in _text(bogus)
 
 
@@ -109,7 +109,7 @@ def test_whole_unit_items_are_not_shown_in_fractions():
     bun = re.search(r'name="qty_tea_bun"[^>]*', home).group(0)
     assert 'step="1"' in bun and 'min="1"' in bun and re.search(r'value="\d+"', bun)  # whole packs only
     carrot = re.search(r'name="qty_carrot"[^>]*', home).group(0)
-    assert 'step="any"' in carrot  # sold by weight, fractions allowed
+    assert 'step="0.5"' in carrot and 'min="0.5"' in carrot  # sold by weight, half kilos (SC-030)
     assert ">kg</span>" in home  # the kg unit hint is shown
 
 
@@ -147,7 +147,7 @@ def test_shopper_question_reaches_the_agent_and_answers_stay_grounded():
     for page in (chip, typed):
         answer = _text(re.search(r'<p id="explanation-text">(.*?)</p>', page, re.S).group(1))
         assert "You save 4609" not in answer and "99999" not in answer
-        assert "saving 1331 LKR" in answer
+        assert "saving 1328 LKR" in answer
     assert "You asked: Is Sunday cheaper than the day you picked?" in _text(chip)
 
 

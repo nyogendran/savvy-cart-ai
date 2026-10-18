@@ -224,3 +224,15 @@ nav.steps li { min-height: 44px; padding-top: 0; padding-bottom: 0; }
 nav.steps li button.linklike { min-height: 44px; }
 details summary { min-height: 44px; padding: 10px 0; }
 input[type="checkbox"], input[type="radio"] { width: 22px; height: 22px; }
+
+/* v2.5: tighter pantry rows, aligned quantities, stacked bills */
+.item details.reason summary { min-height: 28px; padding: 0; }
+.item > input[type="checkbox"] { grid-column: 1; grid-row: 1; }
+.item .name { grid-column: 2; grid-row: 1; }
+.item .qty { grid-column: 3; grid-row: 1 / span 2; }
+.item .reason { grid-column: 2; grid-row: 2; }
+#add_qty { width: 5em; text-align: right; font-variant-numeric: tabular-nums; }
+.bills { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+.bill td.num { font-variant-numeric: tabular-nums; }
+.bill table { table-layout: fixed; min-width: 520px; }
+.bill thead th:first-child { width: 36%; }

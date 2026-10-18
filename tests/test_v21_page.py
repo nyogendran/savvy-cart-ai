@@ -76,7 +76,7 @@ def test_planning_date_is_a_bounded_demo_control():
         select = re.search(r'<select id="today" name="today">(.*?)</select>', home, re.S).group(1)
         values = re.findall(r'<option value="([\d-]+)"', select)
         assert values[0] == "2026-10-17" and values[-1] == "2026-10-31" and len(values) == 15
-        assert '<label for="today">Pretend today is (demo control' in home
+        assert '<label for="today">Planning date (17 to 31 Oct 2026)</label>' in home
         assert re.search(r'<option value="2026-10-22" selected>', select)
         for outside in ("2026-06-01", "2026-10-16", "2026-11-01", "garbage"):
             page = _submit(http, home, "pantry", [("today", outside)])
@@ -119,7 +119,7 @@ def test_shopper_can_add_a_catalog_item():
         assert 'value="papaya"' in options and 'value="banana_ambul"' not in options  # due items are already listed
         added = _submit(http, home, "add", [("add_sku", "papaya"), ("add_qty", "2")])
         assert re.search(r'name="sku" value="papaya" checked', added) and "Added by you" in added
-        assert 'name="qty_papaya" min="0.001" max="50" step="any" value="2"' in added
+        assert 'name="qty_papaya" min="0.5" max="50" step="0.5" value="2"' in added
         plan = _submit(http, added, "plan")
         assert re.search(r'<article class="bill"[^>]*>(?:(?!</article>).)*Papaya', plan, re.S)
         refused = _submit(http, home, "add", [("add_sku", "unicorn")])

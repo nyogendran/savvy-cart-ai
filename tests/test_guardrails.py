@@ -193,11 +193,11 @@ def test_comma_numbers_and_multi_part_answers_are_grounded_inside_the_agent():
     import asyncio
 
     context, _ = _default_context()
-    comma = _scripted([[types.Part(text="You save 4,609 LKR. One store costs 2,609 LKR. Plan total 4,609 LKR, saving 1,331 LKR.")]])
+    comma = _scripted([[types.Part(text="You save 4,604 LKR. One store costs 2,609 LKR. Plan total 4,604 LKR, saving 1,328 LKR.")]])
     text = asyncio.run(agent.ask_agent("Explain", context, agent=agent.build_agent(comma)))["text"]
-    assert text == "One store costs. Plan total 4609 LKR, saving 1331 LKR."
+    assert text == "One store costs. Plan total 4604 LKR, saving 1328 LKR."
     split = _scripted([[types.Part(text="Thinking about 77777.", thought=True), types.Part(text="You save "),
-                        types.Part(text="4609 LKR. Cargills is cheaper on Friday."), types.Part(text="One store costs 4"), types.Part(text="4 LKR.")]])
+                        types.Part(text="4604 LKR. Cargills is cheaper on Friday."), types.Part(text="One store costs 4"), types.Part(text="4 LKR.")]])
     text = asyncio.run(agent.ask_agent("Explain", context, agent=agent.build_agent(split)))["text"]
     assert "save" not in text and "77777" not in text and "44" not in text and "Cargills is cheaper on Friday." in text
 

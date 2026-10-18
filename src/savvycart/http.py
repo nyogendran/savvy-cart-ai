@@ -362,6 +362,7 @@ import re as _re
 from datetime import date as _date
 from datetime import timedelta as _timedelta
 from math import ceil as _ceil
+from math import floor as _floor
 
 from fastapi.staticfiles import StaticFiles
 
@@ -576,6 +577,11 @@ def _parse_state(form: dict[str, list[str]]) -> dict[str, Any]:
     }
 
 
+def _half_kilos(kg: float) -> float:
+    """Loose produce is bought in half kilos: nearest 0.5 kg, halves rounded up, at least 0.5."""
+    return max(0.5, _floor(kg / 0.5 + 0.5) * 0.5)
+
+
 def _pantry_view(state: dict[str, Any]) -> list[dict[str, Any]]:
     bills = list(_v2_history()) + _added_bills(state["added"])
     items = compute_pantry(bills, _v2_catalog(), _v2_history_map(), state["today"])
@@ -592,7 +598,7 @@ def _pantry_view(state: dict[str, Any]) -> list[dict[str, Any]]:
         usual = item.get("usual_qty") or 1
         chosen = qty if 0 < qty <= MAX_QTY else usual
         # A pack, tin, or carton is a whole unit; only produce priced by weight keeps a fraction.
-        item["qty"] = round(chosen, 3) if item.get("divisible") else max(1, _ceil(chosen))
+        item["qty"] = _half_kilos(chosen) if item.get("divisible") else max(1, _ceil(chosen))
     return items
 
 
@@ -684,7 +690,7 @@ def _render_pantry(items: list[dict[str, Any]], state: dict[str, Any], note: str
                       f'<span class="sr-only">: {_e(item["name"])}</span></summary>'
                       f"<p>{_e(_reason_text(item))}</p></details>")
         divisible = item.get("divisible")
-        step, mn = ("any", "0.001") if divisible else ("1", "1")
+        step, mn = ("0.5", "0.5") if divisible else ("1", "1")
         unit = "kg" if divisible else "pack" if "pack" in item["name"].lower() else ""
         unit_html = f'<span class="unit" aria-hidden="true">{unit}</span>'
         return (
@@ -708,7 +714,7 @@ def _render_pantry(items: list[dict[str, Any]], state: dict[str, Any], note: str
         '<div class="field add-item"><label for="add_sku">Add an item</label>'
         f'<div class="inline"><select id="add_sku" name="add_sku">{addable}</select>'
         '<label class="sr-only" for="add_qty">Quantity to add</label>'
-        f'<input type="number" id="add_qty" name="add_qty" min="0.001" max="{MAX_QTY}" step="any" value="1">'
+        f'<input type="number" id="add_qty" name="add_qty" min="0.5" max="{MAX_QTY}" step="0.5" value="1">'
         '<button type="submit" name="action" value="add">Add</button></div>'
         '<p class="source">Only items in the catalog can be added, because only they have prices.</p></div>'
     ) if later else ""
@@ -719,7 +725,7 @@ def _render_pantry(items: list[dict[str, Any]], state: dict[str, Any], note: str
         "Estimated from purchase history: the usual gap between buys, and the last purchase date. No guessing model.</p>"
         f"{note or ''}"
         '<div class="grid two">'
-        '<div class="field"><label for="today">Pretend today is (demo control; the history ends 17 Oct 2026)</label>'
+        '<div class="field"><label for="today">Planning date (17 to 31 Oct 2026)</label>'
         f'<div class="inline"><select id="today" name="today">{dates}</select>'
         '<button type="submit" name="action" value="pantry" id="date-update">Update</button></div></div>'
         '<div class="field"><label for="receipt_photo">Add a receipt to the history (JPEG or PNG photo)</label>'
@@ -778,14 +784,27 @@ def _offer(offer_id: str) -> dict[str, Any]:
 
 
 def _render_bill(bill: dict[str, Any]) -> str:
-    rows = "".join(
-        "<tr>"
-        f'<td>{_e(l["name"])} <span class="source">({_e("receipt price" if l["price_source"] == "receipt" else "fictional price")})</span></td>'
-        f'<td class="num">{_qty_text(l["qty"])}</td><td class="num">{_money(l["shelf_lkr"])}</td>'
-        f'<td class="num">{_money(l["promo_saving_lkr"]) if l["promo_saving_lkr"] else "-"}</td>'
-        "</tr>"
-        for l in bill["lines"]
-    )
+    store = bill["store_id"]
+    skus = {sku["id"]: sku for sku in _v2_catalog()["skus"]}
+    sources = {l["price_source"] for l in bill["lines"]}
+    mixed = len(sources) > 1
+
+    def row(l: dict[str, Any]) -> str:
+        sku = skus[l["sku_id"]]
+        mark = " *" if mixed and l["price_source"] != "receipt" else ""
+        unit = " kg" if sku.get("unit") == "kg" else ""
+        promo = f'{l["promo_saving_lkr"]:,}' if l["promo_saving_lkr"] else "-"
+        return (f'<tr><td>{_e(l["name"])}{mark}</td><td class="num">{_qty_text(l["qty"])}{unit}</td>'
+                f'<td class="num">{sku["prices"][store]["amount_lkr"]:,}</td><td class="num">{l["shelf_lkr"]:,}</td>'
+                f'<td class="num">{promo}</td></tr>')
+
+    rows = "".join(row(l) for l in bill["lines"])
+    if mixed:
+        prices = "Prices from receipts except those marked * (fictional)."
+    elif sources == {"receipt"}:
+        prices = f"Prices from {STORE_NAMES[store]} receipts."
+    else:
+        prices = "Fictional demo prices."
     terms = ""
     if bill["card"]:
         card = f'<span class="card-used">Pay with {_e(bill["card"]["bank"])} {_e(bill["card"]["product"])}</span>'
@@ -801,11 +820,12 @@ def _render_bill(bill: dict[str, Any]) -> str:
     return (
         f'<article class="bill" data-store="{_e(bill["store_id"])}">'
         f'<header><h3>{_e(STORE_NAMES[bill["store_id"]])}</h3>{card}</header>'
-        '<div class="scroll"><table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Shelf</th><th class="num">Promotion</th></tr></thead>'
+        '<div class="scroll"><table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit price (LKR)</th>'
+        '<th class="num">Shelf (LKR)</th><th class="num">Promotion (LKR)</th></tr></thead>'
         f"<tbody>{rows}</tbody><tfoot>"
-        f'<tr><td colspan="3">Card discount</td><td class="num">{_money(bill["card_discount_lkr"])}</td></tr>'
-        f'<tr><td colspan="3">Bill total</td><td class="num">{_money(bill["bill_lkr"])}</td></tr>'
-        f"</tfoot></table></div>{terms}</article>"
+        f'<tr><td colspan="4">Card discount</td><td class="num">{_money(bill["card_discount_lkr"])}</td></tr>'
+        f'<tr><td colspan="4">Bill total</td><td class="num">{_money(bill["bill_lkr"])}</td></tr>'
+        f'</tfoot></table></div><p class="source">{_e(prices)}</p>{terms}</article>'
     )
 
 
@@ -962,7 +982,7 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
         "and bank minimums and caps are assumptions.</p>"
         f'<div class="bar" role="img" aria-label="Plan total is {pct} percent of the usual-store shelf total"><span style="width:{pct}%"></span></div>'
         f'<p class="bar-label">Plan total as a share of buying everything at your usual store at shelf price. {_e(budget_note)}</p>'
-        f'<div class="grid two">{"".join(_render_bill(b) for b in plan["stores"])}</div>'
+        f'<div class="bills">{"".join(_render_bill(b) for b in plan["stores"])}</div>'
         f"{misses}{ideas}{unpriced}{sweep_html}"
         '<div class="callout"><div><strong>These bank terms are assumptions.</strong> Paste a real offer and check what it pays on this basket.</div>'
         '<button type="submit" name="action" value="offer">Check a card offer</button></div>'
@@ -1225,7 +1245,8 @@ def _layout(current: int, inner: str, state: dict[str, Any], items: list[dict[st
         '<link rel="stylesheet" href="/static/app.css"></head><body>'
         '<a class="skip-link" href="#main">Skip to the current step</a>'
         '<div class="banner" id="banner"><div class="wrap"><strong>Sample data, not live; savings are simulated.</strong>'
-        f'<details><summary>What is real in this demo?</summary><p>{_e(V2_BANNER)}</p></details></div></div>'
+        f'<details><summary>What is real in this demo?</summary><p>{_e(V2_BANNER)}</p>'
+        "<p>The planning date runs from 17 to 31 Oct 2026 because the sample purchase history ends on 17 Oct 2026.</p></details></div></div>"
         '<header class="site"><div class="wrap"><h1>Savvy Cart AI</h1>'
         "<p class=\"tagline\">Karuppan's next shop: when to buy, where, and with which card.</p></div></header>"
         '<main id="main"><div class="wrap">'

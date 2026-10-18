@@ -189,7 +189,7 @@ def test_echoed_tool_arguments_never_ground_a_number():
     # SC-025: a re-plan keeps the shopper's quantities and trip cost, so this result is a legitimate one; echoed fields still never ground.
     echoing_plan = {"day": {"date": "2026-10-23", "weekday": "friday"}, "trip_cost_lkr": 250, "max_stores": 2,
                     "unpriced": ["unknown_98765"], "baseline_usual": {"store_id": "keells", "total_lkr": 5940, "missing": ["sku_11111"]},
-                    "stores": [{"store_id": "glomark", "lines": [{"sku_id": "banana_ambul", "qty": 1.034, "shelf_lkr": 247}]}],
+                    "stores": [{"store_id": "glomark", "lines": [{"sku_id": "banana_ambul", "qty": 1, "shelf_lkr": 247}]}],
                     "effective_cost_lkr": 5033}
     far_plan = {"day": {"date": "2031-01-01", "weekday": "wednesday"}, "effective_cost_lkr": 77777}
     pantry_echo = {"today": "2026-10-22", "items": [{"sku_id": "tea_bun", "days_left": 54321, "reason": "due in 22222 days", "cadence_days": 6}]}
