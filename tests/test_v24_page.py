@@ -33,10 +33,6 @@ def _how(page: str) -> tuple[int, int]:
     return start, page.index("</details>", start)
 
 
-def _outside_details(page: str) -> str:
-    return re.sub(r"<details.*?</details>", "", page, flags=re.S)
-
-
 def _css_rules() -> list[tuple[list[str], str]]:
     body = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
     return [([" ".join(s.split()) for s in selectors.split(",")], block) for selectors, block in re.findall(r"([^{}]+)\{([^{}]*)\}", body)]
@@ -94,6 +90,8 @@ def test_plan_leads_with_a_recommendation_built_from_the_engine_plan(monkeypatch
         plan = _submit(http, home, "plan")
         control = _submit(http, wallet, "refused")
         hnb = _submit(http, wallet, "plan", [("bank", "HNB")], drop=("bank",))
+        hnb_why, hnb_approve = (_submit(http, hnb, action) for action in ("explain", "approve"))
+        default_why = _submit(http, plan, "explain")
         real = page_module.engine_plan_day
         monkeypatch.setattr(page_module, "engine_plan_day", lambda *a, **k: {**real(*a, **k), "solver_status": "FEASIBLE"})
         feasible = _submit(http, home, "plan")
@@ -112,6 +110,9 @@ def test_plan_leads_with_a_recommendation_built_from_the_engine_plan(monkeypatch
     assert 'class="notice">The optimizer stopped' not in plan
     hnb_rec = re.search(r'id="plan-recommendation">(.*?)</p>', hnb).group(1)
     assert re.search(r"Pay with HNB credit at \w+ \(fictional demo offer\)\.", hnb_rec), hnb_rec
+    note = '</p><p class="notice">HNB card offers in this plan are fictional demo offers, not published by the bank.</p>'
+    assert note in hnb_why and note in hnb_approve  # right after the engine recap, outside any details
+    assert "fictional demo offers, not published" not in default_why + plan
     control_rec = re.search(r'id="plan-recommendation">(.*?)</p>', control).group(1)
     assert control_rec.startswith("Control basket, priced with every demo card, one store, and Keells as the usual store: Shop on ")
     assert control_rec.endswith("No card offer applies to this basket.") and "Pay with" not in control_rec
@@ -160,7 +161,7 @@ def test_pantry_rows_show_a_short_timing_label_and_expandable_history():
 
 
 def test_zero_payout_is_amber_and_offer_check_returns_to_the_plan():
-    back = '<button type="submit" name="action" value="plan" class="primary">Back to my shopping plan</button>'
+    back = '<button type="submit" name="action" value="plan" class="primary">Go to my shopping plan</button>'
     with TestClient(app) as http:
         sample = _submit(http, _submit(http, http.get("/").text, "offer"), "offer_sample")
         paying = _submit(http, sample, "offer_check", [("o_min", "0")])

@@ -971,6 +971,17 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
     )
 
 
+def _fictional(card: dict[str, Any] | None) -> bool:
+    return bool(card) and _offer(card["offer_id"]).get("source") != "published"
+
+
+def _fictional_note(plan: dict[str, Any]) -> str:
+    banks = sorted({b["card"]["bank"] for b in plan["stores"] if _fictional(b["card"])})
+    if not banks:
+        return ""
+    return f'<p class="notice">{_e(" and ".join(banks))} card offers in this plan are fictional demo offers, not published by the bank.</p>'
+
+
 def _recommendation(plan: dict[str, Any]) -> str:
     bills = plan["stores"]
     if not bills:
@@ -978,7 +989,7 @@ def _recommendation(plan: dict[str, Any]) -> str:
     names = [STORE_NAMES[b["store_id"]] for b in bills]
     where = names[0] if len(names) == 1 else f'{", ".join(names[:-1])} and {names[-1]}'
     cards = [f'Pay with {b["card"]["bank"]} {b["card"]["product"]} at {STORE_NAMES[b["store_id"]]}'
-             f'{"" if _offer(b["card"]["offer_id"]).get("source") == "published" else " (fictional demo offer)"}.'
+             f'{" (fictional demo offer)" if _fictional(b["card"]) else ""}.'
              for b in bills if b["card"]]
     shop = f'Shop on {plan["day"]["weekday"].title()} {_short_date(plan["day"]["date"])} at {where}.'
     return " ".join([shop] + (cards or ["No card offer applies to this basket."]))
@@ -1104,7 +1115,7 @@ def _render_why(explanation: dict[str, Any], plan: dict[str, Any], question: str
     return (
         '<section class="step" id="why" aria-labelledby="why-h">'
         '<h2 id="why-h">4. Why this plan</h2>'
-        f'<p class="recap"><strong>Engine figures:</strong> {_e(_engine_summary(plan))}</p>'
+        f'<p class="recap"><strong>Engine figures:</strong> {_e(_engine_summary(plan))}</p>{_fictional_note(plan)}'
         f"{_render_ask(question)}"
         f"{asked}"
         f'<p class="source" id="explanation-source">{_e(explanation["source"])}</p>'
@@ -1137,7 +1148,7 @@ def _render_approve(preview: dict[str, Any] | None, plan: dict[str, Any], state:
     return (
         '<section class="step" id="approve" aria-labelledby="approve-h">'
         '<h2 id="approve-h">5. Approve</h2>'
-        f'<p class="recap">{_e(_engine_summary(plan))}</p>'
+        f'<p class="recap">{_e(_engine_summary(plan))}</p>{_fictional_note(plan)}'
         f'<fieldset><legend>How you get the groceries</legend>{choice}'
         '<div class="field"><label for="delivery_fee">Delivery fee per store bill (LKR, an assumption you can change)</label>'
         f'<input type="number" id="delivery_fee" name="delivery_fee" min="0" max="5000" step="10" value="{state["delivery_fee"]}"></div>'
@@ -1416,7 +1427,7 @@ def _render_offer_result(rule: dict[str, Any], check: dict[str, Any], held: tupl
         f"{_also_excluded(rule, check)}"
         '<p class="source">Store promotions in this demo are fictional shapes; the offer terms are as read and confirmed above.</p>'
         f'<p class="ok-note">{held_text}</p>'
-        '<div class="actions"><button type="submit" name="action" value="plan" class="primary">Back to my shopping plan</button></div>'
+        '<div class="actions"><button type="submit" name="action" value="plan" class="primary">Go to my shopping plan</button></div>'
         "</div>"
     )
 
