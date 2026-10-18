@@ -1,6 +1,6 @@
 # SC-032 — v2.6: truthful category offers, responsive Gemini steps, a mock cart, plan with a checked card, leaner calls
 
-**Status:** APPROVED · **Ticket:** SC-032 (spec) · build ticket SC-033
+**Status:** READY_FOR_APPROVAL (revision 2; revision 1 approved) · **Ticket:** SC-032 (spec) · build ticket SC-033
 
 Builds on SC-030 (revision 4). Every earlier rule stays unless it is listed under **Supersedes**. Prototype deadline 18 Oct 2026; SC-025's 17:00 Colombo deploy cut-off applies.
 
@@ -26,13 +26,14 @@ Builds on SC-030 (revision 4). Every earlier rule stays unless it is listed unde
 | Notices name parameters (`max_stores`, `trip_cost_lkr`, `usual_store`) | Plain words: "at most 1 store instead of 2", "extra trip cost LKR 300 instead of LKR 250", "usual store Cargills instead of Keells"; "day … instead of …", cards, and "a different basket" are unchanged |
 | Approve shows a recap, fees, and a MOCK preview id with an "Update" button | Approve shows a MOCK cart per store plus Copy and Share actions; the button is "Update my cart"; the delivery fee list, "MOCK", and "No order is sent." stay |
 | `tests/test_v25_page.py` asserts the notice "max_stores 5 instead of 2" | It asserts "at most 5 stores instead of 2" |
+| Revision 2 (P5 round 1) | The confirm form keeps "nothing in this catalog counts" as a ticked option, so an unmatched category never widens to the whole bill; an explicit printed year is honoured and only day-month patterns are read; the network note fires only for a bare network name; a term that maps to two categories adds an untick note; a cached answer still counts toward the per-minute cap (the earlier rate-limit test pins that order); the checked offer's terms are part of the answer-cache key; the deadline extends only to the checked offer's own next day; the unused-offer notice names its reason (wrong day, store not in the plan, or no bill costs less); the cart's delivery total equals "Total with delivery" (plan total, including its trip estimate, plus fees); unproven solves are never cached; bullets start only at the start or after a sentence |
 
 ## In scope
 
 ### A. Truthful category offers (`src/savvycart/offercheck.py`, `src/savvycart/http.py`)
 
 1. `OFFER_SCHEMA` adds `"applies_only_to": array of strings`; `OFFER_PROMPT` adds: "If the discount applies only to some product groups, copy them as printed into applies_only_to; leave it empty when it applies to the whole bill. Give valid_until as printed if no year is shown."
-2. `validate_rule(raw, catalog, source, today=None)` maps each `applies_only_to` term to catalog categories with a fixed word table: fresh ← fresh, meat, fish, seafood, chicken, fruit, fruits, vegetable, vegetables, veg, produce; staple ← staple, staples, grocery, groceries, dairy, bakery, bread, rice, dhal, flour, sugar, oil; household ← household, cleaning, detergent, soap, toiletries; a catalog category name maps to itself. The rule gains `include_categories` (sorted). A term that maps to nothing adds the note "“{term}” matches no category in this catalog, so items under it are not counted." If terms were given and none maps, `include_categories` is `["none"]` (nothing counts) with that note. `planner_offer` passes `include_categories` through.
+2. `validate_rule(raw, catalog, source, today=None)` maps each `applies_only_to` term to catalog categories with a fixed word table: fresh ← fresh, meat, fish, seafood, chicken, fruit, fruits, vegetable, vegetables, veg, produce; staple ← staple, staples, grocery, groceries, dairy, bakery, bread, rice, dhal, flour, sugar, oil; household ← household, cleaning, detergent, soap, toiletries; a catalog category name maps to itself. The rule gains `include_categories` (sorted). A term that maps to two categories adds "“{term}” was read as {a} and {b} items; untick what does not apply." A term that maps to nothing adds the note "“{term}” matches no category in this catalog, so items under it are not counted." If terms were given and none maps, `include_categories` is `["none"]` (nothing counts) with that note. `planner_offer` passes `include_categories` through.
 3. `reality_check` marks an item outside `include_categories` as not counting, with why "Not covered: the offer is for {categories} only".
 4. End dates: ISO stays; "31 Oct", "31 October", "Oct 31", and "31/10" read as day and month; the year is the planning date's year, or the next year if that date is before the planning date. Note: "End date read as {ISO}." `today` defaults to the current date when not given (the agent's tool path).
 5. When `combines_with_store_offers` is null, the rule keeps `stacks_with_promotions: true` and gains `stacks_stated: false`; the fact reads "yes (not stated in the offer)" and a note says "The terms do not say whether it combines with store promotions; checked as if it does."
@@ -43,7 +44,7 @@ Builds on SC-030 (revision 4). Every earlier rule stays unless it is listed unde
 
 1. A small script in the layout: on submit it blocks a second submit, then disables every button (after the browser has read the clicked one), and for `offer_read`, `explain`, a sample question, or `upload` shows a visible `#busy` status ("Gemini is reading the offer…", "The agent is working on your question…", "Gemini is reading your receipt…", each "This can take up to a minute."). `pageshow` from the back-forward cache re-enables the page.
 2. Plan's "Next: explain this plan" and the Why step pill use action `why`: the Why step renders the engine explanation at once with source "Engine explanation. Ask the agent below for Gemini's view; it can take up to a minute." Action `explain` (Ask, Enter, a sample question) runs the agent as before.
-3. Successful agent answers are cached per process for 15 minutes (at most 64) by a hash of the question and the agent's context; a cached answer is reused on refresh or return, and the rate limit is not charged.
+3. Successful agent answers are cached per process for 15 minutes (at most 64) by a hash of the question and the agent's context; a cached answer is reused on refresh or return (it still counts toward the per-minute cap).
 4. `AGENT_TIMEOUT_SECONDS = 100`.
 5. The agent context gains `"answer_style": "Plain sentences, no Markdown, at most 120 words."`; the page renders any remaining `**bold**` as `<strong>`, `` `code` `` as `<code>`, removes `#` heading marks, and starts `* ` or `- ` bullets on a new line with "•", all inside the escaped `<p id="explanation-text">`.
 6. Plain-language re-plan wording as in Supersedes.
@@ -51,7 +52,7 @@ Builds on SC-030 (revision 4). Every earlier rule stays unless it is listed unde
 ### C. Mock cart at Approve (`src/savvycart/http.py`, `src/savvycart/static/app.css`)
 
 1. One cart per bill: store, the card to pay with (or "No card offer applies"), each item with quantity (and "kg"), unit price, and amount after store promotions, then card discount and bill total; for Delivery, the store's assumed delivery fee and the store total.
-2. A grand total: the sum of the store totals; for Pickup the extra-trip cost is stated beside it ("plus LKR {n} for the extra trip, your estimate").
+2. A grand total. Pickup: the sum of the bills, with "plus LKR {n} for the extra trip, your estimate". Delivery: the plan total plus each store's fee, equal to "Total with delivery", with "(includes the LKR {n} extra-trip estimate from your plan)".
 3. "Copy list" (`navigator.clipboard`) and "Share on WhatsApp" (`https://wa.me/?text=` with the escaped list) act on a plain-text list of the cart; no data leaves the page otherwise.
 4. The MOCK preview id shows as "Cart reference (MOCK): {id}". "No order is sent. Savvy Cart does not contact any store or bank." and the delivery fee list stay; the button is "Update my cart".
 
@@ -59,7 +60,7 @@ Builds on SC-030 (revision 4). Every earlier rule stays unless it is listed unde
 
 1. After an offer check with a valid day, the result shows "Plan with this card on {Weekday} {d Mon}" (action `offer_plan`). It re-reads the confirmed terms from the form, sets the plan day to the offer's next valid day, and opens the Plan step.
 2. The checked offer travels in a hidden `held_offer` field (JSON of the confirmed terms), is validated again on every request, and is held under the key "Checked offer ({bank})" so it never unlocks that bank's other offers.
-3. The Plan, Why, and Approve steps price with it: bills say "Pay with {card products} (the offer you checked)"; the recommendation names it the same way; a notice says "This plan includes the offer you checked, with the terms as you confirmed them; the bank has not confirmed them." with a "Remove the checked offer" button (action `drop_offer`).
+3. The Plan, Why, and Approve steps price with it: bills say "Pay with {card products} (the offer you checked)"; the recommendation names it the same way; a notice says "This plan uses the offer you checked, with the terms as you confirmed them; the bank has not confirmed them." (or, when no bill uses it, "The offer you checked is not used: …" with the reason) with a "Remove the checked offer" button (action `drop_offer`).
 4. The agent sees it: `build_agent`/`ask_agent` accept `extra_offers`; the agent's `load_offers` and `plan_day` include them.
 
 ### E. Leaner calls (`src/savvycart/http.py`)
@@ -94,3 +95,4 @@ Builds on SC-030 (revision 4). Every earlier rule stays unless it is listed unde
 | H4 | A checked offer's terms are the shopper's confirmation, not the bank's; every page that uses it says so. |
 | H5 | `agent.py` changes only to accept `extra_offers`; its tools and guardrails are otherwise unchanged. |
 | H6 | Cut-off: if v2.6 is not accepted by 17:00 Colombo, v2.5 stays deployed. |
+| H7 | Revision 2's changes come from P5 round 1 and need the human's approval at P6. |

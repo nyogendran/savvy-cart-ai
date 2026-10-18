@@ -576,7 +576,7 @@ def _parse_state(form: dict[str, list[str]]) -> dict[str, Any]:
         "fulfilment": "delivery" if get("fulfilment", "pickup") == "delivery" else "pickup",
         "delivery_fee": bounded_int("delivery_fee", V2_DEFAULTS["delivery_fee"], 0, 5000),
         "question": " ".join((get("question_chip", "") or get("question", "")).split())[:MAX_QUESTION],
-        "held_raw": get("held_offer", "")[:4000],
+        "held_raw": get("held_offer", "")[:20000],
     }
 
 
@@ -625,7 +625,7 @@ def _rule_raw(rule: dict[str, Any]) -> dict[str, Any]:
             "percent_off": rule["rate_bps"] / 100, "days": rule["days"], "minimum_bill_lkr": rule["min_bill_lkr"],
             "minimum_applies_to": "whole_bill" if rule["minimum_basis"] == "bill" else "eligible_items",
             "max_discount_lkr": rule["cap_lkr"], "excluded_items": rule["excluded_items"],
-            "applies_only_to": [c for c in rule.get("include_categories", []) if c != "none"] or rule.get("applies_only_to", []),
+            "applies_only_to": list(rule.get("include_categories", [])),
             "max_units_per_item": rule["max_units_per_item"],
             "combines_with_store_offers": rule["stacks_with_promotions"] if rule.get("stacks_stated", True) else None,
             "valid_until": rule["valid_to"], "is_up_to": rule["is_up_to"], "exclude_sku_ids": rule["exclude_sku_ids"]}
@@ -652,9 +652,18 @@ def _held_from(raw_json: str, today: _date) -> dict[str, Any] | None:
 def _held_notice(plan: dict[str, Any]) -> str:
     if _HELD.get() is None:
         return ""
+    rule = _HELD.get()
     used = any(str((b["card"] or {}).get("bank", "")).startswith(CHECKED_PREFIX) for b in plan["stores"])
-    lead = ("<strong>This plan uses the offer you checked</strong>, with the terms as you confirmed them; the bank has not confirmed them."
-            if used else "<strong>The offer you checked was considered</strong>, but your own cards cost less for this plan, so no bill uses it.")
+    weekday = plan["day"]["weekday"]
+    if used:
+        lead = "<strong>This plan uses the offer you checked</strong>, with the terms as you confirmed them; the bank has not confirmed them."
+    elif weekday not in rule["days"]:
+        lead = (f"<strong>The offer you checked is not used</strong>: it is valid on {_e(', '.join(d.title() for d in rule['days']))}, "
+                f"not {_e(weekday.title())}.")
+    elif rule["store_id"] not in {b["store_id"] for b in plan["stores"]}:
+        lead = f"<strong>The offer you checked is not used</strong>: this plan does not shop at {_e(STORE_NAMES[rule['store_id']])}."
+    else:
+        lead = "<strong>The offer you checked is not used</strong>: no bill in this plan costs less with it."
     return (f'<div class="callout"><div>{lead}</div>'
             '<button type="submit" name="action" value="drop_offer">Remove the checked offer</button></div>')
 
@@ -676,8 +685,26 @@ def _plan_inputs(banks: list[str]) -> tuple[dict[str, Any], list[str]]:
     return {**offers, "card_offers": offers["card_offers"] + [held]}, banks + [held["bank"]]
 
 
-@lru_cache(maxsize=256)
+ENGINE_CACHE_SIZE = 256
+_engine_results: dict[str, tuple[tuple[Any, Any], str]] = {}
+
+
 def _engine_cached(kind: str, key: str) -> str:
+    """Proven results only: an unproven solve (the solver's time limit) is recomputed next time, not kept."""
+    engines = (engine_plan_day, day_sweep)
+    hit = _engine_results.get(kind + key)
+    if hit and hit[0][0] is engines[0] and hit[0][1] is engines[1]:
+        return hit[1]
+    result = _engine_run(kind, key)
+    statuses = [result.get("solver_status")] if kind == "day" else [d.get("solver_status") for d in result.get("days", [])]
+    if all(s in (None, "OPTIMAL") for s in statuses):
+        if len(_engine_results) >= ENGINE_CACHE_SIZE:
+            _engine_results.pop(next(iter(_engine_results)))
+        _engine_results[kind + key] = (engines, json.dumps(result))
+    return json.dumps(result)
+
+
+def _engine_run(kind: str, key: str) -> dict[str, Any]:
     args = json.loads(key)
     offers, banks = _v2_offers(), args["banks"]
     if args["held"]:
@@ -688,16 +715,15 @@ def _engine_cached(kind: str, key: str) -> str:
     else:
         result = engine_plan_day(_v2_catalog(), offers, args["lines"], args["day"], banks, args["max_stores"], args["trip_cost"],
                                  args["usual_store"], _with_baselines=args["baselines"])
-    return json.dumps(result)
+    return result
 
 
 def _engine(kind: str, lines: list[dict[str, Any]], banks: list[str], max_stores: int, trip_cost: int, usual_store: str,
             **extra: Any) -> dict[str, Any]:
     """The day sweep or one day's plan, cached by its inputs; each caller gets its own copy."""
     _, all_banks = _plan_inputs(banks)
-    # The engine functions' identity is part of the key, so a swapped engine (a test double) never reads another's results.
     key = json.dumps({"lines": lines, "banks": all_banks, "max_stores": max_stores, "trip_cost": trip_cost, "usual_store": usual_store,
-                      "held": _held_offer(), "baselines": True, "engine": [id(engine_plan_day), id(day_sweep)], **extra}, sort_keys=True)
+                      "held": _held_offer(), "baselines": True, **extra}, sort_keys=True)
     return json.loads(_engine_cached(kind, key))
 
 
@@ -705,8 +731,9 @@ def _engine_plan(state: dict[str, Any], items: list[dict[str, Any]]) -> tuple[di
     lines = _lines(items)
     common = (lines, state["banks"], state["max_stores"], state["trip_cost"], state["usual_store"])
     deadline = _deadline(items, state["today"])
-    if _HELD.get() is not None and state["day"] > deadline:
-        deadline = state["day"]  # the checked offer's day stays in reach
+    offer_day = offercheck.next_offer_day(_HELD.get(), state["today"]) if _HELD.get() is not None else None
+    if offer_day is not None and offer_day.isoformat() > deadline:
+        deadline = offer_day.isoformat()  # the checked offer's day stays in reach
     sweep = _engine("sweep", *common, start=state["today"].isoformat(), deadline=deadline)
     days = {d["date"] for d in sweep["days"]}
     day = state["day"] if state["day"] in days else sweep["best"]["date"]
@@ -1238,10 +1265,12 @@ def _remember_answer(key: str, owner: Any, answer: dict[str, Any]) -> None:
 def _answer_html(text: str) -> str:
     """The answer, escaped, with the few Markdown marks a model still sends turned into plain emphasis and bullets."""
     html_text = _e(text)
-    html_text = _re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", html_text)
-    html_text = _re.sub(r"`([^`]+)`", r"<code>\1</code>", html_text)
+    html_text = _re.sub(r"`([^`*]+)`", r"<code>\1</code>", html_text)
+    html_text = _re.sub(r"\*\*([^*`]+?)\*\*", r"<strong>\1</strong>", html_text)
     html_text = _re.sub(r"(^|\s)#{1,6}\s+", r"\1", html_text)
-    html_text = _re.sub(r"(^|\s)[*-]\s+(?=\S)", lambda m: "<br>• " if m.start() else "• ", html_text)
+    # A bullet starts the answer or follows a sentence; "5 - 3" mid-sentence stays as written.
+    html_text = _re.sub(r"^[*-]\s+(?=\S)", "• ", html_text)
+    html_text = _re.sub(r"(?<=[.:!?])\s+[*-]\s+(?=\S)", "<br>• ", html_text)
     return html_text
 
 
@@ -1265,7 +1294,7 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
     question = f"The shopper asks: {state['question']}" if state["question"] else AGENT_QUESTION_V2
     # A scripted runner is its own cache owner, so a different runner never sees another's answer.
     owner = getattr(request.app.state, "agent_runner", None) or "agent"
-    key = _answer_key(question, context, _added_bills(state["added"]))
+    key = _answer_key(question, context, [_added_bills(state["added"]), _held_offer()])
     if not model_rate_limiter(request.app).allow():
         return {**fallback, "source": "Too many explanations this minute. Showing the engine explanation."}
     answer = _cached_answer(key, owner)
@@ -1393,9 +1422,14 @@ def _render_cart(plan: dict[str, Any], state: dict[str, Any]) -> str:
                      f'<span class="card-used">{_e(_card_label(bill["card"]))}</span></header>'
                      '<div class="scroll"><table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit price (LKR)</th>'
                      f'<th class="num">Amount (LKR)</th></tr></thead><tbody>{"".join(rows)}</tbody><tfoot>{foot}</tfoot></table></div></article>')
-    grand = sum(b["bill_lkr"] for b in plan["stores"]) + fee * len(plan["stores"])
-    trips = "" if delivery or not plan.get("extra_trip_cost_lkr") else (
-        f' plus {_money(plan["extra_trip_cost_lkr"])} for the extra trip, your estimate')
+    trip = plan.get("extra_trip_cost_lkr") or 0
+    if delivery:
+        # The same total as "Total with delivery": the plan total (with its trip estimate) plus each store's fee.
+        grand = plan["effective_cost_lkr"] + fee * len(plan["stores"])
+        trips = f" (includes the {_money(trip)} extra-trip estimate from your plan)" if trip else ""
+    else:
+        grand = sum(b["bill_lkr"] for b in plan["stores"])
+        trips = f" plus {_money(trip)} for the extra trip, your estimate" if trip else ""
     text.append(f"\nTotal LKR {grand:,}{trips}")
     plain = "\n".join(text)
     return (
@@ -1458,7 +1492,7 @@ def _hidden_state(state: dict[str, Any], items: list[dict[str, Any]], step: int)
     if step != 4:
         fields += [("fulfilment", state["fulfilment"]), ("delivery_fee", str(state["delivery_fee"]))]
     if _HELD.get() is not None:
-        fields.append(("held_offer", json.dumps(_rule_raw(_HELD.get()), sort_keys=True)))
+        fields.append(("held_offer", json.dumps(_rule_raw(_HELD.get()), sort_keys=True, ensure_ascii=False)))
     return "".join(f'<input type="hidden" name="{_e(k)}" value="{_e(v)}">' for k, v in fields)
 
 
@@ -1604,7 +1638,7 @@ def _form_rule(form: dict[str, list[str]], today: _date | None = None) -> tuple[
         "percent_off": get("o_rate") or None, "days": form.get("o_days", []), "minimum_bill_lkr": get("o_min") or None,
         "minimum_applies_to": "eligible_items" if get("o_basis") == "eligible" else "whole_bill",
         "max_discount_lkr": get("o_cap") or None, "excluded_items": terms,
-        "applies_only_to": [c for c in form.get("o_incl", []) if c in offercheck.CATEGORY_WORDS],
+        "applies_only_to": [c for c in form.get("o_incl", []) if c in offercheck.CATEGORY_WORDS or c == offercheck.NO_CATALOG_ITEMS],
         "max_units_per_item": int(units) if units.isdigit() else None,
         # Still unstated while the shopper leaves the box as read; unticking it is their statement.
         "combines_with_store_offers": None if "o_stack_unstated" in form and "o_stack" in form else "o_stack" in form,
@@ -1750,6 +1784,10 @@ def _render_rule_form(rule: dict[str, Any] | None) -> str:
         f"{c.title()} items</label>"
         for c in offercheck.CATEGORY_WORDS
     )
+    if r.get("include_categories") == [offercheck.NO_CATALOG_ITEMS]:
+        printed = ", ".join(r.get("applies_only_to") or []) or "items not in this catalog"
+        incl += (f'<label class="day"><input type="checkbox" name="o_incl" value="{offercheck.NO_CATALOG_ITEMS}" checked> '
+                 f"Nothing in this catalog (the offer is for {_e(printed)})</label>")
     rate = f"{r['rate_bps'] / 100:g}" if r["rate_bps"] else ""
     terms = ", ".join(r["excluded_items"]) or "none read"
     return (

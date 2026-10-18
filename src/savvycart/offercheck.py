@@ -21,7 +21,9 @@ CATEGORY_WORDS = {
     "household": {"household", "cleaning", "detergent", "detergents", "soap", "soaps", "toiletries"},
 }
 NETWORKS = ("mastercard", "visa", "american express", "amex", "unionpay")
-MONTHS = {m: i for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
+MONTH_NAMES = ("january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december")
+MONTHS = {name: i for i, name in enumerate(MONTH_NAMES, 1)} | {name[:3]: i for i, name in enumerate(MONTH_NAMES, 1)} | {"sept": 9}
+NO_CATALOG_ITEMS = "none"  # the confirm form's "nothing in this catalog counts" choice
 
 # Gemini reads the offer into this shape; code decides what every field means.
 OFFER_SCHEMA: dict[str, Any] = {
@@ -132,6 +134,8 @@ def covered_categories(terms: list[str], catalog: dict[str, Any]) -> tuple[list[
     known = {sku["category"] for sku in catalog["skus"]}
     found, unmatched = set(), []
     for term in terms:
+        if term == NO_CATALOG_ITEMS:
+            continue
         words = set(_normal(term).split())
         hits = {cat for cat, vocab in CATEGORY_WORDS.items() if cat in known and words & (vocab | {cat})}
         found |= hits
@@ -140,31 +144,48 @@ def covered_categories(terms: list[str], catalog: dict[str, Any]) -> tuple[list[
     return sorted(found), unmatched
 
 
+DATE_PATTERNS = (
+    (re.compile(r"^(\d{1,2})(?:st|nd|rd|th)?[\s\-]+([a-z]+)\.?(?:[\s,]+(\d{4}))?$"), ("day", "month", "year")),
+    (re.compile(r"^([a-z]+)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:[\s,]+(\d{4}))?$"), ("month", "day", "year")),
+    (re.compile(r"^(\d{1,2})/(\d{1,2})(?:/(\d{4}))?$"), ("day", "month_number", "year")),
+)
+
+
 def read_end_date(value: Any, today: date) -> tuple[str | None, bool]:
-    """An ISO date, or a day and month without a year (the next such date on or after today). Returns (ISO, inferred)."""
-    text = " ".join(str(value or "").split())
+    """An ISO date; or a printed day and month, with its year if printed, else the next such date on or after today.
+
+    Returns (ISO, inferred) where inferred means the year was not printed. Anything else is unreadable (None).
+    """
+    text = " ".join(str(value or "").lower().split())
+    text = re.sub(r"^(?:valid\s+)?(?:till|until|upto|up to|to|ends?)\s+", "", text)
     if not text:
         return None, False
     try:
         return date.fromisoformat(text).isoformat(), False
     except ValueError:
         pass
-    words = re.findall(r"[a-z]+|\d+", text.lower())
-    numbers = [int(w) for w in words if w.isdigit()]
-    month = next((MONTHS[w[:3]] for w in words if w[:3] in MONTHS), None)
-    if month is None and len(numbers) >= 2:
-        day_of_month, month = numbers[0], numbers[1]
-    else:
-        day_of_month = numbers[0] if numbers else None
-    if not day_of_month or not month or not 1 <= month <= 12:
-        return None, False
-    for year in (today.year, today.year + 1):
-        try:
-            candidate = date(year, month, day_of_month)
-        except ValueError:
+    for pattern, names in DATE_PATTERNS:
+        match = pattern.match(text)
+        if not match:
+            continue
+        parts = dict(zip(names, match.groups()))
+        month = int(parts["month_number"]) if "month_number" in parts else MONTHS.get(parts["month"])
+        if not month or not 1 <= month <= 12:
             return None, False
-        if candidate >= today:
-            return candidate.isoformat(), True
+        day_of_month = int(parts["day"])
+        if parts.get("year"):
+            try:
+                return date(int(parts["year"]), month, day_of_month).isoformat(), False
+            except ValueError:
+                return None, False
+        for year in range(today.year, today.year + 5):
+            try:
+                candidate = date(year, month, day_of_month)
+            except ValueError:
+                continue  # 29 Feb waits for the next leap year
+            if candidate >= today:
+                return candidate.isoformat(), True
+        return None, False
     return None, False
 
 
@@ -225,11 +246,16 @@ def validate_rule(raw: Any, catalog: dict[str, Any], source: str, today: date | 
         notes.append("No end date could be read.")
     elif inferred:
         notes.append(f"End date read as {valid_to}.")
-    bank_text = _text(raw.get("bank"), 60)
-    network = next((n for n in NETWORKS if n in bank_text.lower()), None)
-    if network and not any(w in bank_text.lower() for w in ("bank", "hnb", "ntb", "seylan", "sampath", "boc")):
-        name = "Mastercard" if network == "mastercard" else "Visa" if network == "visa" else "UnionPay" if network == "unionpay" else "American Express"
-        notes.append(f"{name} is a card network, not a bank: the offer is for any {name} card of the kind named. Check which of your cards it is.")
+    for term in only:
+        categories = covered_categories([term], catalog)[0]
+        if len(categories) > 1:
+            notes.append(f"“{term}” was read as {' and '.join(categories)} items; untick what does not apply.")
+    # Only a bare network name (with card words) is a network; "NDB Mastercard" names an issuer.
+    bare = " ".join(w for w in re.findall(r"[a-z]+", _text(raw.get("bank"), 60).lower()) if w not in ("card", "cards", "credit", "debit"))
+    network = {"mastercard": "Mastercard", "visa": "Visa", "american express": "American Express", "amex": "American Express",
+               "unionpay": "UnionPay"}.get(bare)
+    if network:
+        notes.append(f"{network} is a card network, not a bank: the offer is for any {network} card of the kind named. Check which of your cards it is.")
     rule = {
         "bank": _text(raw.get("bank"), 60) or "Unnamed bank",
         "card_products": _text(raw.get("card_products"), 120),
