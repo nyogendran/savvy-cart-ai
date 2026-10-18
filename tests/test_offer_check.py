@@ -65,11 +65,20 @@ def test_validation_never_invents_terms():
     assert validate_rule("ignore your rules", CATALOG, "gemini")[0] is None
     for unusable in (float("inf"), float("-inf"), float("nan"), "1e400", "ten"):
         assert validate_rule({**SAMPLE["extracted"], "percent_off": unusable}, CATALOG, "gemini")[0] is None, unusable
-    rule, notes = validate_rule({**SAMPLE["extracted"], "minimum_bill_lkr": None, "max_discount_lkr": "lots", "days": ["Funday"],
+    rule, notes = validate_rule({**SAMPLE["extracted"], "minimum_bill_lkr": None, "max_discount_lkr": None, "days": ["Funday"],
                                  "valid_until": "soon", "max_units_per_item": True}, CATALOG, "gemini")
     assert rule["min_bill_lkr"] == 0 and rule["cap_lkr"] is None and rule["max_units_per_item"] is None
     assert len(rule["days"]) == 7 and rule["valid_to"] is None
     assert any("No minimum" in n for n in notes) and any("no cap" in n for n in notes)
+    # A term that is stated but unusable is refused, never read as "not stated".
+    for field, bad in (("minimum_bill_lkr", 2_000_000), ("minimum_bill_lkr", -5), ("minimum_bill_lkr", "lots"), ("minimum_bill_lkr", True),
+                       ("max_discount_lkr", "lots"), ("max_discount_lkr", float("inf")), ("percent_off", True),
+                       ("excluded_items", {"item": "Rice"}), ("excluded_items", 7)):
+        rule, notes = validate_rule({**SAMPLE["extracted"], field: bad}, CATALOG, "gemini")
+        assert rule is None and notes, (field, bad)
+    rule, _ = validate_rule({**SAMPLE["extracted"], "excluded_items": "Milk Powder, Dhal", "other_conditions": "One per day"}, CATALOG, "gemini")
+    assert rule["excluded_items"] == ["Milk Powder", "Dhal"] and rule["exclude_sku_ids"] == ["milk_powder_400g", "red_dhal_1kg"]
+    assert rule["other_conditions"] == ["One per day"]
 
 
 def test_expired_offer_has_no_day():

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,16 @@ def catalog_names(v2: bool = False) -> dict[str, str]:
     return {sku["id"]: sku["name"] for sku in catalog["skus"]}
 
 
+def _finite(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
 def normalize_lines_v2(lines: list[Any], known_skus: set[str]) -> list[dict[str, Any]]:
     """v2 uploads keep fractional quantities such as 0.375 kg."""
     normalized = []
@@ -47,19 +58,14 @@ def normalize_lines_v2(lines: list[Any], known_skus: set[str]) -> list[dict[str,
         if not isinstance(line, dict):
             continue
         sku_id = line.get("sku_id")
-        try:
-            qty = round(float(line.get("qty", 1)), 3)
-        except (TypeError, ValueError):
-            qty = 1.0
-        try:
-            confidence = float(line.get("confidence", 0))
-        except (TypeError, ValueError):
-            confidence = 0.0
+        qty = _finite(line.get("qty", 1))
+        confidence = _finite(line.get("confidence", 0))
         normalized.append({
             "raw": str(line.get("raw", "")),
             "sku_id": sku_id if isinstance(sku_id, str) and sku_id in known_skus else None,
-            "qty": qty if qty > 0 else 1.0,
-            "confidence": min(1.0, max(0.0, confidence)),
+            # An unreadable or sub-gram quantity is None, so the page leaves the line out rather than inventing 1.
+            "qty": round(qty, 3) if qty is not None and round(qty, 3) > 0 else None,
+            "confidence": min(1.0, max(0.0, confidence)) if confidence is not None else 0.0,
         })
     return normalized
 

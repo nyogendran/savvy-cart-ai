@@ -52,14 +52,31 @@ def _text(value: Any, limit: int) -> str:
     return " ".join(str(value or "").split())[:limit]
 
 
-def _amount(value: Any) -> int | None:
-    if isinstance(value, bool) or value is None:
+UNUSABLE = "unusable"
+
+
+def _amount(value: Any) -> int | None | str:
+    """None when the term is not stated; UNUSABLE when it is stated but is not an amount from 0 to MAX_LKR."""
+    if value is None or (isinstance(value, str) and not value.strip()):
         return None
+    if isinstance(value, bool):
+        return UNUSABLE
     try:
         number = float(str(value).replace(",", ""))
     except ValueError:
+        return UNUSABLE
+    return _lkr(number) if 0 <= number <= MAX_LKR else UNUSABLE
+
+
+def _string_list(value: Any, limit: int) -> list[str] | None:
+    """A list of short strings; a comma-separated string is split; anything else is None (unreadable)."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        value = value.split(",")
+    if not isinstance(value, list):
         return None
-    return _lkr(number) if 0 <= number <= MAX_LKR else None
+    return [_text(v, 160) for v in value[:limit] if isinstance(v, str) and _text(v, 160)]
 
 
 def _days(values: Any) -> list[str]:
@@ -109,6 +126,8 @@ def validate_rule(raw: Any, catalog: dict[str, Any], source: str) -> tuple[dict[
         return None, ["The offer does not name Keells, Cargills, SPAR, or Glomark, so there is nothing to price it against."]
     percent = raw.get("percent_off")
     try:
+        if isinstance(percent, bool):
+            raise TypeError("a boolean is not a percent")
         rate_bps = int(round(float(percent) * 100))
     except (TypeError, ValueError, OverflowError):
         return None, ["The offer does not state a usable percent, so Savvy Cart will not guess one."]
@@ -119,10 +138,16 @@ def validate_rule(raw: Any, catalog: dict[str, Any], source: str) -> tuple[dict[
         days = list(WEEKDAYS)
         notes.append("No day is stated; checked as valid every day.")
     minimum = _amount(raw.get("minimum_bill_lkr"))
+    cap = _amount(raw.get("max_discount_lkr"))
+    if UNUSABLE in (minimum, cap):
+        which = "minimum bill" if minimum == UNUSABLE else "maximum discount"
+        return None, [f"The {which} could not be read as an amount from LKR 0 to LKR {MAX_LKR:,}, so Savvy Cart will not guess it."]
+    excluded_raw = _string_list(raw.get("excluded_items"), 30)
+    if excluded_raw is None:
+        return None, ["The excluded items could not be read as a list, so Savvy Cart will not guess them."]
     if minimum is None:
         minimum = 0
         notes.append("No minimum bill is stated; checked with none.")
-    cap = _amount(raw.get("max_discount_lkr"))
     if cap is None:
         notes.append("No maximum discount is stated; checked with no cap.")
     basis = raw.get("minimum_applies_to")
@@ -133,7 +158,7 @@ def validate_rule(raw: Any, catalog: dict[str, Any], source: str) -> tuple[dict[
     units = raw.get("max_units_per_item")
     units = units if isinstance(units, int) and not isinstance(units, bool) and 0 < units <= 50 else None
     combines = raw.get("combines_with_store_offers")
-    excluded = [_text(t, 60) for t in (raw.get("excluded_items") or [])[:30] if _text(t, 60)]
+    excluded = [_text(t, 60) for t in excluded_raw if _text(t, 60)]
     matches = match_exclusions(excluded, catalog)
     valid_to = None
     try:
@@ -158,7 +183,7 @@ def validate_rule(raw: Any, catalog: dict[str, Any], source: str) -> tuple[dict[
         "stacks_with_promotions": combines is not False,
         "channel": raw.get("channel") if raw.get("channel") in ("in_store", "online", "any") else "not_stated",
         "valid_to": valid_to,
-        "other_conditions": [_text(c, 160) for c in (raw.get("other_conditions") or [])[:8] if _text(c, 160)],
+        "other_conditions": _string_list(raw.get("other_conditions"), 8) or [],
         "source": source,
     }
     if rule["is_up_to"]:

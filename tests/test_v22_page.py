@@ -105,6 +105,12 @@ def test_gemini_catalog_match_adds_lines_from_any_store_with_fractional_quantiti
 def test_swapped_total_and_saving_sentences_are_dropped():
     text = "You pay 1331 LKR and save 4609 LKR. Cargills is cheaper on Friday. Plan total 4609 LKR, saving 1331 LKR."
     assert drop_swapped_roles(text, 4609, 1331) == "Cargills is cheaper on Friday. Plan total 4609 LKR, saving 1331 LKR."
+    # The role word may follow the number; a saving word in another clause must not condemn a correct total.
+    for swapped in ("4609 LKR is your saving, and 1331 LKR is your plan total.", "4609 LKR is what you save; 1331 LKR is the total bill."):
+        assert drop_swapped_roles(swapped, 4609, 1331) == "", swapped
+    for correct in ("After the card discount, 4609 LKR is the total bill.", "Friday is cheaper at 4609 LKR total.",
+                    "You save 1331 LKR, and the total is 4609 LKR."):
+        assert drop_swapped_roles(correct, 4609, 1331) == correct, correct
 
 
 def test_shopper_question_reaches_the_agent_and_answers_stay_grounded():
@@ -131,3 +137,38 @@ def test_shopper_question_reaches_the_agent_and_answers_stay_grounded():
         assert "You save 4609" not in answer and "99999" not in answer
         assert "saving 1331 LKR" in answer
     assert "You asked: Is Sunday cheaper than the day you picked?" in _text(chip)
+
+
+def test_holding_the_checked_card_never_unlocks_other_offers_of_that_bank():
+    with TestClient(app) as http:
+        wallet = _submit(http, http.get("/").text, "wallet")
+        page = _submit(http, wallet, "offer", [("bank", "HNB")], drop=("bank",))
+        checked = _submit(http, page, "offer_check", [("o_bank", "Commercial Bank"), ("o_store", "spar"), ("o_rate", "10"),
+                                                      ("o_min", "50000"), ("o_days", "saturday")])
+    text = _text(checked)
+    assert "pays nothing" in text or "LKR 0" in text
+    assert "less than" not in re.search(r"Holding this card.*?\.", text).group(0)
+
+
+def test_v2_receipt_lines_never_invent_a_quantity():
+    from savvycart.gemini import normalize_lines_v2
+
+    lines = normalize_lines_v2([{"raw": "C", "sku_id": "carrot", "qty": q, "confidence": c}
+                                for q, c in (("1e400", 0.9), (True, True), (0.0001, 0.9), ("nan", "nan"), (0.375, 0.8))], {"carrot"})
+    assert [l["qty"] for l in lines] == [None, None, None, None, 0.375]
+    assert [l["confidence"] for l in lines] == [0.9, 0.0, 0.9, 0.0, 0.8]
+
+
+def test_unreadable_offer_from_the_model_is_refused_not_a_crash():
+    class Bad:
+        def extract_offer(self, text, image, schema, prompt):
+            return {**SAMPLE["extracted"], "excluded_items": {"item": "Rice"}}
+
+    app.state.model_client = Bad()
+    try:
+        with TestClient(app) as http:
+            page = _submit(http, http.get("/").text, "offer")
+            read = _submit(http, page, "offer_read", [("o_text", "10% off on Saturday at Keells")])
+    finally:
+        app.state.model_client = None
+    assert "excluded items could not be read" in read

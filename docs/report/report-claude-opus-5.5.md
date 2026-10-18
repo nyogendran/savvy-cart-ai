@@ -292,7 +292,7 @@ Do not add more agents, RAG, BigQuery, or Firestore for the sake of the diagram.
 This one feature:
 
 - makes Gemini necessary;
-- replaces assumed bank terms with real, captured ones (Seylan Bank's published Keells terms, 18 Oct 2026);
+- replaces assumed bank terms with real, captured ones (Seylan Bank's published Keells terms, captured 17 Oct 2026);
 - restores the project's original idea, that a headline percent does not cover staples;
 - gives the video a 15-second moment judges will remember.
 

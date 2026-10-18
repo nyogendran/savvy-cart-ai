@@ -946,8 +946,27 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
     )
 
 
-SAVING_WORDS = _re.compile(r"^(save|saves|saved|saving|savings|cheaper|less|off|discount)$")
+SAVING_WORDS = _re.compile(r"^(save|saves|saved|saving|savings|discount)$")
 TOTAL_WORDS = _re.compile(r"^(pay|pays|paid|paying|total|cost|costs|spend|spending|bill)$")
+CLAUSE_BREAK = _re.compile(r"[,;:\u2014]|\b(?:and|but|while|whereas)\b")
+ROLE_WINDOW = 5
+
+
+def _number_role(words: list[str], i: int) -> str | None:
+    """'saving' or 'total' from the nearest role word on either side, or None when absent or tied."""
+    found = []
+    for j, word in enumerate(words):
+        if j == i or abs(j - i) > ROLE_WINDOW:
+            continue
+        if SAVING_WORDS.match(word):
+            found.append((abs(j - i), "saving"))
+        elif TOTAL_WORDS.match(word):
+            found.append((abs(j - i), "total"))
+    if not found:
+        return None
+    nearest = min(d for d, _ in found)
+    roles = {role for d, role in found if d == nearest}
+    return roles.pop() if len(roles) == 1 else None
 
 
 def drop_swapped_roles(text: str, total: int, saving: int) -> str:
@@ -956,14 +975,13 @@ def drop_swapped_roles(text: str, total: int, saving: int) -> str:
         return text
     kept = []
     for sentence in _re.split(r"(?<=[.!?])\s+", text):
-        words = [_re.sub(r"[^\w]", "", w).lower() for w in sentence.split()]
         swapped = False
-        for i, word in enumerate(words):
-            if word not in (str(total), str(saving)):
-                continue
-            role = next((w for w in reversed(words[max(0, i - 6):i]) if SAVING_WORDS.match(w) or TOTAL_WORDS.match(w)), None)
-            if role and ((word == str(total) and SAVING_WORDS.match(role)) or (word == str(saving) and TOTAL_WORDS.match(role))):
-                swapped = True
+        for clause in CLAUSE_BREAK.split(sentence):
+            words = [_re.sub(r"[^\w]", "", w).lower() for w in (clause or "").split()]
+            for i, word in enumerate(words):
+                role = _number_role(words, i) if word in (str(total), str(saving)) else None
+                if (word == str(total) and role == "saving") or (word == str(saving) and role == "total"):
+                    swapped = True
         if not swapped:
             kept.append(sentence)
     return " ".join(kept).strip()
@@ -1253,6 +1271,7 @@ async def _extract_upload(request: Request, upload: Any) -> tuple[list[dict[str,
 # --- Offer Reality Check: Gemini reads the offer, the shopper confirms it, the engine prices it ---
 
 OFFER_ACTIONS = {"offer", "offer_sample", "offer_read", "offer_check"}
+CHECKED_OFFER_KEY = "__checked_offer__"
 OFFER_STEP = 5  # not a wizard step: every wizard choice travels in hidden fields
 SAMPLE_OFFER = V2 / "offer-sample-seylan.json"
 
@@ -1319,10 +1338,11 @@ def _held_plan(rule: dict[str, Any], state: dict[str, Any], lines: list[dict[str
     """Engine best plan on the offer's day with the shopper's cards, then also holding this card."""
     args = (_v2_catalog(), _v2_offers(), lines, day)
     now = engine_plan_day(*args, state["banks"], state["max_stores"], state["trip_cost"], state["usual_store"], _with_baselines=False)
-    offers = {**_v2_offers(), "card_offers": _v2_offers()["card_offers"] + [offercheck.planner_offer(rule)]}
-    banks = list(dict.fromkeys(state["banks"] + [rule["bank"]]))
-    held = engine_plan_day(_v2_catalog(), offers, lines, day, banks, state["max_stores"], state["trip_cost"], state["usual_store"],
-                           _with_baselines=False)
+    # Hold only this offer: keying it on its bank name would also unlock that bank's other offers the shopper did not pick.
+    checked = {**offercheck.planner_offer(rule), "bank": CHECKED_OFFER_KEY}
+    offers = {**_v2_offers(), "card_offers": _v2_offers()["card_offers"] + [checked]}
+    held = engine_plan_day(_v2_catalog(), offers, lines, day, state["banks"] + [CHECKED_OFFER_KEY], state["max_stores"],
+                           state["trip_cost"], state["usual_store"], _with_baselines=False)
     return now["effective_cost_lkr"], held["effective_cost_lkr"]
 
 
