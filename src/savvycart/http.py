@@ -660,8 +660,6 @@ def _reason_text(item: dict[str, Any]) -> str:
 
 
 def _timing_text(item: dict[str, Any]) -> str:
-    if _is_stale(item):
-        return f"Last bought {_short_date(item['last_bought'])}"
     left = item["days_left"]
     if left == 0:
         return "Due today"
@@ -682,7 +680,8 @@ def _render_pantry(items: list[dict[str, Any]], state: dict[str, Any], note: str
         elif item["status"] == "unknown":
             reason = f'<span class="reason">{_e(item["reason"])}</span>'
         else:
-            reason = (f'<details class="reason"><summary>{_e(_timing_text(item))}</summary>'
+            reason = (f'<details class="reason"><summary>{_e(_timing_text(item))}'
+                      f'<span class="sr-only">: {_e(item["name"])}</span></summary>'
                       f"<p>{_e(_reason_text(item))}</p></details>")
         divisible = item.get("divisible")
         step, mn = ("any", "0.001") if divisible else ("1", "1")
@@ -938,10 +937,14 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
     unpriced = f'<p class="notice">Not priced at any store: {_e(", ".join(plan["unpriced"]))}.</p>' if plan["unpriced"] else ""
     extra = f' plus {_money(plan["extra_trip_cost_lkr"])} for extra trips' if plan["extra_trip_cost_lkr"] else ""
     allowed = "" if title_note else f' (you allowed up to {plan["max_stores"]})'
+    control = "Control basket, priced with every demo card, one store, and Keells as the usual store: " if title_note else ""
+    unproven = ("" if plan["solver_status"] == "OPTIMAL" else
+                f'<p class="notice">The optimizer stopped before proving this is the cheapest plan (status {_e(plan["solver_status"])}).</p>')
     return (
         '<section class="step" id="plan" aria-labelledby="plan-h">'
         f'<h2 id="plan-h">3. Plan for {_e(weekday)} {_e(plan["day"]["date"])}{_e(title_note)}</h2>'
-        f'<p class="recommendation" id="plan-recommendation">{_e(_recommendation(plan))}</p>'
+        f'<p class="recommendation" id="plan-recommendation">{_e(control)}{_e(_recommendation(plan))}</p>'
+        f"{unproven}"
         f'<p class="lead">{len(plan["stores"])} store{"s" if len(plan["stores"]) != 1 else ""}{allowed}. '
         "Store promotions apply first, then at most one card offer per bill.</p>"
         '<div class="summary">'
@@ -974,7 +977,9 @@ def _recommendation(plan: dict[str, Any]) -> str:
         return "No store can price this basket."
     names = [STORE_NAMES[b["store_id"]] for b in bills]
     where = names[0] if len(names) == 1 else f'{", ".join(names[:-1])} and {names[-1]}'
-    cards = [f'Pay with {b["card"]["bank"]} {b["card"]["product"]} at {STORE_NAMES[b["store_id"]]}.' for b in bills if b["card"]]
+    cards = [f'Pay with {b["card"]["bank"]} {b["card"]["product"]} at {STORE_NAMES[b["store_id"]]}'
+             f'{"" if _offer(b["card"]["offer_id"]).get("source") == "published" else " (fictional demo offer)"}.'
+             for b in bills if b["card"]]
     shop = f'Shop on {plan["day"]["weekday"].title()} {_short_date(plan["day"]["date"])} at {where}.'
     return " ".join([shop] + (cards or ["No card offer applies to this basket."]))
 
@@ -1190,7 +1195,7 @@ def _render_profile(state: dict[str, Any], compact: bool) -> str:
     return (
         f'<aside class="profile{" compact" if compact else ""}" aria-label="Demo household">{AVATAR_SVG}'
         "<div><p class=\"who\"><strong>Karuppan's household · Colombo</strong> <span class=\"tag\">Fictional demo profile</span></p>"
-        f'<p class="facts">{facts}</p></div></aside>'
+        f'<p class="profile-facts">{facts}</p></div></aside>'
     )
 
 
@@ -1512,7 +1517,7 @@ async def _offer_view(request: Request, action: str, form: dict[str, list[str]],
         + (f'<ul class="notes">{note_html}</ul>' if note_html else "")
         + result
         + _render_rule_form(rule)
-        + _nav("wallet", [("plan", "Back to my shopping plan", True)])
+        + _nav("wallet", [("plan", "Next: plan my shopping", True)])
         + "</section>"
     )
 
