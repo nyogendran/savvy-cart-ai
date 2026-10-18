@@ -1,6 +1,7 @@
 {
   "body": "Approved spec: .adlc/specs/SC-025-agent-offer-tool-guardrail-callbacks.md (v2.3, builds on SC-023). Built before gating on 18 Oct 2026, then reviewed; three reproduced defects in check_card_offer fixed. Do not call Gemini in tests. tests/test_v2_page.py is updated only where SC-025 supersedes it (re-plans keep the shopper's quantities and trip cost). Cut-off 17:00 Colombo (E4).\n\nAcceptance criteria:\n1. Agent tool prices a described offer; unstated terms left out; invalid day refused. Verify: python -m pytest tests/test_offer_check.py -q\n2. Unstated terms never ground a number; callbacks run in the real ADK loop. Verify: python -m pytest tests/test_guardrails.py -q\n3. Whole-pack quantities. Verify: python -m pytest tests/test_v22_page.py -q\n4. Every test passes. Verify: python -m pytest -q\n5. README checker passes. Verify: python scripts/check_judge_readme.py\n",
   "category": "feature",
+  "completed": true,
   "duration": 1,
   "edges": [],
   "id": "SC-026",
