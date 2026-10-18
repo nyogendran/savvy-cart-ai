@@ -14,13 +14,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from extract_receipt_live import missing_credentials  # noqa: E402
-
 FIELDS = ["store_name", "percent_off", "days", "minimum_bill_lkr", "max_discount_lkr", "max_units_per_item",
           "combines_with_store_offers", "valid_until"]
 
 
 def main() -> int:
+    from extract_receipt_live import missing_credentials
+
     missing = missing_credentials()
     if missing:
         print("missing: " + ", ".join(missing), file=sys.stderr)
