@@ -1044,25 +1044,39 @@ def _qty_key(value: Any) -> str:
         return repr(value)
 
 
+def _scalar_key(value: Any) -> str:
+    """2, 2.0 and "2" are the same request; a day or store name stays text."""
+    return _qty_key(value) if not isinstance(value, bool) and _qty_key(value) != repr(value) else str(value)
+
+
 def _lines_key(lines: Any) -> list[tuple[str, str]]:
-    rows = lines if isinstance(lines, list) else [lines]
-    return sorted((str(l.get("sku_id")), _qty_key(l.get("qty"))) if isinstance(l, dict) else ("", repr(l)) for l in rows)
+    """Rows for the same item are one line, as the planner merges them."""
+    totals: dict[str, float] = {}
+    odd = []
+    for line in lines if isinstance(lines, list) else [lines]:
+        qty = _qty_key(line.get("qty")) if isinstance(line, dict) else None
+        if qty is None or qty == repr(line.get("qty")):
+            odd.append(("", repr(line)))
+        else:
+            sku = str(line.get("sku_id"))
+            totals[sku] = totals.get(sku, 0.0) + float(qty)
+    return sorted([(sku, f"{qty:.3f}") for sku, qty in totals.items()] + odd)
 
 
 def _banks_asked(value: Any) -> list[str]:
-    return sorted(str(b) for b in (value if isinstance(value, list) else [value]) if b is not None)
+    return sorted({str(b) for b in (value if isinstance(value, list) else [value]) if b is not None})
 
 
 def _replan_differences(call_args: dict[str, Any], confirmed: dict[str, Any]) -> list[str]:
     """What a model's plan_day call changed; its arguments are untrusted JSON of any shape."""
     diffs = []
     for key in ("day", "max_stores", "trip_cost_lkr", "usual_store"):
-        if key in call_args and call_args[key] != confirmed[key]:
+        if key in call_args and _scalar_key(call_args[key]) != _scalar_key(confirmed[key]):
             diffs.append(f"{key} {call_args[key]} instead of {confirmed[key]}")
     if "banks" in call_args:
         asked = _banks_asked(call_args["banks"])
         if asked != sorted(confirmed["banks"]):
-            diffs.append(f"cards {', '.join(asked) or 'none'} instead of {', '.join(confirmed['banks']) or 'none'}")
+            diffs.append(f"cards {', '.join(asked) or 'none'} instead of {', '.join(sorted(confirmed['banks'])) or 'none'}")
     if "lines" in call_args and _lines_key(call_args["lines"]) != _lines_key(confirmed["lines"]):
         diffs.append("a different basket")
     return diffs
@@ -1071,7 +1085,7 @@ def _replan_differences(call_args: dict[str, Any], confirmed: dict[str, Any]) ->
 def _call_key(call_args: dict[str, Any], confirmed: dict[str, Any]) -> str:
     """Identity of a plan_day request, so a retry matches the call it repeats; a missing argument means the shopper's."""
     def get(key: str) -> str:
-        return str(call_args.get(key, confirmed[key]))
+        return _scalar_key(call_args.get(key, confirmed[key]))
     return json.dumps([get("day"), get("max_stores"), get("trip_cost_lkr"), get("usual_store"),
                        _banks_asked(call_args.get("banks", confirmed["banks"])), _lines_key(call_args.get("lines", confirmed["lines"]))],
                       default=str)
@@ -1116,7 +1130,8 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
     completed, failed = [], []
     for index, call in enumerate(c for c in calls if c.get("name") == "plan_day"):
         response = plan_responses[index] if index < len(plan_responses) else None
-        (failed if isinstance(response, dict) and "error" in response else completed).append(call.get("args") or {})
+        args = call.get("args") if isinstance(call.get("args"), dict) else {}
+        (failed if isinstance(response, dict) and "error" in response else completed).append(args)
     replans = [diffs for diffs in (_replan_differences(args, confirmed) for args in completed) if diffs]
     done = {_call_key(args, confirmed) for args in completed}
     refused = []

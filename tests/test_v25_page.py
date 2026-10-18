@@ -195,9 +195,35 @@ def test_refused_then_completed_retries_and_other_tool_errors_are_disclosed_accu
     basket = lambda qty: (lambda c: dict(c, lines=[dict(l, qty=qty) if l["sku_id"] == "carrot" else l for l in reversed(c["lines"])]))
     assert notices_for([{"name": "plan_day", "args": basket(3)}, {"name": "plan_day", "args": basket(4)}],
                        [{"name": "plan_day", "response": error}, {"name": "plan_day", "response": error}]) == ["tried"]
+    # A number written as 250.0 or "250" is the same request as 250.
+    float_trip = lambda c: dict(other_day(c), trip_cost_lkr=float(c["trip_cost_lkr"]))
+    assert notices_for([{"name": "plan_day", "args": float_trip}, {"name": "plan_day", "args": other_day}],
+                       [{"name": "plan_day", "response": error}, {"name": "plan_day", "response": done}]) == ["re-planned"]
+    assert notices_for([{"name": "plan_day", "args": lambda c: dict(c, max_stores=str(c["max_stores"]))}],
+                       [{"name": "plan_day", "response": error}]) == []
+    # The shopper's own request, reordered, split into rows, or with a card listed twice, changes nothing.
+    same = lambda c: dict(c, lines=[dict(l, qty=l["qty"] / 2) for l in reversed(c["lines"])] * 2, banks=c["banks"] + c["banks"][:1])
+    assert notices_for([{"name": "plan_day", "args": same}], [{"name": "plan_day", "response": done}]) == []
+    # A refused day or card change is not hidden by a different completed day or card change.
+    assert notices_for([{"name": "plan_day", "args": lambda c: dict(c, day="2026-10-25")}, {"name": "plan_day", "args": other_day}],
+                       [{"name": "plan_day", "response": error}, {"name": "plan_day", "response": done}]) == ["re-planned", "tried"]
+    assert notices_for([{"name": "plan_day", "args": lambda c: dict(c, banks=["HNB"])},
+                        {"name": "plan_day", "args": lambda c: dict(c, banks=["Commercial Bank"])}],
+                       [{"name": "plan_day", "response": error}, {"name": "plan_day", "response": done}]) == ["re-planned", "tried"]
+    # Arguments that are not an object do not break the page.
+    assert notices_for([{"name": "plan_day", "args": lambda c: [1, 2]}], [{"name": "plan_day", "response": done}]) == []
     # Two completed re-plans are each disclosed, as before.
     assert notices_for([{"name": "plan_day", "args": other_day}, {"name": "plan_day", "args": other_day}],
                        [{"name": "plan_day", "response": done}, {"name": "plan_day", "response": done}]) == ["re-planned", "re-planned"]
+
+
+def test_card_differences_list_both_sides_sorted():
+    from savvycart.http import _replan_differences
+
+    confirmed = {"day": "2026-10-23", "max_stores": 2, "trip_cost_lkr": 250, "usual_store": "keells",
+                 "banks": ["Nations Trust Bank", "Commercial Bank", "HNB"], "lines": []}
+    assert _replan_differences({"banks": ["HNB", "Commercial Bank"]}, confirmed) == [
+        "cards Commercial Bank, HNB instead of Commercial Bank, HNB, Nations Trust Bank"]
 
 
 def test_bill_marks_fictional_rows_when_sources_are_mixed():
