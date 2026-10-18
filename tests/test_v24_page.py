@@ -92,6 +92,8 @@ def test_plan_leads_with_a_recommendation_built_from_the_engine_plan(monkeypatch
         hnb = _submit(http, wallet, "plan", [("bank", "HNB")], drop=("bank",))
         hnb_why, hnb_approve = (_submit(http, hnb, action) for action in ("explain", "approve"))
         default_why, default_approve = (_submit(http, plan, action) for action in ("explain", "approve"))
+        combank = _submit(http, wallet, "plan", [("bank", "Commercial Bank")], drop=("bank",))
+        combank_why, combank_approve = (_submit(http, combank, action) for action in ("explain", "approve"))
         real = page_module.engine_plan_day
         monkeypatch.setattr(page_module, "engine_plan_day", lambda *a, **k: {**real(*a, **k), "solver_status": "FEASIBLE"})
         feasible = _submit(http, home, "plan")
@@ -110,11 +112,15 @@ def test_plan_leads_with_a_recommendation_built_from_the_engine_plan(monkeypatch
     assert 'class="notice">The optimizer stopped' not in plan
     hnb_rec = re.search(r'id="plan-recommendation">(.*?)</p>', hnb).group(1)
     assert re.search(r"Pay with HNB credit at \w+ \(fictional demo offer\)\.", hnb_rec), hnb_rec
-    note = '<p class="notice">HNB card offers in this plan are fictional demo offers, not published by the bank.</p>'
-    assert re.search(r'<p class="recap"><strong>Engine figures:</strong> [^<]*</p>' + re.escape(note), hnb_why)
-    assert re.search(r'<p class="recap">[^<]*</p>' + re.escape(note), hnb_approve)
-    assert hnb_why.count(note) == hnb_approve.count(note) == 1
-    assert "fictional demo offers, not published" not in default_why + default_approve + plan
+    note = '<p class="notice">HNB card offers in this demo are fictional, not published by the bank.</p>'
+    for why, approve in ((hnb_why, hnb_approve), (default_why, default_approve)):  # held, whether or not a bill uses it
+        assert re.search(r'<p class="recap"><strong>Engine figures:</strong> [^<]*</p>' + re.escape(note), why)
+        assert re.search(r'<p class="recap">[^<]*</p>' + re.escape(note), approve)
+        assert why.count(note) == approve.count(note) == 1
+    assert "not published by the bank" not in combank_why + combank_approve + plan
+    assert page_module._offer_bank({"bank": "HNB", "source": "fictional"}) == "HNB (fictional demo offer)"
+    assert page_module._offer_bank({"bank": "Commercial Bank", "source": "published"}) == "Commercial Bank"
+    assert "Commercial Bank at Keells: needs" in control and "Commercial Bank (fictional demo offer)" not in control
     # The default plan holds HNB without paying with it; every visible mention of its offer still says it is fictional.
     visible = _text(re.sub(r"<details.*?</details>", "", plan.split('<section class="step" id="plan"')[1], flags=re.S))
     assert "HNB (fictional demo offer) at Cargills: needs" in visible
