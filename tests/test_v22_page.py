@@ -106,10 +106,11 @@ def test_swapped_total_and_saving_sentences_are_dropped():
     text = "You pay 1331 LKR and save 4609 LKR. Cargills is cheaper on Friday. Plan total 4609 LKR, saving 1331 LKR."
     assert drop_swapped_roles(text, 4609, 1331) == "Cargills is cheaper on Friday. Plan total 4609 LKR, saving 1331 LKR."
     # The role word may follow the number; a saving word in another clause must not condemn a correct total.
-    for swapped in ("4609 LKR is your saving, and 1331 LKR is your plan total.", "4609 LKR is what you save; 1331 LKR is the total bill."):
+    for swapped in ("4609 LKR is your saving, and 1331 LKR is your plan total.", "4609 LKR is what you save; 1331 LKR is the total bill.",
+                    "Plan total: 1331 LKR, saving: 4609 LKR."):
         assert drop_swapped_roles(swapped, 4609, 1331) == "", swapped
     for correct in ("After the card discount, 4609 LKR is the total bill.", "Friday is cheaper at 4609 LKR total.",
-                    "You save 1331 LKR, and the total is 4609 LKR."):
+                    "You save 1331 LKR, and the total is 4609 LKR.", "Total: 4609 LKR (saving: 1331 LKR)."):
         assert drop_swapped_roles(correct, 4609, 1331) == correct, correct
 
 

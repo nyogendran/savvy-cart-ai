@@ -948,7 +948,8 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
 
 SAVING_WORDS = _re.compile(r"^(save|saves|saved|saving|savings|discount)$")
 TOTAL_WORDS = _re.compile(r"^(pay|pays|paid|paying|total|cost|costs|spend|spending|bill)$")
-CLAUSE_BREAK = _re.compile(r"[,;:\u2014]|\b(?:and|but|while|whereas)\b")
+# A colon stays inside its clause ("Plan total: 4609 LKR"); parentheses start a new one.
+CLAUSE_BREAK = _re.compile(r"[,;()\u2014]|\b(?:and|but|while|whereas)\b")
 ROLE_WINDOW = 5
 
 
