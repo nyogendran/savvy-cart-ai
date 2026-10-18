@@ -1,6 +1,6 @@
 # SC-027 — v2.4: recommendation-first hierarchy, mobile touch targets, Karuppan profile
 
-**Status:** READY_FOR_APPROVAL (revision 7; revision 1 approved) · **Ticket:** SC-027 (spec) · build ticket SC-028
+**Status:** APPROVED (revision 7) · **Ticket:** SC-027 (spec) · build ticket SC-028
 
 Builds on the approved SC-025 spec. Every SC-025 and SC-023 rule stays unless it is listed under **Supersedes**. Prototype deadline 18 Oct 2026.
 
