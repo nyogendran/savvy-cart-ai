@@ -23,7 +23,7 @@ CATEGORY_WORDS = {
 NETWORKS = ("mastercard", "visa", "american express", "amex", "unionpay")
 MONTH_NAMES = ("january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december")
 MONTHS = {name: i for i, name in enumerate(MONTH_NAMES, 1)} | {name[:3]: i for i, name in enumerate(MONTH_NAMES, 1)} | {"sept": 9}
-NO_CATALOG_ITEMS = "none"  # the confirm form's "nothing in this catalog counts" choice
+NO_CATALOG_ITEMS = "__nothing_in_this_catalog__"  # internal: nothing in this catalog counts; a model cannot send it by accident
 
 # Gemini reads the offer into this shape; code decides what every field means.
 OFFER_SCHEMA: dict[str, Any] = {
@@ -240,7 +240,7 @@ def validate_rule(raw: Any, catalog: dict[str, Any], source: str, today: date | 
     for term in unmatched:
         notes.append(f"“{term}” matches no category in this catalog, so items under it are not counted.")
     if only and not include:
-        include = ["none"]
+        include = [NO_CATALOG_ITEMS]
     valid_to, inferred = read_end_date(raw.get("valid_until"), today or date.today())
     if valid_to is None:
         notes.append("No end date could be read.")
@@ -327,7 +327,7 @@ def reality_check(rule: dict[str, Any], catalog: dict[str, Any], promotions: lis
         base = card_base(offer, sku, promoted, promo is not None, qty)
         include = rule.get("include_categories") or []
         if include and sku["category"] not in include:
-            why = f"Not covered: the offer is for {', '.join(c for c in include if c != 'none') or 'no item in this catalog'} only"
+            why = f"Not covered: the offer is for {', '.join(c for c in include if c != NO_CATALOG_ITEMS) or 'no item in this catalog'} only"
         elif sku["id"] in rule["exclude_sku_ids"]:
             term = reasons_by_sku.get(sku["id"])
             why = f"Excluded: “{term}”" if term else "Excluded (you marked it)"

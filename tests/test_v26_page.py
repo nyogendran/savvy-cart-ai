@@ -215,7 +215,7 @@ def test_plan_with_a_checked_card():
     labels = re.findall(r'<span class="card-used">([^<]+)</span>', plan)
     assert "Pay with Test Credit (the offer you checked)" in labels
     assert not any(l.startswith("Pay with Commercial Bank") for l in labels)  # the key never unlocks that bank's real offers
-    assert "This plan uses the offer you checked" in plan and "Pay with Test Credit (the offer you checked) at Keells." in plan
+    assert "This plan uses the offer you checked (Test Credit at Keells)" in plan and "Pay with Test Credit (the offer you checked) at Keells." in plan
     for page in (why, approve):
         assert "This plan uses the offer you checked" in page and "Test Credit (the offer you checked)" in page
     assert "the offer you checked" not in dropped and 'name="held_offer"' not in dropped
@@ -236,7 +236,7 @@ def test_plan_with_a_checked_card():
     carried = json.loads(html.unescape(re.search(r'name="held_offer" value="([^"]*)"', injected).group(1)))
     assert carried["exclude_sku_ids"] == ["carrot"]  # only catalog ids survive
     assert bad_day.status_code == 200  # a typed day never reaches the engine unchecked
-    assert "The offer you checked is not used</strong>: it is valid on Saturday, not Friday." in moved
+    assert "The offer you checked (Test Credit at Keells) is not used</strong>: it is valid on Saturday, not Friday." in moved
 
 
 def test_checked_offer_edges_are_disclosed_truthfully():
@@ -256,13 +256,23 @@ def test_checked_offer_edges_are_disclosed_truthfully():
     heading = r"Best day before the estimated next purchase date \(by [\d-]+\)"
     assert re.search(heading, base).group(0) == re.search(heading, held).group(0)  # the household's own window, unchanged
     assert "(the checked offer&#39;s day, after the estimated next purchase date)</option>" in held
-    assert "The offer you checked is not used</strong>: this plan does not shop at Glomark." in held
-    assert "The offer you checked is not used</strong>: it ended on 2026-10-23." in later
+    assert "The offer you checked (Test at Glomark) is not used</strong>: this plan does not shop at Glomark." in held
+    assert "The offer you checked (Test at Keells) is not used</strong>: it ended on 2026-10-23." in later
     assert "The offer does not state a usable percent, so Savvy Cart will not guess one." in blank
     assert "Nothing in this catalog (the offer is for Electronics)" in odd_check and "Applies only to none" not in _text(odd_check)
     carried = json.loads(html.unescape(re.search(r'name="held_offer" value="([^"]*)"', odd_plan).group(1)))
     assert carried["applies_only_to"] == ["Electronics"]  # still unmatched after a round trip, so nothing counts
     assert "the offer you checked)" not in " ".join(re.findall(r'<span class="card-used">([^<]+)', odd_plan))
+    with TestClient(app) as http:
+        tuesday = {**glomark, "store_name": "Keells", "minimum_bill_lkr": 1000, "percent_off": 20}
+        on_day = _submit(http, _read(http, tuesday), "offer_plan")
+        first = re.search(r'<select id="day" name="day"><option value="([\d-]+)"', on_day).group(1)
+        elsewhere = _submit(http, on_day, "plan", [("day", first)])
+        back = _submit(http, elsewhere, "plan", [("day", "2026-10-27")])
+    assert '<option value="2026-10-27">Tuesday 2026-10-27 (the checked offer&#39;s day' in elsewhere  # still selectable
+    assert "3. Plan for Tuesday 2026-10-27" in back
+    literal, notes = offercheck.validate_rule({**SMS, "applies_only_to": ["none"]}, _v2_catalog(), "gemini", date(2026, 10, 22))
+    assert "“none” matches no category in this catalog, so items under it are not counted." in notes  # never the internal marker
 
 
 def test_answer_cache_separates_checked_offers_and_expires(monkeypatch):

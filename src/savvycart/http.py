@@ -667,6 +667,8 @@ def _held_notice(plan: dict[str, Any]) -> str:
         lead = f"<strong>The offer you checked is not used</strong>: this plan does not shop at {_e(STORE_NAMES[rule['store_id']])}."
     else:
         lead = "<strong>The offer you checked is not used</strong>: no bill in this plan costs less with it."
+    named = f" ({_e(rule['card_products'] or rule['bank'])} at {_e(STORE_NAMES[rule['store_id']])})"
+    lead = lead.replace("offer you checked", f"offer you checked{named}", 1)
     return (f'<div class="callout"><div>{lead}</div>'
             '<button type="submit" name="action" value="drop_offer">Remove the checked offer</button></div>')
 
@@ -1073,8 +1075,10 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
             f'<option value="{_e(d["date"])}"{" selected" if d["date"] == plan["day"]["date"] else ""}>{_e(d["weekday"].title())} {_e(d["date"])}</option>'
             for d in sweep["days"]
         )
-        if plan["day"]["date"] not in {d["date"] for d in sweep["days"]}:
-            choices += (f'<option value="{_e(plan["day"]["date"])}" selected>{_e(plan["day"]["weekday"].title())} {_e(plan["day"]["date"])} '
+        held_day = offercheck.next_offer_day(_HELD.get(), state["today"]) if _HELD.get() is not None else None
+        if held_day is not None and held_day.isoformat() not in {d["date"] for d in sweep["days"]}:
+            selected = " selected" if held_day.isoformat() == plan["day"]["date"] else ""
+            choices += (f'<option value="{held_day.isoformat()}"{selected}>{held_day:%A} {held_day.isoformat()} '
                         "(the checked offer&#39;s day, after the estimated next purchase date)</option>")
         sweep_html = (
             f'<h3>Best day before the estimated next purchase date (by {_e(sweep["window_end"])})</h3><ul class="sweep">{days}</ul>'
@@ -1627,10 +1631,13 @@ def _sample_offer() -> dict[str, Any]:
     return json.loads(SAMPLE_OFFER.read_text(encoding="utf-8"))
 
 
+FORM_NOTHING = "none"  # the confirm form's "nothing in this catalog" box
+
+
 def _form_only(form: dict[str, list[str]]) -> list[str]:
     """The ticked categories; "nothing in this catalog" keeps the groups the offer printed, so they stay unmatched and visible."""
     ticked = [c for c in form.get("o_incl", []) if c in offercheck.CATEGORY_WORDS]
-    if offercheck.NO_CATALOG_ITEMS not in form.get("o_incl", []):
+    if FORM_NOTHING not in form.get("o_incl", []):
         return ticked
     try:
         printed = [str(t) for t in json.loads(form.get("o_only", ["[]"])[0]) if isinstance(t, str)][:12]
@@ -1804,7 +1811,7 @@ def _render_rule_form(rule: dict[str, Any] | None) -> str:
     if r.get("include_categories") == [offercheck.NO_CATALOG_ITEMS]:
         printed_terms = [t for t in r.get("applies_only_to") or [] if t != offercheck.NO_CATALOG_ITEMS]
         printed = ", ".join(printed_terms) or "items not in this catalog"
-        incl += (f'<label class="day"><input type="checkbox" name="o_incl" value="{offercheck.NO_CATALOG_ITEMS}" checked> '
+        incl += (f'<label class="day"><input type="checkbox" name="o_incl" value="{FORM_NOTHING}" checked> '
                  f"Nothing in this catalog (the offer is for {_e(printed)})</label>"
                  f'<input type="hidden" name="o_only" value="{_e(json.dumps(printed_terms, ensure_ascii=False))}">')
     rate = f"{r['rate_bps'] / 100:g}" if r["rate_bps"] else ""
