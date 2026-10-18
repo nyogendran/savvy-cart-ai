@@ -26,6 +26,8 @@ build/
 .env.*
 !.env.example
 *.log
+# Pitch deck drafts and page renders; the final deck lives in docs/submission/
+.pitch-build/
 .DS_Store
 Thumbs.db
 
