@@ -2,7 +2,7 @@
 
 **A condition-aware grocery basket optimizer for Sri Lankan households — built on Google Cloud with Gemini and the Agent Development Kit.** It reads your receipts, works out what you are running low on, and plans the cheapest *legal* way to buy it on a chosen day: up to four stores, one card per bill, every exclusion, minimum, cap, and card rule applied in code — not guessed by a model. Then the shopper decides.
 
-**[▶ Live demo](https://savvy-cart-890425261137.asia-southeast1.run.app)** · [Pitch deck (PDF)](docs/submission/Savvy-Cart-AI-gTaprobane-Final.pdf) · Built for the [Google Cloud AI Builder Cup 2026](https://aibuildercup.com/), Retail & Commerce theme.
+**[▶ Live demo](https://savvy-cart-890425261137.asia-southeast1.run.app)** · [Pitch deck (PDF)](docs/submission/Savvy-Cart-AI-gTaprobane-Submission.pdf) · Built for the [Google Cloud AI Builder Cup 2026](https://aibuildercup.com/), Retail & Commerce theme.
 
 <!-- Demo video (≤3 min): add the YouTube / Vimeo / public Drive link here before submitting, e.g. [▶ Demo video](https://youtu.be/...) -->
 

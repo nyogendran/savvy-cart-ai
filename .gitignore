@@ -51,3 +51,7 @@ specs/002-product-strategy/
 .adlc/findings.jsonl
 .cursor/prompts/adlc-product-strategy.md
 .cursor/commands/adlc-product-strategy.md
+
+# Superseded / source decks kept locally, not part of the submission
+docs/submission/*obsolete*
+docs/submission/Submission Template*
