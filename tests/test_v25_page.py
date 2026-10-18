@@ -148,6 +148,38 @@ def test_each_plan_day_call_is_paired_with_its_own_response():
     assert "<img src=x" not in why
 
 
+def test_refused_then_completed_retries_and_other_tool_errors_are_disclosed_accurately():
+    def notices_for(calls, results):
+        async def runner(question, context):
+            filled = [dict(c, args=c["args"](context["confirmed"])) for c in calls]
+            return {"text": "Plan total 4604 LKR.", "calls": filled, "results": results}
+
+        app.state.agent_runner = runner
+        try:
+            with TestClient(app) as http:
+                why = _submit(http, http.get("/").text, "explain")
+        finally:
+            app.state.agent_runner = None
+        return re.findall(r'<p class="notice">The agent (re-planned|tried)', why)
+
+    other_day = lambda confirmed: dict(confirmed, day="2026-10-24")
+    missing_store = lambda confirmed: {k: v for k, v in other_day(confirmed).items() if k != "usual_store"}
+    error = {"error": "Invoking `plan_day()` failed: usual_store is missing."}
+    done = {"day": {"date": "2026-10-24"}}
+    # A failed call retried successfully with the same differences re-planned: no contradictory refused notice.
+    assert notices_for([{"name": "plan_day", "args": missing_store}, {"name": "plan_day", "args": other_day}],
+                       [{"name": "plan_day", "response": error}, {"name": "plan_day", "response": done}]) == ["re-planned"]
+    # Another tool's error is never paired with a plan_day call.
+    assert notices_for([{"name": "load_offers", "args": lambda c: {}}, {"name": "plan_day", "args": other_day}],
+                       [{"name": "load_offers", "response": {"error": "offers unavailable"}}, {"name": "plan_day", "response": done}]) == ["re-planned"]
+    # Two different refused baskets are two attempts; two completed re-plans are each disclosed, as before.
+    basket = lambda qty: (lambda c: dict(c, lines=[dict(l, qty=qty) if l["sku_id"] == "carrot" else l for l in c["lines"]]))
+    assert notices_for([{"name": "plan_day", "args": basket(3)}, {"name": "plan_day", "args": basket(4)}],
+                       [{"name": "plan_day", "response": error}, {"name": "plan_day", "response": error}]) == ["tried", "tried"]
+    assert notices_for([{"name": "plan_day", "args": other_day}, {"name": "plan_day", "args": other_day}],
+                       [{"name": "plan_day", "response": done}, {"name": "plan_day", "response": done}]) == ["re-planned", "re-planned"]
+
+
 def test_bill_marks_fictional_rows_when_sources_are_mixed():
     from savvycart.http import _render_bill
 
