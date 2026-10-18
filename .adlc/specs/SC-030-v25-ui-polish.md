@@ -1,6 +1,6 @@
 # SC-030 — v2.5: UI polish (pantry spacing, quantity steps, bill tables, demo wording)
 
-**Status:** READY_FOR_APPROVAL (revision 4; revision 3 approved) · **Ticket:** SC-030 (spec) · build ticket SC-031 · absorbs SC-029 (README wording)
+**Status:** APPROVED (revision 4) · **Ticket:** SC-030 (spec) · build ticket SC-031 · absorbs SC-029 (README wording)
 
 Builds on the approved SC-027 spec (revision 7). Every SC-027, SC-025, and SC-023 rule stays unless it is listed under **Supersedes**. Prototype deadline 18 Oct 2026.
 
