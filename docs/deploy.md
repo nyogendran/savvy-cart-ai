@@ -7,6 +7,7 @@ The service is the FastAPI app in `src/savvycart/http.py`, built from the repo's
 | Service name | `savvy-cart` |
 | Region | `asia-southeast1` |
 | Minimum instances | `--min-instances=0` (scale to zero) |
+| Maximum instances | `--max-instances=3` (the model rate limits are per instance, so this caps Gemini cost on a public URL) |
 | Request timeout | `--timeout=120` |
 | Access | `--allow-unauthenticated` (guest judge path, no login) |
 | Container port | `8080` |
@@ -63,6 +64,7 @@ SA=savvy-cart-run@${PROJECT_ID}.iam.gserviceaccount.com
      --region asia-southeast1 \
      --port 8080 \
      --min-instances=0 \
+     --max-instances=3 \
      --timeout=120 \
      --allow-unauthenticated \
      --service-account "$SA" \
@@ -87,6 +89,17 @@ gcloud secrets create gemini-api-key --replication-policy=automatic
 read -rs GEMINI_KEY && printf '%s' "$GEMINI_KEY" | gcloud secrets versions add gemini-api-key --data-file=- && unset GEMINI_KEY
 # deploy with: --set-secrets GEMINI_MODEL=savvy-cart-gemini-model:latest,GEMINI_API_KEY=gemini-api-key:latest
 ```
+
+## Live checks after deploy
+
+Run these once against the configured model (same environment variables as the service) and note the model id and timings in the README:
+
+```bash
+python scripts/extract_receipt_live.py      # receipt photo -> lines, compared with the transcription
+python scripts/read_offer_live.py           # sample bank offer text -> terms, compared with the checked-in reading
+```
+
+Then on the live URL: **Use sample receipt**, **Upload a receipt photo**, **Check a card offer** → **Read it with Gemini**, and a question on the **Why** step.
 
 ## Keep-alive window (19 Oct – 6 Nov 2026)
 

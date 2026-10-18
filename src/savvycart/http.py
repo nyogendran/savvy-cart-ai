@@ -26,6 +26,7 @@ from savvycart.receipts import (
     EXTRACTS_PER_MINUTE,
     MAX_RECEIPT_BYTES,
     RECEIPT_LINES_SCHEMA,
+    RECEIPT_LINES_SCHEMA_V2,
     ExtractRateLimiter,
     MemoryStorage,
     PayloadTooLarge,
@@ -296,17 +297,19 @@ async def create_receipt(
     model_client: ModelClient = Depends(get_model_client),
     storage: MemoryStorage = Depends(get_storage),
     rate_limiter: ExtractRateLimiter = Depends(get_rate_limiter),
+    catalog: str = "v1",
 ) -> dict[str, Any]:
     image_bytes = await request.body()
     if len(image_bytes) > MAX_RECEIPT_BYTES:
         raise HTTPException(status_code=413, detail="receipt image exceeds 4 MB")
     try:
-        return extract_receipt(
+        return await asyncio.to_thread(
+            extract_receipt,
             image_bytes,
             model_client=model_client,
             storage=storage,
             rate_limiter=rate_limiter,
-            schema=RECEIPT_LINES_SCHEMA,
+            schema=RECEIPT_LINES_SCHEMA_V2 if catalog == "v2" else RECEIPT_LINES_SCHEMA,
         )
     except PayloadTooLarge:
         raise HTTPException(status_code=413, detail="receipt image exceeds 4 MB") from None
@@ -361,6 +364,7 @@ from datetime import timedelta as _timedelta
 
 from fastapi.staticfiles import StaticFiles
 
+from savvycart import offercheck
 from savvycart.pantry import pantry as compute_pantry
 from savvycart.partners import router as partners_router
 from itertools import combinations
@@ -376,8 +380,9 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(partners_router)
 
 V2_BANNER = (
-    "Sample data, not live. Keells prices come from one shopper's real receipts. Nations Trust Bank and Commercial Bank offers "
-    "are their published headlines from 18 Oct 2026 with assumed terms. Other prices, store promotions, and HNB offers are fictional demo shapes."
+    "Sample data, not live; savings are simulated. Keells prices come from one shopper's real receipts. Purchase history is 26 real "
+    "Keells bills plus 17 fictional Cargills and Glomark bills. Nations Trust Bank and Commercial Bank offers are their published "
+    "headlines from 18 Oct 2026 with assumed terms. Other prices, store promotions, and HNB offers are fictional demo shapes."
 )
 STEPS = ["Pantry", "Wallet", "Plan", "Why", "Approve"]
 STEP_ACTIONS = ["pantry", "wallet", "plan", "explain", "approve"]
@@ -394,6 +399,9 @@ RECEIPT_TYPES = {"image/jpeg", "image/png"}
 STATUS_TEXT = {"due": "Due", "soon": "Soon", "ok": "OK", "unknown": "Not enough history", "stale": "Not bought for a while",
                "added": "Added by you"}
 AGENT_TIMEOUT_SECONDS = 60
+MAX_QUESTION = 300
+SAMPLE_QUESTIONS = ("Would one store be enough if I drop the extra trip?", "What if I only use my Commercial Bank card?",
+                    "Is Sunday cheaper than the day you picked?")
 # explain_plan_numbers only echoes numbers from a plan the model supplies, so it cannot widen the filter.
 GROUNDING_TOOLS = ("get_pantry", "load_catalog", "load_offers", "plan_day")
 # Fields that echo or derive from model-chosen tool arguments rather than engine data.
@@ -488,10 +496,24 @@ def _added_bills(added: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return list(bills.values())
 
 
+MATCH_CONFIDENCE = 0.6
+
+
+def _raw_for_sku(sku_id: Any) -> str | None:
+    """A known history description for a catalog item, so a Gemini catalog match enters the pantry history."""
+    return next((raw for raw, sku in _v2_history_map().items() if sku == sku_id), None)
+
+
 def _receipt_rows(lines: list[dict[str, Any]], today: str) -> tuple[list[dict[str, Any]], list[str]]:
     rows, left_out = [], []
     for line in lines:
         raw = _canonical_raw(line.get("raw", ""))
+        if raw is None:
+            try:
+                confident = float(line.get("confidence", 0)) >= MATCH_CONFIDENCE
+            except (TypeError, ValueError):
+                confident = False
+            raw = _raw_for_sku(line.get("sku_id")) if confident else None
         try:
             qty = float(line.get("qty", 1))
         except (TypeError, ValueError):
@@ -555,6 +577,7 @@ def _parse_state(form: dict[str, list[str]]) -> dict[str, Any]:
         "qty": {key[4:]: get(key, "") for key in form if key.startswith("qty_") and key[4:] in sku_ids},
         "fulfilment": "delivery" if get("fulfilment", "pickup") == "delivery" else "pickup",
         "delivery_fee": bounded_int("delivery_fee", V2_DEFAULTS["delivery_fee"], 0, 5000),
+        "question": " ".join((get("question_chip", "") or get("question", "")).split())[:MAX_QUESTION],
     }
 
 
@@ -726,6 +749,8 @@ def _render_wallet(state: dict[str, Any]) -> str:
         f'<input type="number" id="budget" name="budget" min="0" step="100" value="{state["budget"]}"></div>'
         "</fieldset></div>"
         '<input type="hidden" name="wallet_set" value="1">'
+        '<div class="callout"><div><strong>Got a bank offer by SMS?</strong> See what it really pays on this basket before you shop.</div>'
+        '<button type="submit" name="action" value="offer">Check a card offer</button></div>'
         f'{_nav("pantry", [("refused", "Show a basket this offer refuses", False), ("plan", "Next: plan my shopping", True)])}'
         "</section>"
     )
@@ -882,7 +907,7 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
             for d in sweep["days"]
         )
         sweep_html = (
-            f'<h3>Best day before items run out (by {_e(sweep["window_end"])})</h3><ul class="sweep">{days}</ul>'
+            f'<h3>Best day before the estimated next purchase date (by {_e(sweep["window_end"])})</h3><ul class="sweep">{days}</ul>'
             f'<div class="field"><label for="day">Shop on</label><div class="inline"><select id="day" name="day">{choices}</select>'
             '<button type="submit" name="action" value="plan">Update plan</button></div></div>'
         )
@@ -907,14 +932,41 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
         f'<div class="metric"><div class="value">{_money(plan.get("saving_vs_single_lkr"))}</div>'
         f'<div class="label">Saved against the best single store ({_e(STORE_NAMES.get(single.get("store_id") or "", "none"))}, {_money(single.get("total_lkr"))})</div></div>'
         "</div>"
+        '<p class="source simulated">Simulated saving on sample data: competitor prices and store promotions are fictional, '
+        "and bank minimums and caps are assumptions.</p>"
         f'<div class="bar" role="img" aria-label="Plan total is {pct} percent of the usual-store shelf total"><span style="width:{pct}%"></span></div>'
         f'<p class="bar-label">Plan total as a share of buying everything at your usual store at shelf price. {_e(budget_note)}</p>'
         f'<div class="grid two">{"".join(_render_bill(b) for b in plan["stores"])}</div>'
         f"{misses}{ideas}{unpriced}{sweep_html}"
+        '<div class="callout"><div><strong>These bank terms are assumptions.</strong> Paste a real offer and check what it pays on this basket.</div>'
+        '<button type="submit" name="action" value="offer">Check a card offer</button></div>'
         f'<p class="source">Engine steps: pantry (purchase history), catalog and offers, planner (OR-Tools CP-SAT). Trip cost {_money(plan["trip_cost_lkr"])} per extra store.</p>'
         f'{_nav("wallet", [("approve", "Approve plan", False), ("explain", "Next: explain this plan", True)])}'
         "</section>"
     )
+
+
+SAVING_WORDS = _re.compile(r"^(save|saves|saved|saving|savings|cheaper|less|off|discount)$")
+TOTAL_WORDS = _re.compile(r"^(pay|pays|paid|paying|total|cost|costs|spend|spending|bill)$")
+
+
+def drop_swapped_roles(text: str, total: int, saving: int) -> str:
+    """Drop a sentence that calls the plan total a saving, or the saving a total (numbers alone cannot tell)."""
+    if total == saving:
+        return text
+    kept = []
+    for sentence in _re.split(r"(?<=[.!?])\s+", text):
+        words = [_re.sub(r"[^\w]", "", w).lower() for w in sentence.split()]
+        swapped = False
+        for i, word in enumerate(words):
+            if word not in (str(total), str(saving)):
+                continue
+            role = next((w for w in reversed(words[max(0, i - 6):i]) if SAVING_WORDS.match(w) or TOTAL_WORDS.match(w)), None)
+            if role and ((word == str(total) and SAVING_WORDS.match(role)) or (word == str(saving) and TOTAL_WORDS.match(role))):
+                swapped = True
+        if not swapped:
+            kept.append(sentence)
+    return " ".join(kept).strip()
 
 
 def _normalize_numbers(text: str) -> str:
@@ -978,9 +1030,11 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
     confirmed = _confirmed(plan, state, lines)
     runner = getattr(request.app.state, "agent_runner", None)
     if runner is None and _model_configured():
+        from functools import partial
+
         from savvycart.agent import ask_agent
 
-        runner = ask_agent
+        runner = partial(ask_agent, extra_bills=_added_bills(state["added"]))
     fallback = {"text": _engine_summary(plan), "calls": [], "replans": []}
     if runner is None:
         return {**fallback, "source": "Model not configured: engine explanation."}
@@ -988,7 +1042,8 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
         return {**fallback, "source": "Too many explanations this minute. Showing the engine explanation."}
     context = {"confirmed": confirmed, "engine_plan": plan}
     try:
-        answer = await asyncio.wait_for(runner(AGENT_QUESTION_V2, context), timeout=AGENT_TIMEOUT_SECONDS)
+        question = f"The shopper asks: {state['question']}" if state["question"] else AGENT_QUESTION_V2
+        answer = await asyncio.wait_for(runner(question, context), timeout=AGENT_TIMEOUT_SECONDS)
     except Exception as exc:
         logger.warning("agent call failed: %s: %.200s", type(exc).__name__, exc)
         return {**fallback, "source": "The agent call failed. Showing the engine explanation."}
@@ -1010,6 +1065,7 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
             continue
         allowed |= numbers_in_plan(_grounding_view(name, response))
     text = drop_unallowed_number_tokens(_normalize_numbers(str(answer.get("text", ""))), allowed)
+    text = drop_swapped_roles(text, plan["effective_cost_lkr"], plan.get("saving_vs_usual_lkr", 0))
     saving = str(plan.get("saving_vs_usual_lkr", 0))
     if saving not in text:
         text = f"{text} Engine total {plan['effective_cost_lkr']} LKR, saving {saving} LKR against your usual store.".strip()
@@ -1028,7 +1084,22 @@ def _call_args(args: Any, limit: int = 2000) -> str:
     return text if len(text) <= limit else f"{text[:limit]} … ({len(text) - limit} more characters not shown)"
 
 
-def _render_why(explanation: dict[str, Any], plan: dict[str, Any]) -> str:
+def _render_ask(question: str) -> str:
+    chips = "".join(f'<button type="submit" class="chip" name="question_chip" value="{_e(q)}">{_e(q)}</button>'
+                    for q in SAMPLE_QUESTIONS)
+    return (
+        '<div class="ask"><label for="question">Ask the agent about this plan</label>'
+        f'<div class="inline"><input type="text" id="question" name="question" maxlength="{MAX_QUESTION}" value="{_e(question)}" '
+        'placeholder="For example: what if I skip the second store?">'
+        '<button type="submit" name="action" value="explain" class="primary">Ask</button></div>'
+        f'<div class="chips" role="group" aria-label="Sample questions">{chips}</div></div>'
+        '<script>document.getElementById("question").addEventListener("keydown",function(e){'
+        'if(e.key==="Enter"){e.preventDefault();this.form.querySelector(\'.ask button[value="explain"]\').click();}});</script>'
+    )
+
+
+def _render_why(explanation: dict[str, Any], plan: dict[str, Any], question: str = "") -> str:
+    asked = f'<p class="asked">You asked: {_e(question)}</p>' if question else ""
     calls = "".join(
         f'<li><code>{_e(c.get("name"))}({_e(_call_args(c.get("args")))})</code></li>' for c in explanation["calls"][:20]
     ) or "<li>No tool calls.</li>"
@@ -1044,7 +1115,9 @@ def _render_why(explanation: dict[str, Any], plan: dict[str, Any]) -> str:
     return (
         '<section class="step" id="why" aria-labelledby="why-h">'
         '<h2 id="why-h">4. Why this plan</h2>'
-        f'<p class="recap">The plan above: {_e(_engine_summary(plan))}</p>'
+        f'<p class="recap"><strong>Engine figures:</strong> {_e(_engine_summary(plan))}</p>'
+        f"{_render_ask(question)}"
+        f"{asked}"
         f'<p class="source" id="explanation-source">{_e(explanation["source"])}</p>'
         f'<p id="explanation-text">{_e(explanation["text"])}</p>'
         f"{replan}"
@@ -1104,7 +1177,8 @@ def _hidden_state(state: dict[str, Any], items: list[dict[str, Any]], step: int)
     return "".join(f'<input type="hidden" name="{_e(k)}" value="{_e(v)}">' for k, v in fields)
 
 
-def _layout(current: int, inner: str, state: dict[str, Any], items: list[dict[str, Any]], message: str | None) -> str:
+def _layout(current: int, inner: str, state: dict[str, Any], items: list[dict[str, Any]], message: str | None,
+            hidden_step: int | None = None) -> str:
     alert = f'<p class="notice" role="status">{_e(message)}</p>' if message else ""
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
@@ -1119,7 +1193,7 @@ def _layout(current: int, inner: str, state: dict[str, Any], items: list[dict[st
         '<form method="post" action="/ui" enctype="multipart/form-data">'
         f"{_step_nav(current)}{alert}"
         f'<input type="hidden" name="receipt_json" value="{_e(json.dumps(state["added"]))}">'
-        f"{_hidden_state(state, items, current)}"
+        f"{_hidden_state(state, items, current if hidden_step is None else hidden_step)}"
         f"{inner}</form></div></main>"
         '<footer class="site"><div class="wrap">Prototype for the Google Cloud AI Builder Cup. Pricing runs in code; Gemini explains it. '
         "No login, no card numbers, no real orders.</div></footer></body></html>"
@@ -1143,16 +1217,18 @@ def _receipt_note(rows: list[dict[str, Any]], left_out: list[str], label: str, t
     )
 
 
-async def _read_form(request: Request) -> tuple[dict[str, list[str]], Any]:
+async def _read_form(request: Request) -> tuple[dict[str, list[str]], dict[str, Any]]:
     if request.headers.get("content-type", "").startswith("multipart/form-data"):
         data = await request.form()
         form: dict[str, list[str]] = {}
+        uploads: dict[str, Any] = {}
         for key, value in data.multi_items():
             if isinstance(value, str):
                 form.setdefault(key, []).append(value)
-        upload = data.get("receipt_photo")
-        return form, (upload if upload is not None and not isinstance(upload, str) else None)
-    return parse_qs((await request.body()).decode("utf-8", errors="replace"), keep_blank_values=True), None
+            elif key in ("receipt_photo", "offer_photo"):
+                uploads[key] = value
+        return form, uploads
+    return parse_qs((await request.body()).decode("utf-8", errors="replace"), keep_blank_values=True), {}
 
 
 async def _extract_upload(request: Request, upload: Any) -> tuple[list[dict[str, Any]] | None, str | None]:
@@ -1164,7 +1240,7 @@ async def _extract_upload(request: Request, upload: Any) -> tuple[list[dict[str,
     data = await upload.read(MAX_RECEIPT_BYTES + 1)
     if len(data) > MAX_RECEIPT_BYTES:
         return None, "That photo is larger than 4 MB. Nothing was added."
-    response = await _internal_post(request, "/v1/receipts", content=data, headers={"content-type": upload.content_type})
+    response = await _internal_post(request, "/v1/receipts?catalog=v2", content=data, headers={"content-type": upload.content_type})
     if response.status_code == 200:
         return response.json().get("lines", []), None
     if response.status_code == 503:
@@ -1172,6 +1248,251 @@ async def _extract_upload(request: Request, upload: Any) -> tuple[list[dict[str,
     if response.status_code == 429:
         return None, "Too many receipt extracts this minute. Nothing was added; try again shortly."
     return None, "The live extract failed. Nothing was added; use the sample receipt instead."
+
+
+# --- Offer Reality Check: Gemini reads the offer, the shopper confirms it, the engine prices it ---
+
+OFFER_ACTIONS = {"offer", "offer_sample", "offer_read", "offer_check"}
+OFFER_STEP = 5  # not a wizard step: every wizard choice travels in hidden fields
+SAMPLE_OFFER = V2 / "offer-sample-seylan.json"
+
+
+@lru_cache(maxsize=1)
+def _sample_offer() -> dict[str, Any]:
+    return json.loads(SAMPLE_OFFER.read_text(encoding="utf-8"))
+
+
+def _form_rule(form: dict[str, list[str]]) -> tuple[dict[str, Any] | None, list[str]]:
+    """The confirm form, as the shopper left it, validated exactly like model output."""
+    def get(key: str) -> str:
+        return form.get(key, [""])[0].strip()
+
+    try:
+        terms = [str(t) for t in json.loads(get("o_terms") or "[]") if isinstance(t, str)][:30]
+    except (json.JSONDecodeError, TypeError):
+        terms = []
+    units = get("o_units")
+    raw = {
+        "bank": get("o_bank"), "card_products": get("o_products"), "headline": get("o_headline"), "store_id": get("o_store"),
+        "percent_off": get("o_rate") or None, "days": form.get("o_days", []), "minimum_bill_lkr": get("o_min") or None,
+        "minimum_applies_to": "eligible_items" if get("o_basis") == "eligible" else "whole_bill",
+        "max_discount_lkr": get("o_cap") or None, "excluded_items": terms,
+        "max_units_per_item": int(units) if units.isdigit() else None,
+        "combines_with_store_offers": "o_stack" in form, "valid_until": get("o_valid_to") or None,
+        "is_up_to": "o_upto" in form,
+    }
+    rule, notes = offercheck.validate_rule(raw, _v2_catalog(), get("o_source") or "edited")
+    if rule is not None and "o_marked" in form:
+        sku_ids = {s["id"] for s in _v2_catalog()["skus"]}
+        rule["exclude_sku_ids"] = sorted(set(form.get("o_excl", [])) & sku_ids)
+    return rule, notes
+
+
+async def _read_offer(request: Request, text: str, photo: Any) -> tuple[dict[str, Any] | None, list[str], str | None]:
+    client = get_model_client(request)
+    extract = getattr(client, "extract_offer", None)
+    if extract is None:
+        return None, [], ("Reading an offer needs Gemini, which is not configured here. "
+                          "Use the sample offer, or type the terms in the form below.")
+    image = None
+    if photo is not None and getattr(photo, "filename", ""):
+        if photo.content_type not in RECEIPT_TYPES:
+            return None, [], "Upload the offer screenshot as a JPEG or PNG."
+        image = await photo.read(MAX_RECEIPT_BYTES + 1)
+        if len(image) > MAX_RECEIPT_BYTES:
+            return None, [], "That screenshot is larger than 4 MB."
+    if not text and not image:
+        return None, [], "Paste the offer text or choose a screenshot first."
+    if not get_rate_limiter(request).allow():
+        return None, [], "Too many reads this minute; try again shortly."
+    try:
+        raw = await asyncio.wait_for(asyncio.to_thread(extract, text, image, offercheck.OFFER_SCHEMA, offercheck.OFFER_PROMPT),
+                                     timeout=AGENT_TIMEOUT_SECONDS)
+    except Exception as exc:
+        logger.warning("offer read failed: %s", type(exc).__name__)
+        return None, [], "Gemini could not read that offer. Try the text instead of a photo, or type the terms below."
+    rule, notes = offercheck.validate_rule(raw, _v2_catalog(), "gemini")
+    return rule, notes, None
+
+
+def _held_plan(rule: dict[str, Any], state: dict[str, Any], lines: list[dict[str, Any]], day: str) -> tuple[int, int]:
+    """Engine best plan on the offer's day with the shopper's cards, then also holding this card."""
+    args = (_v2_catalog(), _v2_offers(), lines, day)
+    now = engine_plan_day(*args, state["banks"], state["max_stores"], state["trip_cost"], state["usual_store"], _with_baselines=False)
+    offers = {**_v2_offers(), "card_offers": _v2_offers()["card_offers"] + [offercheck.planner_offer(rule)]}
+    banks = list(dict.fromkeys(state["banks"] + [rule["bank"]]))
+    held = engine_plan_day(_v2_catalog(), offers, lines, day, banks, state["max_stores"], state["trip_cost"], state["usual_store"],
+                           _with_baselines=False)
+    return now["effective_cost_lkr"], held["effective_cost_lkr"]
+
+
+def _verdict(rule: dict[str, Any], check: dict[str, Any]) -> str:
+    store = STORE_NAMES[check["store_id"]]
+    if not check["min_met"]:
+        basis = "bill" if rule["minimum_basis"] == "bill" else "eligible part of your bill"
+        return (f"This offer pays nothing on your basket. Your {basis} at {store} is {_money(check['minimum_base_lkr'])}, "
+                f"{_money(check['gap_lkr'])} short of the {_money(rule['min_bill_lkr'])} minimum.")
+    excluded = sum(1 for line in check["lines"] if not line["counts"])
+    parts = []
+    if excluded:
+        parts.append(f"{excluded} of your {len(check['lines'])} items do not count")
+    if check["capped"]:
+        parts.append(f"the discount stops at {_money(rule['cap_lkr'])}")
+    reason = " and ".join(parts) if parts else "every item counts"
+    return f"This offer pays {_money(check['paid_lkr'])}, not {_money(check['headline_lkr'])}: {reason}."
+
+
+def _also_excluded(rule: dict[str, Any], check: dict[str, Any]) -> str:
+    in_basket = {line["sku_id"] for line in check["lines"]}
+    names = {s["id"]: s["name"] for s in _v2_catalog()["skus"]}
+    others = [names[s] for s in rule["exclude_sku_ids"] if s not in in_basket and s in names]
+    if not others:
+        return ""
+    return (f'<p class="notice">These terms also exclude {_e(", ".join(others))}, which this household buys. '
+            f"Add {'it' if len(others) == 1 else 'them'} to the basket and {'it' if len(others) == 1 else 'they'} would not count either.</p>")
+
+
+def _render_offer_result(rule: dict[str, Any], check: dict[str, Any], held: tuple[int, int]) -> str:
+    rows = "".join(
+        f'<tr class="{"counts" if l["counts"] else "refused"}"><td>{_e(l["name"])}</td><td class="num">{_money(l["promoted_lkr"])}</td>'
+        f'<td class="num">{_money(l["eligible_lkr"]) if l["counts"] else "-"}</td>'
+        f'<td><span class="mark" aria-hidden="true">{"&#10003;" if l["counts"] else "&#10007;"}</span> {_e(l["why"])}</td></tr>'
+        for l in check["lines"]
+    )
+    cap = _money(rule["cap_lkr"]) if rule["cap_lkr"] is not None else "none stated"
+    basis = "whole bill" if rule["minimum_basis"] == "bill" else "eligible items"
+    now, with_card = held
+    if with_card < now:
+        held_text = (f"Holding this card, the engine's best plan for {_e(check['weekday'].title())} {_e(check['day'])} is "
+                     f"<strong>{_money(with_card)}</strong>, {_money(now - with_card)} less than {_money(now)} with your cards.")
+    else:
+        held_text = (f"Holding this card would not lower your plan for {_e(check['weekday'].title())} {_e(check['day'])}: "
+                     f"the engine's best stays <strong>{_money(now)}</strong> with the cards you already hold.")
+    headline = rule["headline"] or f"{rule['rate_bps'] / 100:g}% off"
+    return (
+        '<div class="reality" id="reality">'
+        '<div class="versus">'
+        f'<div class="claim"><div class="label">The headline says</div><div class="quote">&ldquo;{_e(headline)}&rdquo;</div>'
+        f'<div class="value struck">{_money(check["headline_lkr"])}</div>'
+        f'<div class="label">{rule["rate_bps"] / 100:g}% of your {_money(check["shelf_total_lkr"])} basket at {_e(STORE_NAMES[check["store_id"]])}</div></div>'
+        f'<div class="truth"><div class="label">The terms pay you</div><div class="value">{_money(check["paid_lkr"])}</div>'
+        f'<div class="label">on {_e(check["weekday"].title())} {_e(check["day"])}, computed by the engine</div></div>'
+        "</div>"
+        f'<p class="verdict">{_e(_verdict(rule, check))}</p>'
+        '<ul class="facts">'
+        f'<li><span>Counts toward the discount</span><strong>{_money(check["eligible_lkr"])} of {_money(check["bill_lkr"])}</strong></li>'
+        f'<li><span>Minimum ({_e(basis)})</span><strong>{_money(rule["min_bill_lkr"])} {"met" if check["min_met"] else "not met"}</strong></li>'
+        f'<li><span>Maximum discount</span><strong>{_e(cap)}</strong></li>'
+        f'<li><span>Combines with store promotions</span><strong>{"yes" if rule["stacks_with_promotions"] else "no"}</strong></li>'
+        "</ul>"
+        '<table class="lines"><thead><tr><th>Item</th><th class="num">Price</th><th class="num">Counts</th><th>Why</th></tr></thead>'
+        f"<tbody>{rows}</tbody></table>"
+        f"{_also_excluded(rule, check)}"
+        '<p class="source">Store promotions in this demo are fictional shapes; the offer terms are as read and confirmed above.</p>'
+        f'<p class="ok-note">{held_text}</p>'
+        "</div>"
+    )
+
+
+def _render_rule_form(rule: dict[str, Any] | None) -> str:
+    r = rule or {"bank": "", "card_products": "", "headline": "", "store_id": "keells", "rate_bps": 0, "days": [], "min_bill_lkr": 0,
+                 "minimum_basis": "bill", "cap_lkr": None, "excluded_items": [], "exclude_sku_ids": [], "max_units_per_item": None,
+                 "stacks_with_promotions": True, "valid_to": None, "source": "edited", "is_up_to": False}
+    stores = "".join(f'<option value="{s}"{" selected" if s == r["store_id"] else ""}>{_e(n)}</option>' for s, n in STORE_NAMES.items())
+    days = "".join(
+        f'<label class="day"><input type="checkbox" name="o_days" value="{d}"{" checked" if d in r["days"] else ""}> {d[:3].title()}</label>'
+        for d in WEEKDAYS
+    )
+    excl = "".join(
+        f'<label class="day"><input type="checkbox" name="o_excl" value="{_e(s["id"])}"{" checked" if s["id"] in r["exclude_sku_ids"] else ""}> '
+        f"{_e(s['name'])}</label>"
+        for s in _v2_catalog()["skus"]
+    )
+    rate = f"{r['rate_bps'] / 100:g}" if r["rate_bps"] else ""
+    terms = ", ".join(r["excluded_items"]) or "none read"
+    return (
+        '<details class="rule-form"' + (" open" if rule is None else "") + '><summary>Check or correct the terms</summary>'
+        '<div class="grid two">'
+        f'<div class="field"><label for="o_bank">Bank</label><input type="text" id="o_bank" name="o_bank" maxlength="60" value="{_e(r["bank"])}"></div>'
+        f'<div class="field"><label for="o_store">Store</label><select id="o_store" name="o_store">{stores}</select></div>'
+        f'<div class="field"><label for="o_rate">Percent off</label><input type="number" id="o_rate" name="o_rate" min="0" max="90" step="0.5" value="{rate}"></div>'
+        f'<div class="field"><label for="o_min">Minimum bill (LKR)</label><input type="number" id="o_min" name="o_min" min="0" step="100" value="{r["min_bill_lkr"]}"></div>'
+        f'<div class="field"><label for="o_cap">Maximum discount (LKR, blank if none)</label>'
+        f'<input type="number" id="o_cap" name="o_cap" min="0" step="50" value="{r["cap_lkr"] if r["cap_lkr"] is not None else ""}"></div>'
+        f'<div class="field"><label for="o_units">Units of the same item that count (blank if no limit)</label>'
+        f'<input type="number" id="o_units" name="o_units" min="1" max="50" value="{r["max_units_per_item"] or ""}"></div>'
+        f'<div class="field"><label for="o_basis">The minimum counts</label><select id="o_basis" name="o_basis">'
+        f'<option value="bill"{" selected" if r["minimum_basis"] == "bill" else ""}>the whole bill</option>'
+        f'<option value="eligible"{" selected" if r["minimum_basis"] == "eligible" else ""}>only items that count</option></select></div>'
+        f'<div class="field"><label for="o_valid_to">Valid until</label><input type="date" id="o_valid_to" name="o_valid_to" value="{_e(r["valid_to"] or "")}"></div>'
+        "</div>"
+        f'<fieldset><legend>Valid on</legend><div class="days">{days}</div></fieldset>'
+        f'<fieldset><legend>Excluded items in this catalog</legend><p class="source">The terms list: {_e(terms)}.</p><div class="days">{excl}</div></fieldset>'
+        f'<div class="check"><input type="checkbox" id="o_stack" name="o_stack"{" checked" if r["stacks_with_promotions"] else ""}>'
+        '<label for="o_stack">Can be combined with store promotions</label></div>'
+        f'<input type="hidden" name="o_terms" value="{_e(json.dumps(r["excluded_items"]))}">'
+        f'<input type="hidden" name="o_headline" value="{_e(r["headline"])}"><input type="hidden" name="o_products" value="{_e(r["card_products"])}">'
+        f'<input type="hidden" name="o_source" value="{_e(r["source"])}"><input type="hidden" name="o_marked" value="1">'
+        + ('<input type="hidden" name="o_upto" value="1">' if r.get("is_up_to") else "")
+        + '<div class="actions"><button type="submit" name="action" value="offer_check">Recheck with these terms</button></div></details>'
+    )
+
+
+async def _offer_view(request: Request, action: str, form: dict[str, list[str]], photo: Any,
+                      state: dict[str, Any], items: list[dict[str, Any]]) -> str:
+    text = " ".join(form.get("o_text", [""])[0].split())[: offercheck.MAX_OFFER_TEXT]
+    rule, notes, problem, source_note = None, [], None, ""
+    if action == "offer_sample":
+        sample = _sample_offer()
+        text = sample["text"]
+        rule, notes = offercheck.validate_rule(sample["extracted"], _v2_catalog(), "sample")
+        source_note = (f'Sample: published terms from <a href="{_e(sample["source_url"])}" rel="noopener noreferrer">the bank&#39;s page</a>, '
+                       f'captured {_e(sample["captured_on"])}; the reading is checked in so it works without a model. '
+                       "Press <strong>Read it with Gemini</strong> to read the same text live.")
+    elif action == "offer_read":
+        rule, notes, problem = await _read_offer(request, text, photo)
+        if rule:
+            source_note = "Read by Gemini into a fixed schema, then checked by code. Confirm the terms below."
+    elif action == "offer_check":
+        rule, notes = _form_rule(form)
+        source_note = "Checked with the terms in the form."
+    lines = _lines(items)
+    result = ""
+    if rule is not None and lines:
+        day = offercheck.next_offer_day(rule, state["today"])
+        if day is None:
+            ended = rule["valid_to"] and rule["valid_to"] < state["today"].isoformat()
+            result = (f'<p class="notice">This offer {"ended on " + _e(rule["valid_to"]) if ended else "has no valid day in the next 7 days"}, '
+                      "so it pays nothing for this shop.</p>")
+        else:
+            check = offercheck.reality_check(rule, _v2_catalog(), _v2_offers()["store_promotions"], lines, day)
+            result = _render_offer_result(rule, check, _held_plan(rule, state, lines, day.isoformat()))
+    elif rule is None and notes and action != "offer":
+        problem = problem or " ".join(notes)
+        notes = []
+    note_html = "".join(f"<li>{_e(n)}</li>" for n in notes)
+    return (
+        '<section class="step" id="offer" aria-labelledby="offer-h">'
+        '<h2 id="offer-h">Offer Reality Check</h2>'
+        '<p class="lead">Got a card offer by SMS or on a bank page? Paste it. Gemini reads the terms, you confirm them, '
+        "and the engine shows what the headline promises against what the terms pay on <em>your</em> basket.</p>"
+        + (f'<p class="notice" role="status">{_e(problem)}</p>' if problem else "")
+        + '<div class="grid two">'
+        f'<div class="field"><label for="o_text">Offer text</label><textarea id="o_text" name="o_text" rows="5" maxlength="{offercheck.MAX_OFFER_TEXT}" '
+        f'placeholder="For example: 10% off your total bill every Saturday with your card. Minimum bill Rs. 8,000...">{_e(text)}</textarea></div>'
+        '<div class="field"><label for="offer_photo">Or a screenshot (JPEG or PNG)</label>'
+        '<input type="file" id="offer_photo" name="offer_photo" accept="image/jpeg,image/png">'
+        '<p class="source">Screenshots go to Gemini to read the terms and are never stored.</p>'
+        '<div class="actions tight"><button type="submit" name="action" value="offer_read" class="primary">Read it with Gemini</button>'
+        '<button type="submit" name="action" value="offer_sample">Use the sample offer</button></div></div>'
+        "</div>"
+        + (f'<p class="source">{source_note}</p>' if source_note else "")
+        + (f'<ul class="notes">{note_html}</ul>' if note_html else "")
+        + result
+        + _render_rule_form(rule)
+        + _nav("wallet", [("plan", "Next: plan my shopping", True)])
+        + "</section>"
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1186,9 +1507,10 @@ STEP_OF = {"pantry": 0, "sample": 0, "upload": 0, "add": 0, "wallet": 1, "plan":
 
 @app.post("/ui", response_class=HTMLResponse)
 async def guest_action(request: Request) -> str:
-    form, upload = await _read_form(request)
+    form, uploads = await _read_form(request)
+    upload = uploads.get("receipt_photo")
     state = _parse_state(form)
-    action = form.get("action", ["pantry"])[0]
+    action = form.get("action", ["explain" if "question_chip" in form else "pantry"])[0]
     step = STEP_OF.get(action, 0)
     message: str | None = None
     note: str | None = None
@@ -1222,6 +1544,11 @@ async def guest_action(request: Request) -> str:
         else:
             plan, sweep = _engine_plan(state, items)
 
+    if action in OFFER_ACTIONS:
+        if not _lines(items):
+            message = "Pick at least one item in the pantry first; the offer is checked on your basket."
+        inner = await _offer_view(request, action, form, uploads.get("offer_photo"), state, items)
+        return _layout(1, inner, state, items, message, hidden_step=OFFER_STEP)
     if step == 0:
         inner = _render_pantry(items, state, note)
     elif step == 1:
@@ -1237,7 +1564,7 @@ async def guest_action(request: Request) -> str:
     elif step == 2:
         inner = _render_plan(plan, sweep, state, suggestions=_suggestions(plan, state, items, _lines(items)))
     elif step == 3:
-        inner = _render_why(await _explain_v2(request, plan, state, _lines(items)), plan)
+        inner = _render_why(await _explain_v2(request, plan, state, _lines(items)), plan, state["question"])
     else:
         lines = [{"sku_id": l["sku_id"], "qty": max(1, round(l["qty"]))} for l in _lines(items)]
         approved = await _internal_post(request, "/v1/approve", json={

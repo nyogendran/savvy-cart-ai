@@ -1,0 +1,24 @@
+{
+  "note": "Published Seylan Bank Keells terms, captured from the bank's page on 17 Oct 2026 (recorded in specs/002-product-strategy/report.md). The extraction below is checked in so the sample path works without a model. Savvy Cart is not affiliated with Seylan Bank or Keells.",
+  "source_url": "https://www.seylan.lk/promotions/cards/supermarket/keells",
+  "captured_on": "2026-10-17",
+  "text": "Enjoy 10% off on Total Bill every Saturday with your Seylan Cards at Keells. Valid every Saturday until 31st October 2026. Offer valid only for Seylan Visa Gold, Platinum, Mastercard Titanium credit and debit cards. The Minimum bill value is Rs. 8,000/-. The Maximum discount is Rs.1,000/-. Offer is valid up to 3kgs or 3 units of the same item per day. Offer valid for one transaction per card, per day. Offer valid only for in-store purchases and not valid for online purchases. Exclude Item List - Rice, Sugar, Flour, Milk Powder, Dhal, Infant Food, Liquor, Tobacco, Hampers, Gift Vouchers, Pharmaceutical items. Nexus Points and Seylan Cards Rewards Points cannot be encashed for discounts. The offer cannot be combined with other Keells offers during the promotion period.",
+  "extracted": {
+    "bank": "Seylan Bank",
+    "card_products": "Visa Gold, Platinum, Mastercard Titanium (credit and debit)",
+    "store_name": "Keells",
+    "headline": "10% off on Total Bill every Saturday",
+    "percent_off": 10,
+    "is_up_to": false,
+    "days": ["saturday"],
+    "minimum_bill_lkr": 8000,
+    "minimum_applies_to": "whole_bill",
+    "max_discount_lkr": 1000,
+    "excluded_items": ["Rice", "Sugar", "Flour", "Milk Powder", "Dhal", "Infant Food", "Liquor", "Tobacco", "Hampers", "Gift Vouchers", "Pharmaceutical items"],
+    "max_units_per_item": 3,
+    "combines_with_store_offers": false,
+    "channel": "in_store",
+    "valid_until": "2026-10-31",
+    "other_conditions": ["One transaction per card, per day", "Nexus Points cannot be encashed for discounts"]
+  }
+}

@@ -29,6 +29,28 @@ RECEIPT_LINES_SCHEMA: dict[str, Any] = {
 }
 
 
+RECEIPT_LINES_SCHEMA_V2: dict[str, Any] = {
+    "title": "receipt_lines_v2",
+    "type": "object",
+    "properties": {
+        "lines": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "raw": {"type": "string"},
+                    "sku_id": {"type": ["string", "null"]},
+                    "qty": {"type": "number"},
+                    "confidence": {"type": "number"},
+                },
+                "required": ["raw", "sku_id", "qty", "confidence"],
+            },
+        }
+    },
+    "required": ["lines"],
+}
+
+
 class ReceiptModelClient(Protocol):
     def extract(self, image_bytes: bytes, schema: dict[str, Any]) -> dict[str, Any] | str: ...
 

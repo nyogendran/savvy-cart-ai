@@ -130,3 +130,57 @@ input[type="file"] { font: inherit; padding: 8px; border: 1px dashed var(--line)
 .recap { background: var(--bg); border-radius: 8px; padding: 8px 12px; }
 .ok-note ul { margin: 4px 0 0; padding-left: 20px; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+
+/* v2.2: Offer Reality Check, ask the agent, polish */
+body { background: linear-gradient(180deg, #eef5f1 0, var(--bg) 220px) no-repeat, var(--bg); }
+header.site { background: transparent; border-bottom: 0; }
+header.site h1 { font-size: 1.5rem; letter-spacing: -0.01em; }
+header.site h1::before { content: ""; display: inline-block; width: 14px; height: 14px; margin-right: 10px; border-radius: 4px;
+  background: var(--accent); box-shadow: 6px 6px 0 #9fd3bf; vertical-align: 1px; }
+section.step { border: 0; box-shadow: 0 1px 2px rgba(20, 40, 30, 0.06), 0 8px 24px rgba(20, 40, 30, 0.06); padding: 22px; }
+section.step > h2 { font-size: 1.3rem; letter-spacing: -0.01em; }
+button { transition: background 0.15s, box-shadow 0.15s; }
+button:hover { box-shadow: 0 2px 8px rgba(11, 110, 79, 0.18); }
+button.primary:hover { background: #095c42; }
+input[type="text"], textarea { font: inherit; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); width: 100%; }
+textarea { resize: vertical; min-height: 120px; }
+
+.callout { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0 0;
+  padding: 14px 16px; border-radius: var(--radius); background: #fff7ea; border: 1px solid #f1d9b1; }
+.callout button { border-color: var(--warn); color: var(--warn); }
+
+.reality { margin: 18px 0; }
+.versus { display: grid; gap: 12px; }
+@media (min-width: 720px) { .versus { grid-template-columns: 1fr 1fr; } }
+.versus > div { border-radius: var(--radius); padding: 16px 18px; }
+.versus .label { color: var(--muted); font-size: 0.85rem; }
+.versus .value { font-size: 2.2rem; font-weight: 800; line-height: 1.15; margin: 6px 0; letter-spacing: -0.02em; }
+.claim { background: #fbeeee; border: 1px solid #efcaca; }
+.claim .quote { font-style: italic; margin-top: 4px; }
+.claim .value.struck { color: var(--danger); text-decoration: line-through; text-decoration-thickness: 3px; }
+.truth { background: var(--accent-soft); border: 1px solid #b9dccd; }
+.truth .value { color: var(--accent); }
+.verdict { font-size: 1.1rem; font-weight: 600; margin: 14px 0; }
+.facts { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.facts li { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.facts li span { color: var(--muted); font-size: 0.82rem; }
+table.lines { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 8px 0; }
+table.lines th, table.lines td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eeeeea; vertical-align: top; }
+table.lines td.num, table.lines th.num { text-align: right; white-space: nowrap; }
+table.lines tr.refused td { color: var(--muted); }
+table.lines tr.refused .mark { color: var(--danger); font-weight: 700; }
+table.lines tr.counts .mark { color: var(--accent); font-weight: 700; }
+.rule-form { margin-top: 16px; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.rule-form[open] summary { margin-bottom: 12px; }
+.days { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.days .day { display: inline-flex; align-items: center; gap: 6px; font-size: 0.92rem; }
+.notes { color: var(--warn); font-size: 0.88rem; }
+.simulated { margin-top: -4px; }
+
+.ask { margin: 14px 0; padding: 14px; border-radius: var(--radius); background: var(--bg); }
+.ask > label { font-weight: 600; display: block; margin-bottom: 6px; }
+.ask .inline input[type="text"] { flex: 1 1 260px; width: auto; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+button.chip { padding: 5px 12px; border-radius: 999px; font-weight: 500; font-size: 0.88rem; border-color: var(--line); color: var(--ink); background: var(--surface); }
+.asked { font-weight: 600; margin-bottom: 4px; }
+@media (max-width: 520px) { .versus .value { font-size: 1.8rem; } section.step { padding: 16px; } table.lines { font-size: 0.82rem; } }

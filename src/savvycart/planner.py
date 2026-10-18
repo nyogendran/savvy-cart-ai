@@ -34,6 +34,18 @@ def _eligible(offer: dict[str, Any], category: str) -> bool:
     return (not include or category in include) and category not in exclude
 
 
+def card_base(offer: dict[str, Any], sku: dict[str, Any], promoted: int, has_promo: bool, qty: float) -> int:
+    """LKR of one line that a card offer's rate applies to; 0 when the offer's terms refuse the line."""
+    if not _eligible(offer, sku["category"]) or sku["id"] in (offer.get("exclude_sku_ids") or []):
+        return 0
+    if has_promo and offer.get("stacks_with_promotions") is False:
+        return 0
+    limit = offer.get("max_units_per_item")
+    if limit and qty > limit:
+        return _lkr(promoted * limit / qty)
+    return promoted
+
+
 def _promotion_saving(promotion: dict, shelf: int, unit_lkr: float, qty: float) -> int:
     """Integer LKR a promotion takes off one line: a percent, or a fixed unit price for up to max_qty units."""
     if promotion.get("type") == "fixed_price":
@@ -123,12 +135,14 @@ def plan_day(
             key = (s, o["id"])
             pick[key] = model.NewBoolVar(f"pick_{s}_{o['id']}")
             discount[key] = model.NewIntVar(0, int(o["cap_lkr"]), f"disc_{s}_{o['id']}")
+            at_store = [i for i in priced_lines if (i, s) in x]
             eligible = sum(
-                cells[(i, s)]["promoted"] * x[(i, s)]
-                for i in priced_lines
-                if (i, s) in x and _eligible(o, skus[lines[i]["sku_id"]]["category"])
+                card_base(o, skus[lines[i]["sku_id"]], cells[(i, s)]["promoted"], cells[(i, s)]["promo"] is not None,
+                          float(lines[i]["qty"])) * x[(i, s)]
+                for i in at_store
             )
-            model.Add(eligible >= int(o["min_bill_lkr"])).OnlyEnforceIf(pick[key])
+            minimum_base = sum(cells[(i, s)]["promoted"] * x[(i, s)] for i in at_store) if o.get("minimum_basis") == "bill" else eligible
+            model.Add(minimum_base >= int(o["min_bill_lkr"])).OnlyEnforceIf(pick[key])
             model.Add(discount[key] <= int(o["cap_lkr"]) * pick[key])
             model.Add(10000 * discount[key] <= int(o["rate_bps"]) * eligible)
         if active[s]:

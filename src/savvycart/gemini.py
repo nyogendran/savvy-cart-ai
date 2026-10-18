@@ -35,9 +35,33 @@ def sniff_mime(data: bytes) -> str:
     raise UnsupportedImage("unsupported receipt image type; send PNG or JPEG")
 
 
-def catalog_names() -> dict[str, str]:
-    catalog = json.loads((FIXTURES / "catalog.json").read_text(encoding="utf-8"))
+def catalog_names(v2: bool = False) -> dict[str, str]:
+    catalog = json.loads((FIXTURES / ("v2/catalog.json" if v2 else "catalog.json")).read_text(encoding="utf-8"))
     return {sku["id"]: sku["name"] for sku in catalog["skus"]}
+
+
+def normalize_lines_v2(lines: list[Any], known_skus: set[str]) -> list[dict[str, Any]]:
+    """v2 uploads keep fractional quantities such as 0.375 kg."""
+    normalized = []
+    for line in lines:
+        if not isinstance(line, dict):
+            continue
+        sku_id = line.get("sku_id")
+        try:
+            qty = round(float(line.get("qty", 1)), 3)
+        except (TypeError, ValueError):
+            qty = 1.0
+        try:
+            confidence = float(line.get("confidence", 0))
+        except (TypeError, ValueError):
+            confidence = 0.0
+        normalized.append({
+            "raw": str(line.get("raw", "")),
+            "sku_id": sku_id if isinstance(sku_id, str) and sku_id in known_skus else None,
+            "qty": qty if qty > 0 else 1.0,
+            "confidence": min(1.0, max(0.0, confidence)),
+        })
+    return normalized
 
 
 def normalize_lines(lines: list[Any], known_skus: set[str]) -> list[dict[str, Any]]:
@@ -86,7 +110,8 @@ class GeminiModelClient:
         from google.genai import types
 
         mime_type = sniff_mime(image_bytes)
-        names = catalog_names()
+        v2 = schema.get("title") == "receipt_lines_v2"
+        names = catalog_names(v2)
         prompt = EXTRACT_PROMPT + "".join(f"\n- {sku_id}: {name}" for sku_id, name in names.items())
         try:
             response = self._client.models.generate_content(
@@ -103,7 +128,29 @@ class GeminiModelClient:
             raise ModelResponseError("receipt model call failed or returned non-JSON") from exc
         if not isinstance(payload, dict) or not isinstance(payload.get("lines"), list):
             raise ModelResponseError("receipt model answer is not an object with a lines list")
-        return {"lines": normalize_lines(payload["lines"], set(names))}
+        return {"lines": (normalize_lines_v2 if v2 else normalize_lines)(payload["lines"], set(names))}
+
+    def extract_offer(self, text: str, image_bytes: bytes | None, schema: dict[str, Any], prompt: str) -> dict[str, Any]:
+        """Card offer text or screenshot -> the raw offer JSON; the caller validates every field."""
+        from google.genai import types
+
+        contents: list[Any] = [prompt]
+        if image_bytes:
+            contents.append(types.Part.from_bytes(data=image_bytes, mime_type=sniff_mime(image_bytes)))
+        if text:
+            contents.append(f"Offer text:\n{text}")
+        try:
+            response = self._client.models.generate_content(
+                model=self.model,
+                contents=contents,
+                config=types.GenerateContentConfig(temperature=0, response_mime_type="application/json", response_json_schema=schema),
+            )
+            payload = json.loads(response.text or "")
+        except Exception as exc:
+            raise ModelResponseError("offer model call failed or returned non-JSON") from exc
+        if not isinstance(payload, dict):
+            raise ModelResponseError("offer model answer is not an object")
+        return payload
 
     def explain(self, plan_json: dict[str, Any], instruction: str) -> str:
         from google.genai import types
