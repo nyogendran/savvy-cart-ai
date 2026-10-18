@@ -113,11 +113,12 @@ def test_plan_leads_with_a_recommendation_built_from_the_engine_plan(monkeypatch
     hnb_rec = re.search(r'id="plan-recommendation">(.*?)</p>', hnb).group(1)
     assert re.search(r"Pay with HNB credit at \w+ \(fictional demo offer\)\.", hnb_rec), hnb_rec
     note = '<p class="notice">HNB card offers in this demo are fictional, not published by the bank.</p>'
-    for why, approve in ((hnb_why, hnb_approve), (default_why, default_approve)):  # held, whether or not a bill uses it
+    # Shown whether or not HNB is held or used: the agent's tools can describe any offer.
+    for why, approve in ((hnb_why, hnb_approve), (default_why, default_approve), (combank_why, combank_approve)):
         assert re.search(r'<p class="recap"><strong>Engine figures:</strong> [^<]*</p>' + re.escape(note), why)
         assert re.search(r'<p class="recap">[^<]*</p>' + re.escape(note), approve)
         assert why.count(note) == approve.count(note) == 1
-    assert "not published by the bank" not in combank_why + combank_approve + plan
+    assert "not published by the bank" not in plan
     assert page_module._offer_bank({"bank": "HNB", "source": "fictional"}) == "HNB (fictional demo offer)"
     assert page_module._offer_bank({"bank": "Commercial Bank", "source": "published"}) == "Commercial Bank"
     assert "Commercial Bank at Keells: needs" in control and "Commercial Bank (fictional demo offer)" not in control
@@ -177,11 +178,16 @@ def test_zero_payout_is_amber_and_offer_check_returns_to_the_plan():
     with TestClient(app) as http:
         sample = _submit(http, _submit(http, http.get("/").text, "offer"), "offer_sample")
         paying = _submit(http, sample, "offer_check", [("o_min", "0")])
+        every_sku = [("o_excl", s["id"]) for s in page_module._v2_catalog()["skus"]]
+        met_but_zero = _submit(http, sample, "offer_check", [("o_min", "0")] + every_sku, drop=("o_excl",))
         plan = _submit(http, sample, "plan")
     assert "The terms pay you LKR 0" in _text(sample) and '<div class="truth zero">' in sample
     paid = int(re.search(r'<div class="truth"><div class="label">The terms pay you</div><div class="value">LKR ([\d,]+)</div>',
                          paying).group(1).replace(",", ""))
     assert paid > 0 and "truth zero" not in paying
+    # Amber follows the payout, not the minimum: here the minimum is met but every item is excluded.
+    assert "LKR 0 met" in _text(met_but_zero) and "The terms pay you LKR 0" in _text(met_but_zero)
+    assert '<div class="truth zero">' in met_but_zero
     held = sample.index("</p>", sample.index('<p class="ok-note">', sample.index('class="reality"'))) + len("</p>")
     assert sample[held:].startswith(f'<div class="actions">{back}</div>')  # right after the result
     assert sample.count(back) == 1
@@ -225,7 +231,7 @@ def test_agent_tool_calls_sit_behind_how_this_was_calculated():
 
 def test_touch_targets_are_at_least_44px():
     for selector in ("button", "select", 'input[type="number"]', 'input[type="text"]', 'input[type="date"]',
-                     "button.chip", ".check", "nav.steps li", "nav.steps li button.linklike", "details summary"):
+                     "button.chip", ".check", ".days .day", "nav.steps li", "nav.steps li button.linklike", "details summary"):
         assert _last(selector, "min-height") == "44px", selector
     # The only sub-44px button rule is the link-style button, which renders only in the step pills (overridden above).
     small = [s for selectors, block in _css_rules() for s in selectors

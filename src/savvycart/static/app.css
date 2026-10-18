@@ -219,6 +219,7 @@ details.how[open] summary { margin-bottom: 8px; }
 button, select, input[type="number"], input[type="text"], input[type="date"] { min-height: 44px; }
 button.chip { min-height: 44px; }
 .check { min-height: 44px; }
+.days .day { min-height: 44px; }
 nav.steps li { min-height: 44px; padding-top: 0; padding-bottom: 0; }
 nav.steps li button.linklike { min-height: 44px; }
 details summary { min-height: 44px; padding: 10px 0; }

@@ -979,8 +979,9 @@ def _fictional(card: dict[str, Any] | None) -> bool:
     return bool(card) and _offer(card["offer_id"]).get("source") != "published"
 
 
-def _fictional_note(held: list[str]) -> str:
-    banks = sorted({o["bank"] for o in _v2_offers()["card_offers"] if o.get("source") != "published" and o["bank"] in held})
+def _fictional_note() -> str:
+    """Shown whether or not the shopper holds the card: the agent's tools can describe any offer."""
+    banks = sorted({o["bank"] for o in _v2_offers()["card_offers"] if o.get("source") != "published"})
     if not banks:
         return ""
     return f'<p class="notice">{_e(" and ".join(banks))} card offers in this demo are fictional, not published by the bank.</p>'
@@ -1104,7 +1105,7 @@ def _render_ask(question: str) -> str:
     )
 
 
-def _render_why(explanation: dict[str, Any], plan: dict[str, Any], question: str = "", banks: tuple[str, ...] | list[str] = ()) -> str:
+def _render_why(explanation: dict[str, Any], plan: dict[str, Any], question: str = "") -> str:
     asked = f'<p class="asked">You asked: {_e(question)}</p>' if question else ""
     calls = "".join(
         f'<li><code>{_e(c.get("name"))}({_e(_call_args(c.get("args")))})</code></li>' for c in explanation["calls"][:20]
@@ -1119,7 +1120,7 @@ def _render_why(explanation: dict[str, Any], plan: dict[str, Any], question: str
     return (
         '<section class="step" id="why" aria-labelledby="why-h">'
         '<h2 id="why-h">4. Why this plan</h2>'
-        f'<p class="recap"><strong>Engine figures:</strong> {_e(_engine_summary(plan))}</p>{_fictional_note(banks)}'
+        f'<p class="recap"><strong>Engine figures:</strong> {_e(_engine_summary(plan))}</p>{_fictional_note()}'
         f"{_render_ask(question)}"
         f"{asked}"
         f'<p class="source" id="explanation-source">{_e(explanation["source"])}</p>'
@@ -1152,7 +1153,7 @@ def _render_approve(preview: dict[str, Any] | None, plan: dict[str, Any], state:
     return (
         '<section class="step" id="approve" aria-labelledby="approve-h">'
         '<h2 id="approve-h">5. Approve</h2>'
-        f'<p class="recap">{_e(_engine_summary(plan))}</p>{_fictional_note(state["banks"])}'
+        f'<p class="recap">{_e(_engine_summary(plan))}</p>{_fictional_note()}'
         f'<fieldset><legend>How you get the groceries</legend>{choice}'
         '<div class="field"><label for="delivery_fee">Delivery fee per store bill (LKR, an assumption you can change)</label>'
         f'<input type="number" id="delivery_fee" name="delivery_fee" min="0" max="5000" step="10" value="{state["delivery_fee"]}"></div>'
@@ -1606,7 +1607,7 @@ async def guest_action(request: Request) -> str:
     elif step == 2:
         inner = _render_plan(plan, sweep, state, suggestions=_suggestions(plan, state, items, _lines(items)))
     elif step == 3:
-        inner = _render_why(await _explain_v2(request, plan, state, _lines(items)), plan, state["question"], state["banks"])
+        inner = _render_why(await _explain_v2(request, plan, state, _lines(items)), plan, state["question"])
     else:
         lines = [{"sku_id": l["sku_id"], "qty": max(1, round(l["qty"]))} for l in _lines(items)]
         approved = await _internal_post(request, "/v1/approve", json={
