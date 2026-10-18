@@ -239,6 +239,32 @@ def test_plan_with_a_checked_card():
     assert "The offer you checked is not used</strong>: it is valid on Saturday, not Friday." in moved
 
 
+def test_checked_offer_edges_are_disclosed_truthfully():
+    glomark = {"bank": "HNB", "card_products": "Test", "store_name": "Glomark", "headline": "1% off", "percent_off": 1, "days": ["Tuesday"],
+               "minimum_bill_lkr": 999999, "max_discount_lkr": None, "excluded_items": [], "valid_until": None, "combines_with_store_offers": True}
+    ended = {**glomark, "store_name": "Keells", "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+             "minimum_bill_lkr": 1000, "percent_off": 20, "valid_until": "2026-10-23"}
+    with TestClient(app) as http:
+        base = _submit(http, http.get("/").text, "plan")
+        read = _read(http, glomark)
+        held = _submit(http, read, "offer_plan")
+        later = _submit(http, _submit(http, _read(http, ended), "offer_plan"), "plan", [("today", "2026-10-26"), ("day", "")])
+        blank = _submit(http, read, "offer_plan", [("o_rate", "")])
+        odd = _read(http, {**SMS, "applies_only_to": ["Electronics"]})
+        odd_check = _submit(http, odd, "offer_check")
+        odd_plan = _submit(http, _submit(http, odd, "offer_plan"), "plan")
+    heading = r"Best day before the estimated next purchase date \(by [\d-]+\)"
+    assert re.search(heading, base).group(0) == re.search(heading, held).group(0)  # the household's own window, unchanged
+    assert "(the checked offer&#39;s day, after the estimated next purchase date)</option>" in held
+    assert "The offer you checked is not used</strong>: this plan does not shop at Glomark." in held
+    assert "The offer you checked is not used</strong>: it ended on 2026-10-23." in later
+    assert "The offer does not state a usable percent, so Savvy Cart will not guess one." in blank
+    assert "Nothing in this catalog (the offer is for Electronics)" in odd_check and "Applies only to none" not in _text(odd_check)
+    carried = json.loads(html.unescape(re.search(r'name="held_offer" value="([^"]*)"', odd_plan).group(1)))
+    assert carried["applies_only_to"] == ["Electronics"]  # still unmatched after a round trip, so nothing counts
+    assert "the offer you checked)" not in " ".join(re.findall(r'<span class="card-used">([^<]+)', odd_plan))
+
+
 def test_answer_cache_separates_checked_offers_and_expires(monkeypatch):
     runs = []
 
@@ -299,3 +325,11 @@ def test_engine_cache_direct_approve_and_versioned_css(monkeypatch):
         once = len(unproven)
         _submit(http, home, "plan")
     assert once and len(unproven) == 2 * once  # an unproven solve is never served from the cache
+    page_module._engine_results.clear()
+    sweeps = []
+    real_sweep = page_module.day_sweep
+    monkeypatch.setattr(page_module, "day_sweep", lambda *a, **k: sweeps.append(1) or real_sweep(*a, **k))
+    with TestClient(app) as http:
+        _submit(http, home, "plan")
+        _submit(http, home, "plan")
+    assert len(sweeps) == 2  # sweeps report no solver status, so they are never cached

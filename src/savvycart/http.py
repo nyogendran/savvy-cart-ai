@@ -625,7 +625,8 @@ def _rule_raw(rule: dict[str, Any]) -> dict[str, Any]:
             "percent_off": rule["rate_bps"] / 100, "days": rule["days"], "minimum_bill_lkr": rule["min_bill_lkr"],
             "minimum_applies_to": "whole_bill" if rule["minimum_basis"] == "bill" else "eligible_items",
             "max_discount_lkr": rule["cap_lkr"], "excluded_items": rule["excluded_items"],
-            "applies_only_to": list(rule.get("include_categories", [])),
+            "applies_only_to": (rule.get("applies_only_to") or [offercheck.NO_CATALOG_ITEMS]
+                                if rule.get("include_categories") == [offercheck.NO_CATALOG_ITEMS] else list(rule.get("include_categories", []))),
             "max_units_per_item": rule["max_units_per_item"],
             "combines_with_store_offers": rule["stacks_with_promotions"] if rule.get("stacks_stated", True) else None,
             "valid_until": rule["valid_to"], "is_up_to": rule["is_up_to"], "exclude_sku_ids": rule["exclude_sku_ids"]}
@@ -657,6 +658,8 @@ def _held_notice(plan: dict[str, Any]) -> str:
     weekday = plan["day"]["weekday"]
     if used:
         lead = "<strong>This plan uses the offer you checked</strong>, with the terms as you confirmed them; the bank has not confirmed them."
+    elif rule["valid_to"] and plan["day"]["date"] > rule["valid_to"]:
+        lead = f"<strong>The offer you checked is not used</strong>: it ended on {_e(rule['valid_to'])}."
     elif weekday not in rule["days"]:
         lead = (f"<strong>The offer you checked is not used</strong>: it is valid on {_e(', '.join(d.title() for d in rule['days']))}, "
                 f"not {_e(weekday.title())}.")
@@ -696,8 +699,8 @@ def _engine_cached(kind: str, key: str) -> str:
     if hit and hit[0][0] is engines[0] and hit[0][1] is engines[1]:
         return hit[1]
     result = _engine_run(kind, key)
-    statuses = [result.get("solver_status")] if kind == "day" else [d.get("solver_status") for d in result.get("days", [])]
-    if all(s in (None, "OPTIMAL") for s in statuses):
+    # A sweep's days carry no solver status, so only a single day's plan proven OPTIMAL is kept.
+    if kind == "day" and result.get("solver_status") == "OPTIMAL":
         if len(_engine_results) >= ENGINE_CACHE_SIZE:
             _engine_results.pop(next(iter(_engine_results)))
         _engine_results[kind + key] = (engines, json.dumps(result))
@@ -730,13 +733,11 @@ def _engine(kind: str, lines: list[dict[str, Any]], banks: list[str], max_stores
 def _engine_plan(state: dict[str, Any], items: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
     lines = _lines(items)
     common = (lines, state["banks"], state["max_stores"], state["trip_cost"], state["usual_store"])
-    deadline = _deadline(items, state["today"])
-    offer_day = offercheck.next_offer_day(_HELD.get(), state["today"]) if _HELD.get() is not None else None
-    if offer_day is not None and offer_day.isoformat() > deadline:
-        deadline = offer_day.isoformat()  # the checked offer's day stays in reach
-    sweep = _engine("sweep", *common, start=state["today"].isoformat(), deadline=deadline)
+    sweep = _engine("sweep", *common, start=state["today"].isoformat(), deadline=_deadline(items, state["today"]))
     days = {d["date"] for d in sweep["days"]}
-    day = state["day"] if state["day"] in days else sweep["best"]["date"]
+    offer_day = offercheck.next_offer_day(_HELD.get(), state["today"]) if _HELD.get() is not None else None
+    held_day = offer_day.isoformat() if offer_day is not None else None
+    day = state["day"] if state["day"] in days or (held_day and state["day"] == held_day) else sweep["best"]["date"]
     plan = _engine("day", *common, day=day)
     return plan, sweep
 
@@ -1072,6 +1073,9 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
             f'<option value="{_e(d["date"])}"{" selected" if d["date"] == plan["day"]["date"] else ""}>{_e(d["weekday"].title())} {_e(d["date"])}</option>'
             for d in sweep["days"]
         )
+        if plan["day"]["date"] not in {d["date"] for d in sweep["days"]}:
+            choices += (f'<option value="{_e(plan["day"]["date"])}" selected>{_e(plan["day"]["weekday"].title())} {_e(plan["day"]["date"])} '
+                        "(the checked offer&#39;s day, after the estimated next purchase date)</option>")
         sweep_html = (
             f'<h3>Best day before the estimated next purchase date (by {_e(sweep["window_end"])})</h3><ul class="sweep">{days}</ul>'
             f'<div class="field"><label for="day">Shop on</label><div class="inline"><select id="day" name="day">{choices}</select>'
@@ -1623,6 +1627,18 @@ def _sample_offer() -> dict[str, Any]:
     return json.loads(SAMPLE_OFFER.read_text(encoding="utf-8"))
 
 
+def _form_only(form: dict[str, list[str]]) -> list[str]:
+    """The ticked categories; "nothing in this catalog" keeps the groups the offer printed, so they stay unmatched and visible."""
+    ticked = [c for c in form.get("o_incl", []) if c in offercheck.CATEGORY_WORDS]
+    if offercheck.NO_CATALOG_ITEMS not in form.get("o_incl", []):
+        return ticked
+    try:
+        printed = [str(t) for t in json.loads(form.get("o_only", ["[]"])[0]) if isinstance(t, str)][:12]
+    except (json.JSONDecodeError, TypeError):
+        printed = []
+    return ticked + (printed or [offercheck.NO_CATALOG_ITEMS])
+
+
 def _form_rule(form: dict[str, list[str]], today: _date | None = None) -> tuple[dict[str, Any] | None, list[str]]:
     """The confirm form, as the shopper left it, validated exactly like model output."""
     def get(key: str) -> str:
@@ -1638,7 +1654,7 @@ def _form_rule(form: dict[str, list[str]], today: _date | None = None) -> tuple[
         "percent_off": get("o_rate") or None, "days": form.get("o_days", []), "minimum_bill_lkr": get("o_min") or None,
         "minimum_applies_to": "eligible_items" if get("o_basis") == "eligible" else "whole_bill",
         "max_discount_lkr": get("o_cap") or None, "excluded_items": terms,
-        "applies_only_to": [c for c in form.get("o_incl", []) if c in offercheck.CATEGORY_WORDS or c == offercheck.NO_CATALOG_ITEMS],
+        "applies_only_to": _form_only(form),
         "max_units_per_item": int(units) if units.isdigit() else None,
         # Still unstated while the shopper leaves the box as read; unticking it is their statement.
         "combines_with_store_offers": None if "o_stack_unstated" in form and "o_stack" in form else "o_stack" in form,
@@ -1750,7 +1766,8 @@ def _render_offer_result(rule: dict[str, Any], check: dict[str, Any], held: tupl
         f'<li><span>Maximum discount</span><strong>{_e(cap)}</strong></li>'
         f'<li><span>Combines with store promotions</span><strong>{"yes" if rule["stacks_with_promotions"] else "no"}'
         f'{"" if rule.get("stacks_stated", True) else " (not stated in the offer)"}</strong></li>'
-        + (f'<li><span>Applies only to</span><strong>{_e(", ".join(rule["applies_only_to"]))}</strong></li>' if rule.get("applies_only_to") else "")
+        + (f'<li><span>Applies only to</span><strong>{_e(", ".join(t for t in rule["applies_only_to"] if t != offercheck.NO_CATALOG_ITEMS))}</strong></li>'
+           if [t for t in rule.get("applies_only_to") or [] if t != offercheck.NO_CATALOG_ITEMS] else "")
         + ""
         "</ul>"
         '<div class="scroll"><table class="lines"><thead><tr><th>Item</th><th class="num">Price</th><th class="num">Counts</th><th>Why</th></tr></thead>'
@@ -1785,9 +1802,11 @@ def _render_rule_form(rule: dict[str, Any] | None) -> str:
         for c in offercheck.CATEGORY_WORDS
     )
     if r.get("include_categories") == [offercheck.NO_CATALOG_ITEMS]:
-        printed = ", ".join(r.get("applies_only_to") or []) or "items not in this catalog"
+        printed_terms = [t for t in r.get("applies_only_to") or [] if t != offercheck.NO_CATALOG_ITEMS]
+        printed = ", ".join(printed_terms) or "items not in this catalog"
         incl += (f'<label class="day"><input type="checkbox" name="o_incl" value="{offercheck.NO_CATALOG_ITEMS}" checked> '
-                 f"Nothing in this catalog (the offer is for {_e(printed)})</label>")
+                 f"Nothing in this catalog (the offer is for {_e(printed)})</label>"
+                 f'<input type="hidden" name="o_only" value="{_e(json.dumps(printed_terms, ensure_ascii=False))}">')
     rate = f"{r['rate_bps'] / 100:g}" if r["rate_bps"] else ""
     terms = ", ".join(r["excluded_items"]) or "none read"
     return (
@@ -1900,10 +1919,12 @@ async def guest_action(request: Request) -> str:
     note: str | None = None
     held = None if action == "drop_offer" else _held_from(state["held_raw"], state["today"])
     if action == "offer_plan":
-        rule, _ = _form_rule(form, state["today"])
+        rule, notes = _form_rule(form, state["today"])
         offer_day = offercheck.next_offer_day(rule, state["today"]) if rule else None
         if rule and offer_day:
             held, state["day"] = rule, offer_day.isoformat()
+        elif rule is None:
+            message = " ".join(notes) or "The offer terms could not be read."
         else:
             message = "That offer has no valid day in the next 7 days, so there is nothing to plan with it."
     _HELD.set(held)
