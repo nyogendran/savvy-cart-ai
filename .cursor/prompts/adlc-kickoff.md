@@ -17,9 +17,7 @@ Run **P0 → P1 only**. Do **not** write application source code yet (no `src/`,
 1. Read:
    - `AGENTS.md`
    - `specs/constitution.md`
-   - `specs/000-hackathon-context/context.md`
    - `specs/001-product-vision/spec.md`
-   - `specs/002-product-strategy/report.md` if it exists (from `/adlc-product-strategy`)
    - `.cursor/rules/adlc.mdc`
 2. Confirm `@adlc/cli` is usable (`adlc --help`). If missing, tell me to run `npm i -g @adlc/cli`.
 3. Run `adlc preflight` (or summarize what I should run) and report pass/fail.
@@ -35,7 +33,6 @@ Using the shared ADLC interrogation style:
 
 Update these files with my answers (do not invent Cup problem-statement text):
 
-- `specs/000-hackathon-context/context.md` (checkboxes + chosen challenge)
 - `specs/001-product-vision/spec.md` (problem, users, MVP, ACs)
 - `specs/constitution.md` only if a principle must change
 

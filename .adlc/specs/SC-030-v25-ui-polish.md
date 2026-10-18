@@ -49,7 +49,6 @@ Builds on the approved SC-027 spec (revision 7). Every SC-027, SC-025, and SC-02
 ## Out of scope
 
 - `pantry.py`, `planner.py`, `optimizer.py`, `offercheck.py`, `agent.py`, `guardrails.py`, `gemini.py`, fixtures. The agent's `get_pantry` tool still reports history medians to 3 decimals; the page's confirmed basket (0.5 kg steps) is what the agent is told to price.
-- The review reports under `docs/report/`, which are dated records and keep the figures they reviewed.
 - Decimal currency formatting.
 
 ## Acceptance criteria

@@ -25,7 +25,6 @@ P0 Triage ──► P1 Spec (+ human approve) ──► P2 Decompose
 
 | Step | Action | Slash command |
 | --- | --- | --- |
-| −1 | *(optional)* Product strategy, market validation & Cup readiness | `/adlc-product-strategy` or `@.cursor/prompts/adlc-product-strategy.md` → writes `specs/002-product-strategy/report.md` |
 | 0 | Run kickoff prompt | `@.cursor/prompts/adlc-kickoff.md` |
 | 1 | Author ticket | `/adlc-ticket` |
 | 2 | Interrogate + lint spec | `/adlc-spec` |
@@ -35,8 +34,6 @@ P0 Triage ──► P1 Spec (+ human approve) ──► P2 Decompose
 | 6 | Verify | `/adlc-verify-build` |
 | 7 | Hostile review | `/adlc-prosecute` |
 | 8 | Ship slice / demo | human acceptance |
-
-Step −1 is research and decision support only: no application code, no executable `.adlc/specs/` gate until kickoff folds accepted outcomes into vision.
 
 ## Install (once per machine)
 

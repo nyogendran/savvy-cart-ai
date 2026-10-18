@@ -2,11 +2,11 @@
 
 Builds on the approved SC-019 spec. Every SC-019 rule stays unless it is listed under **Supersedes**. Prototype deadline 18 Oct 2026.
 
-**Origin:** the human asked for this work on 18 Oct 2026 after the readiness review (`docs/report/report-claude-opus-5.5.md` §11); it was built before this spec was gated, then reviewed (`report` §12 and a second review). P1 approval is the human's recorded spec-approval gate; P6 behavioral acceptance stays with the human.
+**Origin:** the human asked for this work on 18 Oct 2026. P1 approval is the human's recorded spec-approval gate; P6 behavioral acceptance stays with the human.
 
 ## Problem
 
-The readiness review found that (1) Gemini is optional and only does OCR and narration, (2) the headline saving rests on assumed bank terms, and (3) the project's core idea, that a headline card discount does not apply to the whole trolley, is no longer visible in the wizard. Shoppers receive bank offers as SMS or web headlines ("10% off on Total Bill every Saturday") whose terms exclude staples, require a minimum, cap the discount, and forbid combining with store offers.
+Shoppers receive bank offers as SMS or web headlines ("10% off on Total Bill every Saturday") whose terms exclude staples, require a minimum, cap the discount, and forbid combining with store offers. Offer Reality Check makes that gap visible on the household's own basket: Gemini reads the terms into a fixed schema, the shopper confirms them, and deterministic code shows what the headline promises against what the terms actually pay.
 
 ## Supersedes
 

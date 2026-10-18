@@ -1,0 +1,39 @@
+Savvy Cart AI — Proprietary Software License
+
+Copyright (c) 2026 Yogendran Nadaraja. All rights reserved.
+
+This repository is published on GitHub for the sole purpose of allowing the
+organizers and judges of the Google Cloud AI Builder Cup 2026 to review and
+evaluate this submission. Making the source visible here does NOT place it in
+the public domain and does NOT grant any license to the source code, assets,
+data, or documentation beyond what is stated below.
+
+PERMITTED
+  - Viewing and reading the source code, documentation, and assets for the
+    purpose of evaluating this competition submission.
+
+NOT PERMITTED without the prior written permission of the copyright holder
+  - Using, running, deploying, or hosting the software or any part of it for
+    any purpose other than the evaluation described above.
+  - Copying, reproducing, modifying, adapting, translating, or creating
+    derivative works.
+  - Redistributing, publishing, sublicensing, selling, or otherwise making the
+    software or any part of it available to third parties.
+  - Removing or altering this notice.
+
+THIRD-PARTY COMPONENTS
+  This software depends on third-party open-source libraries (for example
+  FastAPI, google-adk, google-genai, and OR-Tools). Those components remain
+  under their own respective licenses, which are not affected by this notice.
+
+NO WARRANTY
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
+  WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF,
+  OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+To request permission for any use beyond evaluation, contact the copyright
+holder.

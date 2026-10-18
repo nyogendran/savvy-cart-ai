@@ -11,7 +11,6 @@
 !.adlc/lessons/
 !.adlc/lessons/**
 !.adlc/manifest.jsonl
-!.adlc/findings.jsonl
 !.adlc/manifest.d/
 !.adlc/manifest.d/**
 .adlc/manifest.d/.lineage
@@ -47,3 +46,12 @@ fixtures/*.jpeg
 fixtures/*.heic
 # Real e-bill PDFs; only the de-identified samples/purchase-history.json is committed
 samples/purchase-history/
+
+# Internal competition strategy, scoring, and hostile-review notes.
+# Kept locally for the team; NOT part of the public submission repo.
+docs/report/
+specs/000-hackathon-context/
+specs/002-product-strategy/
+.adlc/findings.jsonl
+.cursor/prompts/adlc-product-strategy.md
+.cursor/commands/adlc-product-strategy.md

@@ -6,7 +6,7 @@
 
 On a normal Sri Lankan weekly shop, the useful price is not the shelf sticker and not the headline percent. It is the **one-store basket total after** the offer’s day, category, exclusions, minimum bill, cap, “cannot combine” rule, and end date.
 
-This sentence is **team-authored**. The Cup portal’s official problem statement was not pasted. If it is pasted later, that text replaces this paragraph (assumption A1 in `specs/000-hackathon-context/context.md`).
+This sentence is **team-authored**. The Cup portal’s official problem statement was not pasted. If it is pasted later, that text replaces this paragraph.
 
 ## Users
 
