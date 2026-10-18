@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
+import hashlib
 import html
 import json
 import logging
@@ -12,7 +14,7 @@ import uuid
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Protocol
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, quote
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -388,7 +390,7 @@ V2_BANNER = (
     "headlines from 18 Oct 2026 with assumed terms. Other prices, store promotions, and HNB offers are fictional demo shapes."
 )
 STEPS = ["Pantry", "Wallet", "Plan", "Why", "Approve"]
-STEP_ACTIONS = ["pantry", "wallet", "plan", "explain", "approve"]
+STEP_ACTIONS = ["pantry", "wallet", "plan", "why", "approve"]
 STORE_NAMES = {"keells": "Keells", "cargills": "Cargills", "spar": "SPAR", "glomark": "Glomark"}
 WALLET_CARDS = [("Commercial Bank", "credit"), ("Nations Trust Bank", "credit"), ("HNB", "credit")]
 V2_DEFAULTS = {"today": "2026-10-22", "usual_store": "keells", "max_stores": "2", "trip_cost": "250", "budget": "12000",
@@ -401,7 +403,7 @@ SAMPLE_RECEIPT_V2 = ROOT / "samples" / "receipts" / "keells-2026-10-17.expected.
 RECEIPT_TYPES = {"image/jpeg", "image/png"}
 STATUS_TEXT = {"due": "Due", "soon": "Soon", "ok": "OK", "unknown": "Not enough history", "stale": "Not bought for a while",
                "added": "Added by you"}
-AGENT_TIMEOUT_SECONDS = 60
+AGENT_TIMEOUT_SECONDS = 100
 MAX_QUESTION = 300
 SAMPLE_QUESTIONS = ("Would one store be enough if I drop the extra trip?", "What if I only use my Commercial Bank card?",
                     "Is Sunday cheaper than the day you picked?")
@@ -574,6 +576,7 @@ def _parse_state(form: dict[str, list[str]]) -> dict[str, Any]:
         "fulfilment": "delivery" if get("fulfilment", "pickup") == "delivery" else "pickup",
         "delivery_fee": bounded_int("delivery_fee", V2_DEFAULTS["delivery_fee"], 0, 5000),
         "question": " ".join((get("question_chip", "") or get("question", "")).split())[:MAX_QUESTION],
+        "held_raw": get("held_offer", "")[:4000],
     }
 
 
@@ -612,14 +615,102 @@ def _deadline(items: list[dict[str, Any]], today: _date) -> str:
     return max(earliest, today.isoformat())
 
 
+CHECKED_PREFIX = "Checked offer ("
+_HELD: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar("held_offer", default=None)
+
+
+def _rule_raw(rule: dict[str, Any]) -> dict[str, Any]:
+    """A checked rule as the terms the shopper confirmed, so it can travel in a hidden field and be validated again."""
+    return {"bank": rule["bank"], "card_products": rule["card_products"], "headline": rule["headline"], "store_id": rule["store_id"],
+            "percent_off": rule["rate_bps"] / 100, "days": rule["days"], "minimum_bill_lkr": rule["min_bill_lkr"],
+            "minimum_applies_to": "whole_bill" if rule["minimum_basis"] == "bill" else "eligible_items",
+            "max_discount_lkr": rule["cap_lkr"], "excluded_items": rule["excluded_items"],
+            "applies_only_to": [c for c in rule.get("include_categories", []) if c != "none"] or rule.get("applies_only_to", []),
+            "max_units_per_item": rule["max_units_per_item"],
+            "combines_with_store_offers": rule["stacks_with_promotions"] if rule.get("stacks_stated", True) else None,
+            "valid_until": rule["valid_to"], "is_up_to": rule["is_up_to"], "exclude_sku_ids": rule["exclude_sku_ids"]}
+
+
+def _held_from(raw_json: str, today: _date) -> dict[str, Any] | None:
+    """The hidden field's terms, validated exactly like a fresh read; anything malformed means no checked offer."""
+    try:
+        raw = json.loads(raw_json) if raw_json else None
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(raw, dict):
+        return None
+    rule, _ = offercheck.validate_rule(raw, _v2_catalog(), "checked", today)
+    if rule is None:
+        return None
+    sku_ids = {s["id"] for s in _v2_catalog()["skus"]}
+    marked = raw.get("exclude_sku_ids")
+    if isinstance(marked, list):
+        rule["exclude_sku_ids"] = sorted({str(s) for s in marked} & sku_ids)
+    return rule
+
+
+def _held_notice(plan: dict[str, Any]) -> str:
+    if _HELD.get() is None:
+        return ""
+    used = any(str((b["card"] or {}).get("bank", "")).startswith(CHECKED_PREFIX) for b in plan["stores"])
+    lead = ("<strong>This plan uses the offer you checked</strong>, with the terms as you confirmed them; the bank has not confirmed them."
+            if used else "<strong>The offer you checked was considered</strong>, but your own cards cost less for this plan, so no bill uses it.")
+    return (f'<div class="callout"><div>{lead}</div>'
+            '<button type="submit" name="action" value="drop_offer">Remove the checked offer</button></div>')
+
+
+def _held_offer() -> dict[str, Any] | None:
+    """The offer the shopper checked and chose to plan with, in the planner's shape, for this request only."""
+    rule = _HELD.get()
+    if rule is None:
+        return None
+    # Its own key, so holding it never unlocks that bank's other offers.
+    return {**offercheck.planner_offer(rule), "id": "checked_offer", "bank": f"{CHECKED_PREFIX}{rule['bank']})", "source": "checked"}
+
+
+def _plan_inputs(banks: list[str]) -> tuple[dict[str, Any], list[str]]:
+    held = _held_offer()
+    if held is None:
+        return _v2_offers(), banks
+    offers = _v2_offers()
+    return {**offers, "card_offers": offers["card_offers"] + [held]}, banks + [held["bank"]]
+
+
+@lru_cache(maxsize=256)
+def _engine_cached(kind: str, key: str) -> str:
+    args = json.loads(key)
+    offers, banks = _v2_offers(), args["banks"]
+    if args["held"]:
+        offers = {**offers, "card_offers": offers["card_offers"] + [args["held"]]}
+    if kind == "sweep":
+        result = day_sweep(_v2_catalog(), offers, args["lines"], args["start"], args["deadline"], banks,
+                           args["max_stores"], args["trip_cost"], args["usual_store"])
+    else:
+        result = engine_plan_day(_v2_catalog(), offers, args["lines"], args["day"], banks, args["max_stores"], args["trip_cost"],
+                                 args["usual_store"], _with_baselines=args["baselines"])
+    return json.dumps(result)
+
+
+def _engine(kind: str, lines: list[dict[str, Any]], banks: list[str], max_stores: int, trip_cost: int, usual_store: str,
+            **extra: Any) -> dict[str, Any]:
+    """The day sweep or one day's plan, cached by its inputs; each caller gets its own copy."""
+    _, all_banks = _plan_inputs(banks)
+    # The engine functions' identity is part of the key, so a swapped engine (a test double) never reads another's results.
+    key = json.dumps({"lines": lines, "banks": all_banks, "max_stores": max_stores, "trip_cost": trip_cost, "usual_store": usual_store,
+                      "held": _held_offer(), "baselines": True, "engine": [id(engine_plan_day), id(day_sweep)], **extra}, sort_keys=True)
+    return json.loads(_engine_cached(kind, key))
+
+
 def _engine_plan(state: dict[str, Any], items: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
     lines = _lines(items)
-    args = (_v2_catalog(), _v2_offers(), lines)
-    sweep = day_sweep(*args, state["today"].isoformat(), _deadline(items, state["today"]), state["banks"],
-                      state["max_stores"], state["trip_cost"], state["usual_store"])
+    common = (lines, state["banks"], state["max_stores"], state["trip_cost"], state["usual_store"])
+    deadline = _deadline(items, state["today"])
+    if _HELD.get() is not None and state["day"] > deadline:
+        deadline = state["day"]  # the checked offer's day stays in reach
+    sweep = _engine("sweep", *common, start=state["today"].isoformat(), deadline=deadline)
     days = {d["date"] for d in sweep["days"]}
     day = state["day"] if state["day"] in days else sweep["best"]["date"]
-    plan = engine_plan_day(*args, day, state["banks"], state["max_stores"], state["trip_cost"], state["usual_store"])
+    plan = _engine("day", *common, day=day)
     return plan, sweep
 
 
@@ -781,6 +872,9 @@ def _render_wallet(state: dict[str, Any]) -> str:
 
 
 def _offer(offer_id: str) -> dict[str, Any]:
+    held = _held_offer()
+    if held is not None and offer_id == held["id"]:
+        return held
     return next(o for o in _v2_offers()["card_offers"] if o["id"] == offer_id)
 
 
@@ -808,9 +902,12 @@ def _render_bill(bill: dict[str, Any]) -> str:
         prices = "Fictional demo prices."
     terms = ""
     if bill["card"]:
-        card = f'<span class="card-used">Pay with {_e(bill["card"]["bank"])} {_e(bill["card"]["product"])}</span>'
+        card = f'<span class="card-used">{_e(_card_label(bill["card"]))}</span>'
         offer = _offer(bill["card"]["offer_id"])
-        if offer.get("source") == "published":
+        if offer.get("source") == "checked":
+            terms = (f'<p class="source">Offer you checked: &ldquo;{_e(offer["headline"])}&rdquo;; '
+                     "terms as you confirmed them, not confirmed by the bank.</p>")
+        elif offer.get("source") == "published":
             terms = (f'<p class="source">Offer: &ldquo;{_e(offer["headline"])}&rdquo; '
                      f'(<a href="{_e(offer["source_url"])}" rel="noopener noreferrer">bank page</a>, captured {_e(offer["captured_on"])}). '
                      f"{_e(TERMS_NOTE)}</p>")
@@ -899,8 +996,8 @@ def _suggestions(plan: dict[str, Any], state: dict[str, Any], items: list[dict[s
         for combo in ranked[:5]:
             shelf_cost = sum(s for _, s, _ in combo)
             added = [{"sku_id": item["sku_id"], "qty": item["qty"]} for item, _, _ in combo]
-            replan = engine_plan_day(_v2_catalog(), _v2_offers(), lines + added, plan["day"]["date"], state["banks"],
-                                     plan["max_stores"], plan["trip_cost_lkr"], state["usual_store"], _with_baselines=False)
+            replan = _engine("day", lines + added, state["banks"], plan["max_stores"], plan["trip_cost_lkr"], state["usual_store"],
+                             day=plan["day"]["date"], baselines=False)
             fires = any(b["store_id"] == store and b["card"] and b["card"]["offer_id"] == offer["id"] for b in replan["stores"])
             if fires and replan["effective_cost_lkr"] < plan["effective_cost_lkr"] + shelf_cost:
                 entry.update({"names": [item["name"] for item, _, _ in combo], "shelf_lkr": shelf_cost,
@@ -969,7 +1066,7 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
         '<section class="step" id="plan" aria-labelledby="plan-h">'
         f'<h2 id="plan-h">3. Plan for {_e(weekday)} {_e(plan["day"]["date"])}{_e(title_note)}</h2>'
         f'<p class="recommendation" id="plan-recommendation">{_e(control)}{_e(_recommendation(plan))}</p>'
-        f"{unproven}"
+        f"{unproven}{'' if title_note else _held_notice(plan)}"
         f'<p class="lead">{len(plan["stores"])} store{"s" if len(plan["stores"]) != 1 else ""}{allowed}. '
         "Store promotions apply first, then at most one card offer per bill.</p>"
         '<div class="summary">'
@@ -991,13 +1088,13 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
         f'<p class="source">Stores chosen by an exact optimizer (OR-Tools CP-SAT, status {_e(plan["solver_status"])}). '
         "Engine steps: pantry (purchase history), catalog and offers, planner (OR-Tools CP-SAT). "
         f'Trip cost {_money(plan["trip_cost_lkr"])} per extra store.</p></details>'
-        f'{_nav("wallet", [("approve", "Approve plan", False), ("explain", "Next: explain this plan", True)])}'
+        f'{_nav("wallet", [("approve", "Approve plan", False), ("why", "Next: explain this plan", True)])}'
         "</section>"
     )
 
 
 def _fictional(card: dict[str, Any] | None) -> bool:
-    return bool(card) and _offer(card["offer_id"]).get("source") != "published"
+    return bool(card) and _offer(card["offer_id"]).get("source") not in ("published", "checked")
 
 
 def _fictional_note() -> str:
@@ -1014,7 +1111,7 @@ def _recommendation(plan: dict[str, Any]) -> str:
         return "No store can price this basket."
     names = [STORE_NAMES[b["store_id"]] for b in bills]
     where = names[0] if len(names) == 1 else f'{", ".join(names[:-1])} and {names[-1]}'
-    cards = [f'Pay with {b["card"]["bank"]} {b["card"]["product"]} at {STORE_NAMES[b["store_id"]]}'
+    cards = [f'{_card_label(b["card"])} at {STORE_NAMES[b["store_id"]]}'
              f'{" (fictional demo offer)" if _fictional(b["card"]) else ""}.'
              for b in bills if b["card"]]
     shop = f'Shop on {plan["day"]["weekday"].title()} {_short_date(plan["day"]["date"])} at {where}.'
@@ -1024,7 +1121,7 @@ def _recommendation(plan: dict[str, Any]) -> str:
 def _engine_summary(plan: dict[str, Any]) -> str:
     parts = []
     for bill in plan["stores"]:
-        card = f' with {bill["card"]["bank"]} {bill["card"]["product"]}' if bill["card"] else ""
+        card = f' with {_card_label(bill["card"])[len("Pay with "):]}' if bill["card"] else ""
         parts.append(f'{STORE_NAMES[bill["store_id"]]}{card} for {len(bill["lines"])} items ({bill["bill_lkr"]} LKR)')
     return (
         f'Shop on {plan["day"]["weekday"].title()} {plan["day"]["date"]}: ' + "; ".join(parts) + ". "
@@ -1033,7 +1130,7 @@ def _engine_summary(plan: dict[str, Any]) -> str:
 
 
 def _confirmed(plan: dict[str, Any], state: dict[str, Any], lines: list[dict[str, Any]]) -> dict[str, Any]:
-    return {"lines": lines, "day": plan["day"]["date"], "banks": state["banks"], "max_stores": state["max_stores"],
+    return {"lines": lines, "day": plan["day"]["date"], "banks": _plan_inputs(state["banks"])[1], "max_stores": state["max_stores"],
             "trip_cost_lkr": state["trip_cost"], "usual_store": state["usual_store"]}
 
 
@@ -1079,10 +1176,19 @@ def _banks_asked(value: Any) -> list[str]:
 
 def _replan_differences(call_args: dict[str, Any], confirmed: dict[str, Any]) -> list[str]:
     """What a model's plan_day call changed; its arguments are untrusted JSON of any shape."""
+    def say(key: str, asked: Any, mine: Any) -> str:
+        if key == "max_stores":
+            return f"at most {asked} store{'' if _number(asked) == 1 else 's'} instead of {mine}"
+        if key == "trip_cost_lkr":
+            return f"extra trip cost LKR {asked} instead of LKR {mine}"
+        if key == "usual_store":
+            return f"usual store {STORE_NAMES.get(str(asked), asked)} instead of {STORE_NAMES.get(str(mine), mine)}"
+        return f"{key} {asked} instead of {mine}"
+
     diffs = []
     for key in ("day", "max_stores", "trip_cost_lkr", "usual_store"):
         if key in call_args and _scalar_key(call_args[key]) != _scalar_key(confirmed[key]):
-            diffs.append(f"{key} {call_args[key]} instead of {confirmed[key]}")
+            diffs.append(say(key, call_args[key], confirmed[key]))
     if "banks" in call_args:
         asked = _banks_asked(call_args["banks"])
         if asked != sorted(confirmed["banks"]):
@@ -1101,6 +1207,44 @@ def _call_key(call_args: dict[str, Any], confirmed: dict[str, Any]) -> str:
                       default=str)
 
 
+ANSWER_STYLE = "Plain sentences, no Markdown, at most 120 words."
+ANSWER_TTL_SECONDS = 15 * 60
+ANSWER_CACHE_SIZE = 64
+_answers: dict[str, tuple[float, Any, dict[str, Any]]] = {}
+
+
+def _engine_explanation(plan: dict[str, Any]) -> dict[str, Any]:
+    return {"text": _engine_summary(plan), "calls": [], "replans": [], "refused": [],
+            "source": "Engine explanation. Ask the agent below for Gemini's view; it can take up to a minute."}
+
+
+def _answer_key(question: str, context: dict[str, Any], extra: Any) -> str:
+    return hashlib.sha256(json.dumps([question, context, extra], sort_keys=True, default=str).encode()).hexdigest()
+
+
+def _cached_answer(key: str, owner: Any) -> dict[str, Any] | None:
+    hit = _answers.get(key)
+    if hit and hit[1] is owner and time.time() - hit[0] < ANSWER_TTL_SECONDS:
+        return hit[2]
+    return None
+
+
+def _remember_answer(key: str, owner: Any, answer: dict[str, Any]) -> None:
+    if key not in _answers and len(_answers) >= ANSWER_CACHE_SIZE:
+        _answers.pop(min(_answers, key=lambda k: _answers[k][0]))
+    _answers[key] = (time.time(), owner, answer)
+
+
+def _answer_html(text: str) -> str:
+    """The answer, escaped, with the few Markdown marks a model still sends turned into plain emphasis and bullets."""
+    html_text = _e(text)
+    html_text = _re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", html_text)
+    html_text = _re.sub(r"`([^`]+)`", r"<code>\1</code>", html_text)
+    html_text = _re.sub(r"(^|\s)#{1,6}\s+", r"\1", html_text)
+    html_text = _re.sub(r"(^|\s)[*-]\s+(?=\S)", lambda m: "<br>• " if m.start() else "• ", html_text)
+    return html_text
+
+
 async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, Any], lines: list[dict[str, Any]]) -> dict[str, Any]:
     confirmed = _confirmed(plan, state, lines)
     runner = getattr(request.app.state, "agent_runner", None)
@@ -1109,21 +1253,30 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
 
         from savvycart.agent import ask_agent
 
-        runner = partial(ask_agent, extra_bills=_added_bills(state["added"]))
+        held = _held_offer()
+        runner = partial(ask_agent, extra_bills=_added_bills(state["added"]), extra_offers=[held] if held else None)
     fallback = {"text": _engine_summary(plan), "calls": [], "replans": []}
     if runner is None:
         return {**fallback, "source": "Model not configured: engine explanation."}
-    if not model_rate_limiter(request.app).allow():
-        return {**fallback, "source": "Too many explanations this minute. Showing the engine explanation."}
     window_start = state["today"].isoformat()
     window_end = (state["today"] + _timedelta(days=7)).isoformat()
-    context = {"confirmed": confirmed, "engine_plan": plan, "window": {"start": window_start, "end": window_end}}
-    try:
-        question = f"The shopper asks: {state['question']}" if state["question"] else AGENT_QUESTION_V2
-        answer = await asyncio.wait_for(runner(question, context), timeout=AGENT_TIMEOUT_SECONDS)
-    except Exception as exc:
-        logger.warning("agent call failed: %s: %.200s", type(exc).__name__, exc)
-        return {**fallback, "source": "The agent call failed. Showing the engine explanation."}
+    context = {"confirmed": confirmed, "engine_plan": plan, "window": {"start": window_start, "end": window_end},
+               "answer_style": ANSWER_STYLE}
+    question = f"The shopper asks: {state['question']}" if state["question"] else AGENT_QUESTION_V2
+    # A scripted runner is its own cache owner, so a different runner never sees another's answer.
+    owner = getattr(request.app.state, "agent_runner", None) or "agent"
+    key = _answer_key(question, context, _added_bills(state["added"]))
+    if not model_rate_limiter(request.app).allow():
+        return {**fallback, "source": "Too many explanations this minute. Showing the engine explanation."}
+    answer = _cached_answer(key, owner)
+    if answer is None:
+        try:
+            answer = await asyncio.wait_for(runner(question, context), timeout=AGENT_TIMEOUT_SECONDS)
+        except Exception as exc:
+            logger.warning("agent call failed: %s: %.200s", type(exc).__name__, exc)
+            return {**fallback, "source": "The agent call failed. Showing the engine explanation."}
+        if isinstance(answer, dict) and answer.get("text"):
+            _remember_answer(key, owner, answer)
     calls = [c for c in answer.get("calls", []) if isinstance(c, dict)]
     # The same rules as the agent's own callbacks, applied again on the way to the page.
     guard_state = session_state(context, window_start, window_end, state["question"])
@@ -1190,11 +1343,11 @@ def _render_why(explanation: dict[str, Any], plan: dict[str, Any], question: str
     return (
         '<section class="step" id="why" aria-labelledby="why-h">'
         '<h2 id="why-h">4. Why this plan</h2>'
-        f'<p class="recap"><strong>Engine figures:</strong> {_e(_engine_summary(plan))}</p>{_fictional_note()}'
+        f'<p class="recap"><strong>Engine figures:</strong> {_e(_engine_summary(plan))}</p>{_fictional_note()}{_held_notice(plan)}'
         f"{_render_ask(question)}"
         f"{asked}"
         f'<p class="source" id="explanation-source">{_e(explanation["source"])}</p>'
-        f'<p id="explanation-text">{_e(explanation["text"])}</p>'
+        f'<p id="explanation-text">{_answer_html(explanation["text"])}</p>'
         f"{replan}"
         f'<details class="how"><summary>How this was calculated: {count_text}</summary>'
         f'{unchanged}<ul class="tools" id="agent-tools">{calls}</ul></details>'
@@ -1203,8 +1356,61 @@ def _render_why(explanation: dict[str, Any], plan: dict[str, Any], question: str
     )
 
 
+def _card_label(card: dict[str, Any] | None) -> str:
+    if not card:
+        return "No card offer applies"
+    if str(card.get("bank", "")).startswith(CHECKED_PREFIX):
+        return f'Pay with {card["product"]} (the offer you checked)'
+    return f'Pay with {card["bank"]} {card["product"]}'
+
+
+def _render_cart(plan: dict[str, Any], state: dict[str, Any]) -> str:
+    """One MOCK cart per store bill, and the same list as plain text for Copy and Share."""
+    skus = {sku["id"]: sku for sku in _v2_catalog()["skus"]}
+    delivery = state["fulfilment"] == "delivery"
+    fee = state["delivery_fee"] if delivery else 0
+    carts, text = [], [f'Savvy Cart list for {plan["day"]["weekday"].title()} {_short_date(plan["day"]["date"])} (MOCK, no order sent)']
+    for bill in plan["stores"]:
+        store = STORE_NAMES[bill["store_id"]]
+        rows = []
+        text.append(f"\n{store}: {_card_label(bill['card'])}")
+        for line in bill["lines"]:
+            sku = skus[line["sku_id"]]
+            qty = f'{_qty_text(line["qty"])}{" kg" if sku.get("unit") == "kg" else ""}'
+            unit_price = sku["prices"][bill["store_id"]]["amount_lkr"]
+            rows.append(f'<tr><td>{_e(line["name"])}</td><td class="num">{_e(qty)}</td><td class="num">{unit_price:,}</td>'
+                        f'<td class="num">{line["promoted_lkr"]:,}</td></tr>')
+            text.append(f'- {line["name"]} x {qty}: LKR {line["promoted_lkr"]:,}')
+        total = bill["bill_lkr"] + fee
+        foot = (f'<tr><td colspan="3">Card discount</td><td class="num">LKR {bill["card_discount_lkr"]:,}</td></tr>'
+                f'<tr><td colspan="3">Bill total</td><td class="num">LKR {bill["bill_lkr"]:,}</td></tr>')
+        if delivery:
+            foot += (f'<tr><td colspan="3">Delivery fee (assumption)</td><td class="num">LKR {fee:,}</td></tr>'
+                     f'<tr><td colspan="3">Store total</td><td class="num">LKR {total:,}</td></tr>')
+        text.append(f"Card discount LKR {bill['card_discount_lkr']:,}; bill LKR {bill['bill_lkr']:,}"
+                    + (f"; delivery LKR {fee:,}; total LKR {total:,}" if delivery else ""))
+        carts.append(f'<article class="cart" data-store="{_e(bill["store_id"])}"><header><h3>{_e(store)}</h3>'
+                     f'<span class="card-used">{_e(_card_label(bill["card"]))}</span></header>'
+                     '<div class="scroll"><table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit price (LKR)</th>'
+                     f'<th class="num">Amount (LKR)</th></tr></thead><tbody>{"".join(rows)}</tbody><tfoot>{foot}</tfoot></table></div></article>')
+    grand = sum(b["bill_lkr"] for b in plan["stores"]) + fee * len(plan["stores"])
+    trips = "" if delivery or not plan.get("extra_trip_cost_lkr") else (
+        f' plus {_money(plan["extra_trip_cost_lkr"])} for the extra trip, your estimate')
+    text.append(f"\nTotal LKR {grand:,}{trips}")
+    plain = "\n".join(text)
+    return (
+        f'<h3>Your cart ({"delivery" if delivery else "pickup"}, MOCK)</h3>{"".join(carts)}'
+        f'<p class="grand">Total {_money(grand)}{_e(trips)}</p>'
+        f'<textarea id="cart-text" class="sr-only" readonly aria-label="Cart as text" tabindex="-1">{_e(plain)}</textarea>'
+        '<div class="cart-actions"><button type="button" id="copy-cart">Copy list</button>'
+        f'<a href="https://wa.me/?text={_e(quote(plain))}" target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>'
+        '<span id="copy-done" class="source" role="status"></span></div>'
+    )
+
+
 def _render_approve(preview: dict[str, Any] | None, plan: dict[str, Any], state: dict[str, Any]) -> str:
-    body = (f'<p><strong>MOCK</strong> preview {_e(preview["preview_id"])}.</p>' if preview else "<p><strong>MOCK</strong> preview unavailable.</p>")
+    body = (f'<p>Cart reference (<strong>MOCK</strong>): {_e(preview["preview_id"])}.</p>' if preview
+            else "<p><strong>MOCK</strong> cart reference unavailable.</p>")
     delivery = state["fulfilment"] == "delivery"
     choice = "".join(
         f'<div class="check"><input type="radio" id="fulfilment_{value}" name="fulfilment" value="{value}"{" checked" if state["fulfilment"] == value else ""}>'
@@ -1223,14 +1429,15 @@ def _render_approve(preview: dict[str, Any] | None, plan: dict[str, Any], state:
     return (
         '<section class="step" id="approve" aria-labelledby="approve-h">'
         '<h2 id="approve-h">5. Approve</h2>'
-        f'<p class="recap">{_e(_engine_summary(plan))}</p>{_fictional_note()}'
+        f'<p class="recap">{_e(_engine_summary(plan))}</p>{_fictional_note()}{_held_notice(plan)}'
         f'<fieldset><legend>How you get the groceries</legend>{choice}'
         '<div class="field"><label for="delivery_fee">Delivery fee per store bill (LKR, an assumption you can change)</label>'
         f'<input type="number" id="delivery_fee" name="delivery_fee" min="0" max="5000" step="10" value="{state["delivery_fee"]}"></div>'
         "</fieldset>"
         f"{fees}"
+        f"{_render_cart(plan, state)}"
         f'<div class="mock">{body}<p>No order is sent. Savvy Cart does not contact any store or bank.</p></div>'
-        f'{_nav("plan", [("approve", "Update", True)])}'
+        f'{_nav("why", [("approve", "Update my cart", True)])}'
         "</section>"
     )
 
@@ -1250,6 +1457,8 @@ def _hidden_state(state: dict[str, Any], items: list[dict[str, Any]], step: int)
         fields.append(("day", state["day"]))
     if step != 4:
         fields += [("fulfilment", state["fulfilment"]), ("delivery_fee", str(state["delivery_fee"]))]
+    if _HELD.get() is not None:
+        fields.append(("held_offer", json.dumps(_rule_raw(_HELD.get()), sort_keys=True)))
     return "".join(f'<input type="hidden" name="{_e(k)}" value="{_e(v)}">' for k, v in fields)
 
 
@@ -1292,7 +1501,7 @@ def _layout(current: int, inner: str, state: dict[str, Any], items: list[dict[st
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>Savvy Cart AI</title>"
-        '<link rel="stylesheet" href="/static/app.css"></head><body>'
+        f'<link rel="stylesheet" href="/static/app.css?v={CSS_VERSION}"></head><body>'
         '<a class="skip-link" href="#main">Skip to the current step</a>'
         '<div class="banner" id="banner"><div class="wrap"><strong>Sample data, not live; savings are simulated.</strong>'
         f'<details><summary>What is real in this demo?</summary><p>{_e(V2_BANNER)}</p>'
@@ -1306,9 +1515,15 @@ def _layout(current: int, inner: str, state: dict[str, Any], items: list[dict[st
         f'<input type="hidden" name="receipt_json" value="{_e(json.dumps(state["added"]))}">'
         f"{_hidden_state(state, items, current if hidden_step is None else hidden_step)}"
         f"{inner}</form></div></main>"
+        '<div id="busy" class="busy" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span>'
+        '<span id="busy-text"></span></div>'
         '<footer class="site"><div class="wrap">Prototype for the Google Cloud AI Builder Cup. Pricing runs in code; Gemini explains it. '
-        "No login, no card numbers, no real orders.</div></footer></body></html>"
+        f'No login, no card numbers, no real orders.</div></footer><script src="/static/app.js?v={JS_VERSION}" defer></script></body></html>'
     )
+
+
+CSS_VERSION = hashlib.sha256((STATIC_DIR / "app.css").read_bytes()).hexdigest()[:10]
+JS_VERSION = hashlib.sha256((STATIC_DIR / "app.js").read_bytes()).hexdigest()[:10]
 
 
 def _mask_digits(text: str) -> str:
@@ -1374,7 +1589,7 @@ def _sample_offer() -> dict[str, Any]:
     return json.loads(SAMPLE_OFFER.read_text(encoding="utf-8"))
 
 
-def _form_rule(form: dict[str, list[str]]) -> tuple[dict[str, Any] | None, list[str]]:
+def _form_rule(form: dict[str, list[str]], today: _date | None = None) -> tuple[dict[str, Any] | None, list[str]]:
     """The confirm form, as the shopper left it, validated exactly like model output."""
     def get(key: str) -> str:
         return form.get(key, [""])[0].strip()
@@ -1389,18 +1604,21 @@ def _form_rule(form: dict[str, list[str]]) -> tuple[dict[str, Any] | None, list[
         "percent_off": get("o_rate") or None, "days": form.get("o_days", []), "minimum_bill_lkr": get("o_min") or None,
         "minimum_applies_to": "eligible_items" if get("o_basis") == "eligible" else "whole_bill",
         "max_discount_lkr": get("o_cap") or None, "excluded_items": terms,
+        "applies_only_to": [c for c in form.get("o_incl", []) if c in offercheck.CATEGORY_WORDS],
         "max_units_per_item": int(units) if units.isdigit() else None,
-        "combines_with_store_offers": "o_stack" in form, "valid_until": get("o_valid_to") or None,
+        # Still unstated while the shopper leaves the box as read; unticking it is their statement.
+        "combines_with_store_offers": None if "o_stack_unstated" in form and "o_stack" in form else "o_stack" in form,
+        "valid_until": get("o_valid_to") or None,
         "is_up_to": "o_upto" in form,
     }
-    rule, notes = offercheck.validate_rule(raw, _v2_catalog(), get("o_source") or "edited")
+    rule, notes = offercheck.validate_rule(raw, _v2_catalog(), get("o_source") or "edited", today)
     if rule is not None and "o_marked" in form:
         sku_ids = {s["id"] for s in _v2_catalog()["skus"]}
         rule["exclude_sku_ids"] = sorted(set(form.get("o_excl", [])) & sku_ids)
     return rule, notes
 
 
-async def _read_offer(request: Request, text: str, photo: Any) -> tuple[dict[str, Any] | None, list[str], str | None]:
+async def _read_offer(request: Request, text: str, photo: Any, today: _date) -> tuple[dict[str, Any] | None, list[str], str | None]:
     client = get_model_client(request)
     extract = getattr(client, "extract_offer", None)
     if extract is None:
@@ -1423,7 +1641,7 @@ async def _read_offer(request: Request, text: str, photo: Any) -> tuple[dict[str
     except Exception as exc:
         logger.warning("offer read failed: %s", type(exc).__name__)
         return None, [], "Gemini could not read that offer. Try the text instead of a photo, or type the terms below."
-    rule, notes = offercheck.validate_rule(raw, _v2_catalog(), "gemini")
+    rule, notes = offercheck.validate_rule(raw, _v2_catalog(), "gemini", today)
     return rule, notes, None
 
 
@@ -1496,7 +1714,10 @@ def _render_offer_result(rule: dict[str, Any], check: dict[str, Any], held: tupl
         f'<li><span>Counts toward the discount</span><strong>{_money(check["eligible_lkr"])} of {_money(check["bill_lkr"])}</strong></li>'
         f'<li><span>Minimum ({_e(basis)})</span><strong>{_money(rule["min_bill_lkr"])} {"met" if check["min_met"] else "not met"}</strong></li>'
         f'<li><span>Maximum discount</span><strong>{_e(cap)}</strong></li>'
-        f'<li><span>Combines with store promotions</span><strong>{"yes" if rule["stacks_with_promotions"] else "no"}</strong></li>'
+        f'<li><span>Combines with store promotions</span><strong>{"yes" if rule["stacks_with_promotions"] else "no"}'
+        f'{"" if rule.get("stacks_stated", True) else " (not stated in the offer)"}</strong></li>'
+        + (f'<li><span>Applies only to</span><strong>{_e(", ".join(rule["applies_only_to"]))}</strong></li>' if rule.get("applies_only_to") else "")
+        + ""
         "</ul>"
         '<div class="scroll"><table class="lines"><thead><tr><th>Item</th><th class="num">Price</th><th class="num">Counts</th><th>Why</th></tr></thead>'
         f"<tbody>{rows}</tbody></table></div>"
@@ -1504,6 +1725,8 @@ def _render_offer_result(rule: dict[str, Any], check: dict[str, Any], held: tupl
         '<p class="source">Store promotions in this demo are fictional shapes; the offer terms are as read and confirmed above.</p>'
         f'<p class="ok-note">{held_text}</p>'
         '<div class="actions"><button type="submit" name="action" value="plan" class="primary">Go to my shopping plan</button></div>'
+        f'<div class="actions"><button type="submit" name="action" value="offer_plan">Plan with this card on '
+        f'{_e(check["weekday"].title())} {_e(_short_date(check["day"]))}</button></div>'
         "</div>"
     )
 
@@ -1521,6 +1744,11 @@ def _render_rule_form(rule: dict[str, Any] | None) -> str:
         f'<label class="day"><input type="checkbox" name="o_excl" value="{_e(s["id"])}"{" checked" if s["id"] in r["exclude_sku_ids"] else ""}> '
         f"{_e(s['name'])}</label>"
         for s in _v2_catalog()["skus"]
+    )
+    incl = "".join(
+        f'<label class="day"><input type="checkbox" name="o_incl" value="{c}"{" checked" if c in r.get("include_categories", []) else ""}> '
+        f"{c.title()} items</label>"
+        for c in offercheck.CATEGORY_WORDS
     )
     rate = f"{r['rate_bps'] / 100:g}" if r["rate_bps"] else ""
     terms = ", ".join(r["excluded_items"]) or "none read"
@@ -1541,9 +1769,12 @@ def _render_rule_form(rule: dict[str, Any] | None) -> str:
         f'<div class="field"><label for="o_valid_to">Valid until</label><input type="date" id="o_valid_to" name="o_valid_to" value="{_e(r["valid_to"] or "")}"></div>'
         "</div>"
         f'<fieldset><legend>Valid on</legend><div class="days">{days}</div></fieldset>'
+        f'<fieldset><legend>Only these count (leave all unticked for the whole bill)</legend><div class="days">{incl}</div></fieldset>'
         f'<fieldset><legend>Excluded items in this catalog</legend><p class="source">The terms list: {_e(terms)}.</p><div class="days">{excl}</div></fieldset>'
         f'<div class="check"><input type="checkbox" id="o_stack" name="o_stack"{" checked" if r["stacks_with_promotions"] else ""}>'
         '<label for="o_stack">Can be combined with store promotions</label></div>'
+        + ('<input type="hidden" name="o_stack_unstated" value="1">' if not r.get("stacks_stated", True) else "")
+        + ""
         f'<input type="hidden" name="o_terms" value="{_e(json.dumps(r["excluded_items"]))}">'
         f'<input type="hidden" name="o_headline" value="{_e(r["headline"])}"><input type="hidden" name="o_products" value="{_e(r["card_products"])}">'
         f'<input type="hidden" name="o_source" value="{_e(r["source"])}"><input type="hidden" name="o_marked" value="1">'
@@ -1559,16 +1790,16 @@ async def _offer_view(request: Request, action: str, form: dict[str, list[str]],
     if action == "offer_sample":
         sample = _sample_offer()
         text = sample["text"]
-        rule, notes = offercheck.validate_rule(sample["extracted"], _v2_catalog(), "sample")
+        rule, notes = offercheck.validate_rule(sample["extracted"], _v2_catalog(), "sample", state["today"])
         source_note = (f'Sample: published terms from <a href="{_e(sample["source_url"])}" rel="noopener noreferrer">the bank&#39;s page</a>, '
                        f'captured {_e(sample["captured_on"])}; the reading is checked in so it works without a model. '
                        "Press <strong>Read it with Gemini</strong> to read the same text live.")
     elif action == "offer_read":
-        rule, notes, problem = await _read_offer(request, text, photo)
+        rule, notes, problem = await _read_offer(request, text, photo, state["today"])
         if rule:
             source_note = "Read by Gemini into a fixed schema, then checked by code. Confirm the terms below."
     elif action == "offer_check":
-        rule, notes = _form_rule(form)
+        rule, notes = _form_rule(form, state["today"])
         source_note = "Checked with the terms in the form."
     lines = _lines(items)
     result = ""
@@ -1616,7 +1847,8 @@ def guest_page() -> str:
     return _layout(0, _render_pantry(items, state, None), state, items, None)
 
 
-STEP_OF = {"pantry": 0, "sample": 0, "upload": 0, "add": 0, "wallet": 1, "plan": 2, "refused": 2, "explain": 3, "approve": 4}
+STEP_OF = {"pantry": 0, "sample": 0, "upload": 0, "add": 0, "wallet": 1, "plan": 2, "refused": 2, "offer_plan": 2, "drop_offer": 2,
+           "why": 3, "explain": 3, "approve": 4}
 
 
 @app.post("/ui", response_class=HTMLResponse)
@@ -1628,6 +1860,15 @@ async def guest_action(request: Request) -> str:
     step = STEP_OF.get(action, 0)
     message: str | None = None
     note: str | None = None
+    held = None if action == "drop_offer" else _held_from(state["held_raw"], state["today"])
+    if action == "offer_plan":
+        rule, _ = _form_rule(form, state["today"])
+        offer_day = offercheck.next_offer_day(rule, state["today"]) if rule else None
+        if rule and offer_day:
+            held, state["day"] = rule, offer_day.isoformat()
+        else:
+            message = "That offer has no valid day in the next 7 days, so there is nothing to plan with it."
+    _HELD.set(held)
 
     if action in ("sample", "upload"):
         if action == "sample":
@@ -1678,12 +1919,18 @@ async def guest_action(request: Request) -> str:
     elif step == 2:
         inner = _render_plan(plan, sweep, state, suggestions=_suggestions(plan, state, items, _lines(items)))
     elif step == 3:
-        inner = _render_why(await _explain_v2(request, plan, state, _lines(items)), plan, state["question"])
+        explanation = (_engine_explanation(plan) if action == "why"
+                       else await _explain_v2(request, plan, state, _lines(items)))
+        inner = _render_why(explanation, plan, state["question"] if action == "explain" else "")
     else:
         lines = [{"sku_id": l["sku_id"], "qty": max(1, round(l["qty"]))} for l in _lines(items)]
-        approved = await _internal_post(request, "/v1/approve", json={
-            "line_ids": lines, "day": {"weekday": plan["day"]["weekday"], "date": plan["day"]["date"]},
-            "card_product_id": ",".join(state["banks"]) or "none", "usual_store": state["usual_store"],
-            "store_id": plan["stores"][0]["store_id"] if plan["stores"] else None})
-        inner = _render_approve(approved.json() if approved.status_code == 200 else None, plan, state)
+        try:
+            preview = approve_plan(ApproveRequest(
+                line_ids=lines, day={"weekday": plan["day"]["weekday"], "date": plan["day"]["date"]},
+                card_product_id=",".join(state["banks"]) or "none", usual_store=state["usual_store"],
+                store_id=plan["stores"][0]["store_id"] if plan["stores"] else None))
+        except (HTTPException, ValueError) as exc:
+            logger.warning("approve preview failed: %s", type(exc).__name__)
+            preview = None
+        inner = _render_approve(preview, plan, state)
     return _layout(step, inner, state, items, message)

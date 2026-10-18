@@ -152,7 +152,7 @@ def test_each_plan_day_call_is_paired_with_its_own_response():
     assert notices == [
         f"The agent re-planned with different inputs: day 2026-10-24 instead of {confirmed_day}. Its comparison is not the plan above.",
         f"The agent tried to re-plan with different inputs (day &lt;img src=x onerror=alert(1)&gt; instead of {confirmed_day}; "
-        "max_stores 5 instead of 2); the call was refused, so nothing was re-planned.",
+        "at most 5 stores instead of 2); the call was refused, so nothing was re-planned.",
     ]  # paired by tool and order, the retried refusal shown once, model input escaped
     assert "<img src=x" not in why
 

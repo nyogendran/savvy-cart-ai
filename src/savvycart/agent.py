@@ -110,7 +110,31 @@ def plan_day(
     usual_store: str,
 ) -> dict[str, Any]:
     """Plan lines of {sku_id, qty} for an ISO day across at most max_stores stores using cards from these banks."""
-    catalog, offers = load_catalog(), load_offers()
+    return _plan_with(load_offers(), lines, day, banks, max_stores, trip_cost_lkr, usual_store)
+
+
+def _with_offers(extra_offers: list[dict[str, Any]]) -> dict[str, Any]:
+    offers = load_offers()
+    return {**offers, "card_offers": offers["card_offers"] + list(extra_offers)}
+
+
+def _session_offer_tools(extra_offers: list[dict[str, Any]]) -> list[Any]:
+    """load_offers and plan_day that also know the offer the shopper checked this session."""
+    def load_offers() -> dict[str, Any]:
+        """Return the v2 card offers (including the offer the shopper checked this session) and store promotions."""
+        return _with_offers(extra_offers)
+
+    def plan_day(lines: list[dict[str, Any]], day: str, banks: list[str], max_stores: int, trip_cost_lkr: int,
+                 usual_store: str) -> dict[str, Any]:
+        """Plan lines of {sku_id, qty} for an ISO day across at most max_stores stores using cards from these banks."""
+        return _plan_with(_with_offers(extra_offers), lines, day, banks, max_stores, trip_cost_lkr, usual_store)
+
+    return [load_offers, plan_day]
+
+
+def _plan_with(offers: dict[str, Any], lines: Any, day: Any, banks: Any, max_stores: Any, trip_cost_lkr: Any,
+               usual_store: Any) -> dict[str, Any]:
+    catalog = load_catalog()
     checked = _checked_lines(lines, {s["id"] for s in catalog["skus"]})
     if checked is None:
         return {"error": "lines must be a non-empty list of {sku_id, qty} with sku_id from load_catalog"}
@@ -178,13 +202,15 @@ def check_card_offer(
             "lines_used": checked}
 
 
-def build_agent(model: Any, extra_bills: list[dict[str, Any]] | None = None) -> Agent:
+def build_agent(model: Any, extra_bills: list[dict[str, Any]] | None = None,
+                extra_offers: list[dict[str, Any]] | None = None) -> Agent:
+    offer_tools = _session_offer_tools(extra_offers) if extra_offers else [load_offers, plan_day]
     return Agent(
         name="savvy_cart",
         description="Explains and compares grocery day plans across stores and the shopper's cards.",
         model=model,
         instruction=INSTRUCTION,
-        tools=[_session_pantry(extra_bills) if extra_bills else get_pantry, load_catalog, load_offers, plan_day,
+        tools=[_session_pantry(extra_bills) if extra_bills else get_pantry, load_catalog, *offer_tools,
                check_card_offer, explain_plan_numbers],
         before_tool_callback=before_tool_guard,
         after_tool_callback=after_tool_guard,
@@ -196,13 +222,14 @@ root_agent = build_agent(os.environ.get("GEMINI_MODEL", ""))
 
 
 async def ask_agent(question: str, context: dict[str, Any], agent: Agent | None = None,
-                    extra_bills: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+                    extra_bills: list[dict[str, Any]] | None = None,
+                    extra_offers: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Run one agent turn; return its text, the tools it called with arguments, and each result named by its tool."""
     from google.adk.runners import InMemoryRunner
     from google.genai import types
 
-    if agent is None and extra_bills:
-        agent = build_agent(os.environ.get("GEMINI_MODEL", ""), extra_bills)
+    if agent is None and (extra_bills or extra_offers):
+        agent = build_agent(os.environ.get("GEMINI_MODEL", ""), extra_bills, extra_offers)
     runner = InMemoryRunner(agent=agent or root_agent, app_name="savvy_cart")
     window = context.get("window") or {} if isinstance(context, dict) else {}
     # The question's numbers are the only offer terms check_card_offer may use; they never widen the answer's numbers.

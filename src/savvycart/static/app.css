@@ -225,6 +225,27 @@ nav.steps li button.linklike { min-height: 44px; }
 details summary { min-height: 44px; padding: 10px 0; }
 input[type="checkbox"], input[type="radio"] { width: 22px; height: 22px; }
 
+/* v2.6: busy state, cart */
+.busy { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 10; display: flex; align-items: center; gap: 10px;
+  max-width: calc(100% - 32px); padding: 12px 18px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
+.busy[hidden] { display: none; }
+.spinner { flex: none; width: 18px; height: 18px; border: 3px solid rgba(255, 255, 255, 0.35); border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+button:disabled { cursor: progress; }
+.cart { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin: 0 0 var(--gap); }
+.cart header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.cart table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 480px; }
+.cart th, .cart td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #eeeeea; }
+.cart .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cart tfoot td { font-weight: 600; border-bottom: 0; }
+.grand { font-size: 1.15rem; font-weight: 700; margin: 6px 0 12px; }
+.cart-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 16px; }
+.cart-actions a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--accent); border-radius: 8px;
+  color: var(--accent); font-weight: 600; text-decoration: none; }
+
 /* v2.5: tighter pantry rows, aligned quantities, stacked bills */
 .item details.reason summary { min-height: 28px; padding: 0; }
 .item > input[type="checkbox"] { grid-column: 1; grid-row: 1; }
