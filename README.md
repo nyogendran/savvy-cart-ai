@@ -76,15 +76,50 @@ flowchart LR
   class Agent,Vision,Offer,Explain model;
 ```
 
-| Piece | Role |
-| --- | --- |
-| **Cloud Run** | Serves the guided flow and the API. Minimum instances 0 (scale to zero). |
-| **Gemini on Agent Platform** | Runs on Gemini Enterprise Agent Platform (formerly Vertex AI). Reads receipt images into catalog-matched lines, reads bank offer text or screenshots into structured terms, and, through the agent, answers the shopper's questions from engine output. The Cloud Run service account authenticates, so no API key exists in the default deploy. |
-| **Agent Development Kit** | One agent, `root_agent`, with tools for the pantry, catalog, offers, day planner, and explanation numbers. It can call the planner again with other inputs. |
-| **Secret Manager** | Holds the Gemini model configuration, mounted into Cloud Run at deploy time. Nothing secret is in this repo. |
-| **OR-Tools (CP-SAT)** | The exact optimizer that assigns items to stores and applies offer rules. Runs in-process. |
+### Cloud Run — the judge-facing service
+
+- Region `asia-southeast1`; the FastAPI app (`src/savvycart/http.py`) served by uvicorn, source-built from the repo `Dockerfile` (`python:3.12-slim`, non-root user, port 8080).
+- **Scales to zero:** `--min-instances=0`, `--max-instances=3` (the cap bounds per-instance Gemini cost on a public URL), request `--timeout=120`.
+- **Guest access:** `--allow-unauthenticated`, no login. First load after idle takes tens of seconds while an instance starts.
+
+### Gemini — `gemini-3.8-flash` on the Gemini Enterprise Agent Platform
+
+| Gemini job | Input → output | How it stays grounded |
+| --- | --- | --- |
+| **Receipt extraction** | receipt photo → catalog SKU, decimal quantity, and a confidence per line | lines below 0.6 confidence stay unchecked; the image is never stored |
+| **Offer reading** | bank offer text or a screenshot → a fixed terms schema (rate, days, minimum, cap, exclusions, combining rules) | code validates every field; the shopper confirms before it counts |
+| **Explain** | the optimizer's JSON → a plain-language answer | the answer may quote only numbers the engine produced |
+| **Re-plan** | the shopper's question → a fresh `plan_day` call with new inputs | the page states plainly when it re-planned with different inputs |
+
+Measured live on 18 Oct 2026: the Why answer ≈ 30 s, offer reading ≈ 7 s.
+
+### Agent Development Kit — one agent, six tools
+
+`root_agent` exposes **`get_pantry`, `load_catalog`, `load_offers`, `plan_day`, `explain_plan_numbers`, and `check_card_offer`**, plus two guardrail callbacks that keep it inside the planning window and strip any ungrounded number. The Why step shows every tool call with its arguments.
+
+### OR-Tools (CP-SAT) — the money math
+
+An exact constraint solver assigns each item across up to four stores, applies the store promotion that saves most per line, and picks at most one card offer per bill, net of the cost of an extra trip. Runs in-process; the model never computes a rupee.
+
+### Secret Manager — configuration, not credentials
+
+Holds the `GEMINI_MODEL` id as deploy-time configuration. **No API key or credential is stored anywhere** — the runtime authenticates to Gemini with the Cloud Run service account's Application Default Credentials (ADC). Nothing secret is in this repo.
 
 **Google Cloud usage, in one paragraph (for the submission description):** The judge-facing app is a FastAPI service deployed on **Cloud Run** in `asia-southeast1` with minimum instances 0. Generative AI is **Gemini (`gemini-3.8-flash`) on the Gemini Enterprise Agent Platform**, orchestrated by a single **Agent Development Kit** agent that exposes planner tools and enforces grounding through ADK callbacks. The model configuration is held in **Secret Manager** and mounted at deploy; the runtime authenticates with the Cloud Run service account's Application Default Credentials, so no API key is stored anywhere. Receipt images are processed in memory and never written to disk, storage, or logs, and extraction is rate limited. Deploy steps are in [docs/deploy.md](docs/deploy.md).
+
+## Tech stack
+
+| Layer | Choice |
+| --- | --- |
+| Language | Python 3.12 (3.11+) |
+| Web & API | FastAPI, served by uvicorn |
+| Frontend | Server-rendered HTML with a small vanilla JS/CSS layer — no framework |
+| Generative AI | Gemini (`gemini-3.8-flash`) via `google-genai`, orchestrated with the Agent Development Kit (`google-adk` 2.x) |
+| Optimization | Google OR-Tools (CP-SAT), `ortools` 9.x |
+| HTTP client | `httpx` |
+| Tests | `pytest` — 120 passing |
+| Container & deploy | Docker (`python:3.12-slim`, non-root) → Cloud Run |
+| Google Cloud | Cloud Run, Gemini on Agent Platform, Secret Manager |
 
 ## What's real in this demo
 
