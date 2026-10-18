@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Savvy Cart AI — architecture on Google Cloud</title>
+<!-- Source for docs/images/architecture.png. Fixed 1880x830 canvas = the slide's 9.4 in content width at 200 px/in.
+     Render: msedge --headless --screenshot=architecture.png --window-size=1880,830 --force-device-scale-factor=2 architecture.html -->
+<style>
+  :root {
+    --blue: #1a73e8; --blue-tint: #e8f0fe; --blue-ink: #174ea6;
+    --yellow: #f9ab00; --yellow-tint: #fef7e0; --yellow-ink: #8a5a00;
+    --green: #188038; --run-bg: #fbfdfb;
+    --grey: #5f6368; --line: #dadce0; --ink: #202124;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1880px; height: 830px; background: #fff; overflow: hidden; }
+  body { position: relative; font-family: "Google Sans", "Segoe UI", Arial, sans-serif; color: var(--ink); }
+  .abs { position: absolute; }
+  .box { position: absolute; border-radius: 14px; padding: 12px 16px; background: #fff; border: 2px solid var(--line); }
+  h3 { font-size: 27px; font-weight: 700; line-height: 1.15; }
+  p, li { font-size: 22px; line-height: 1.27; }
+  .sub { color: var(--grey); font-size: 21px; margin-top: 3px; }
+  ul { padding-left: 22px; margin-top: 6px; }
+  li { margin-bottom: 3px; }
+  .pill { position: absolute; padding: 3px 14px; border-radius: 999px; font-size: 20px; font-weight: 700; letter-spacing: .4px; color: #fff; }
+  code, .chip { font-family: Consolas, "Courier New", monospace; }
+  .chip { display: inline-block; font-size: 19px; padding: 2px 8px; margin: 5px 5px 0 0; border-radius: 8px;
+          background: #fff; border: 1.5px solid var(--yellow); color: var(--yellow-ink); }
+  .ai { background: var(--yellow-tint); border-color: var(--yellow); }
+  .ai h3 { color: var(--yellow-ink); }
+  .eng h3 { color: var(--blue-ink); font-size: 25px; }
+  .eng p { margin-top: 6px; }
+  .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-right: 5px; vertical-align: 2px; }
+  svg.wires { position: absolute; left: 0; top: 0; width: 1880px; height: 830px; pointer-events: none; }
+  .lbl { position: absolute; font-size: 20px; color: var(--grey); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<!-- Shopper -->
+<div class="box" style="left:20px; top:210px; width:272px; height:400px; border-color:#9aa0a6;">
+  <svg width="60" height="60" viewBox="0 0 64 64" aria-hidden="true">
+    <circle cx="32" cy="32" r="31" fill="#e8eaed"/>
+    <circle cx="32" cy="24" r="10" fill="#5f6368"/>
+    <path d="M13 52c3-10 11-15 19-15s16 5 19 15" fill="#5f6368"/>
+  </svg>
+  <h3 style="margin-top:6px">Shopper</h3>
+  <p class="sub">Browser, guest, no login</p>
+  <ul>
+    <li>Receipt photo</li>
+    <li>Bank offer text or screenshot</li>
+    <li>Questions</li>
+    <li>Approves the plan</li>
+  </ul>
+</div>
+
+<!-- Google Cloud boundary -->
+<div class="abs" style="left:330px; top:12px; width:1534px; height:740px; border:2.5px dashed #9aa0a6; border-radius:20px;"></div>
+<div class="abs" style="left:350px; top:22px; font-size:25px; font-weight:700;">
+  <span class="dot" style="background:#4285f4"></span><span class="dot" style="background:#ea4335"></span><span class="dot" style="background:#fbbc04"></span><span class="dot" style="background:#34a853"></span>
+  Google Cloud <span style="font-weight:400; color:var(--grey); font-size:21px;">· asia-southeast1</span>
+</div>
+
+<!-- Cloud Run -->
+<div class="box" style="left:352px; top:64px; width:1026px; height:672px; border-color:var(--green); background:var(--run-bg);">
+  <h3 style="color:var(--green)">Cloud Run · <code style="font-size:25px">savvy-cart</code></h3>
+  <p class="sub">FastAPI on uvicorn · five-step wizard and JSON API · MOCK approval · scales 0 → 3 instances</p>
+</div>
+
+<!-- AI lane -->
+<div class="abs ai" style="left:376px; top:158px; width:976px; height:214px; border:2px solid var(--yellow); border-radius:14px;"></div>
+<div class="pill" style="left:392px; top:144px; background:var(--yellow);">AI READS AND EXPLAINS</div>
+
+<div class="box" style="left:396px; top:186px; width:330px; height:170px;">
+  <h3 style="color:var(--yellow-ink)">Document reading</h3>
+  <p class="sub"><code>google-genai</code></p>
+  <ul>
+    <li>Receipt photo → catalog lines</li>
+    <li>Bank offer → terms schema</li>
+  </ul>
+</div>
+
+<div class="box" style="left:742px; top:186px; width:590px; height:170px;">
+  <h3 style="color:var(--yellow-ink)">ADK agent · <code style="font-size:24px">root_agent</code></h3>
+  <div>
+    <span class="chip">get_pantry</span><span class="chip">load_catalog</span><span class="chip">load_offers</span><span class="chip">plan_day</span><span class="chip">explain_plan_numbers</span><span class="chip">check_card_offer</span>
+  </div>
+  <p style="font-size:20px; margin-top:7px; color:var(--grey)">Guardrails: stay in the planning window · strip ungrounded numbers</p>
+</div>
+
+<!-- Engine lane -->
+<div class="abs" style="left:376px; top:432px; width:976px; height:218px; background:var(--blue-tint); border:2px solid var(--blue); border-radius:14px;"></div>
+<div class="pill" style="left:702px; top:418px; background:var(--blue);">DETERMINISTIC CODE</div>
+
+<div class="box eng" style="left:396px;  top:462px; width:222px; height:172px;">
+  <h3>Pantry</h3>
+  <p>Due dates from the median purchase gap</p>
+</div>
+<div class="box eng" style="left:634px;  top:462px; width:222px; height:172px;">
+  <h3>Offer Reality Check</h3>
+  <p>Exclusions, minimum, cap → real payout</p>
+</div>
+<div class="box eng" style="left:872px;  top:462px; width:222px; height:172px;">
+  <h3>OR&#8209;Tools CP&#8209;SAT</h3>
+  <p>≤ 4 stores, promos, one card offer per bill</p>
+</div>
+<div class="box eng" style="left:1110px; top:462px; width:222px; height:172px;">
+  <h3>Grounding check</h3>
+  <p>Drops any number the engine didn't produce</p>
+</div>
+
+<!-- Data -->
+<div class="box" style="left:376px; top:664px; width:976px; height:54px; padding:11px 16px; background:#f8f9fa;">
+  <p style="font-size:21px"><b>Versioned JSON data:</b> catalog · store promotions · bank offers · de-identified receipt history</p>
+</div>
+
+<!-- Managed services -->
+<div class="box ai" style="left:1400px; top:64px; width:440px; height:308px;">
+  <h3>Gemini 3.8 Flash</h3>
+  <p class="sub">Gemini Enterprise Agent Platform</p>
+  <ul>
+    <li>Reads receipts and bank offers into JSON schemas</li>
+    <li>Explains and re-plans; may quote only engine numbers</li>
+  </ul>
+</div>
+<div class="box" style="left:1400px; top:432px; width:440px; height:122px;">
+  <h3>Secret Manager</h3>
+  <p style="margin-top:6px"><code style="font-size:20px">GEMINI_MODEL</code> model id, mounted at deploy</p>
+</div>
+<div class="box" style="left:1400px; top:574px; width:440px; height:162px;">
+  <h3>Service account</h3>
+  <p style="margin-top:6px">Cloud Run runs as <code style="font-size:20px">savvy-cart-run</code>; short-lived tokens via ADC. <b>No API keys.</b></p>
+</div>
+
+<!-- Wires -->
+<svg class="wires" viewBox="0 0 1880 830" aria-hidden="true">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5f6368"/>
+    </marker>
+  </defs>
+  <g stroke="#5f6368" stroke-width="3" fill="none">
+    <line x1="294" y1="410" x2="350" y2="410" marker-start="url(#a)" marker-end="url(#a)"/>
+    <line x1="1334" y1="270" x2="1398" y2="270" marker-start="url(#a)" marker-end="url(#a)"/>
+    <line x1="507"  y1="358" x2="507"  y2="460" marker-end="url(#a)"/>
+    <line x1="660"  y1="358" x2="660"  y2="460" marker-end="url(#a)"/>
+    <line x1="1010" y1="358" x2="1010" y2="460" marker-end="url(#a)"/>
+    <line x1="1221" y1="358" x2="1221" y2="460" marker-end="url(#a)"/>
+    <line x1="1398" y1="493" x2="1380" y2="493" marker-end="url(#a)" stroke-dasharray="6 5"/>
+    <line x1="1398" y1="655" x2="1380" y2="655" stroke-dasharray="6 5"/>
+  </g>
+</svg>
+
+<div class="lbl" style="left:672px;  top:380px;">validated by code</div>
+<div class="lbl" style="left:1020px; top:380px;">tool calls</div>
+<div class="lbl" style="left:1231px; top:382px;">answer</div>
+
+<!-- Tagline -->
+<div class="abs" style="left:0; top:772px; width:1880px; text-align:center; font-size:27px;">
+  <b>Gemini reads documents and explains.</b> Deterministic code owns every price, discount, and total.
+</div>
+
+</body>
+</html>

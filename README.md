@@ -2,7 +2,7 @@
 
 **A condition-aware grocery basket optimizer for Sri Lankan households — built on Google Cloud with Gemini and the Agent Development Kit.** It reads your receipts, works out what you are running low on, and plans the cheapest *legal* way to buy it on a chosen day: up to four stores, one card per bill, every exclusion, minimum, cap, and card rule applied in code — not guessed by a model. Then the shopper decides.
 
-**[▶ Live demo](https://savvy-cart-890425261137.asia-southeast1.run.app)** · [Pitch deck (PDF)](docs/submission/Savvy-Cart-AI-gTaprobane-Submission.pdf) · Built for the [Google Cloud AI Builder Cup 2026](https://aibuildercup.com/), Retail & Commerce theme.
+**[▶ Live demo](https://savvy-cart-890425261137.asia-southeast1.run.app)** · [Pitch deck (PDF)](docs/submission/Savvy-Cart-AI-gTaprobane-Pitch-Deck.pdf) · Built for the [Google Cloud AI Builder Cup 2026](https://aibuildercup.com/), Retail & Commerce theme.
 
 <!-- Demo video (≤3 min): add the YouTube / Vimeo / public Drive link here before submitting, e.g. [▶ Demo video](https://youtu.be/...) -->
 
@@ -91,7 +91,7 @@ flowchart LR
 | **Explain** | the optimizer's JSON → a plain-language answer | the answer may quote only numbers the engine produced |
 | **Re-plan** | the shopper's question → a fresh `plan_day` call with new inputs | the page states plainly when it re-planned with different inputs |
 
-Measured live on 18 Oct 2026: the Why answer ≈ 30 s, offer reading ≈ 7 s.
+Measured live on 18 Oct 2026: the Why answer ≈ 15-50 s, offer reading ≈ 5-7 s.
 
 ### Agent Development Kit — one agent, six tools
 

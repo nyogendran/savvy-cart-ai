@@ -48,8 +48,15 @@ Cloud Run service uses:
 
 | Call | Observed latency |
 | --- | --- |
-| Agent "Why" explanation (multi-tool turn) | about 30 seconds |
-| Reading the sample bank offer text into terms | about 7 seconds |
+| Agent "Why" explanation (multi-tool turn) | 15 to 50 seconds |
+| Reading the sample bank offer text into terms | 5 to 7 seconds |
+
+The agent's time is almost all sequential Gemini calls: 3 to 7 per question,
+depending on which tools the model chooses, while the tools themselves return in
+milliseconds. The largest single cost is `explain_plan_numbers`, whose plan
+argument the model writes out again as output (up to about 1,300 tokens). The
+Why step still opens in under 2 seconds with the engine explanation; the agent
+runs only when the shopper presses **Ask**.
 
 The Cloud Run service account authenticates with Application Default
 Credentials, so **no API key exists in the default deploy**. Receipt images are

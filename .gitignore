@@ -23,6 +23,8 @@ build/
 *.log
 # Pitch deck drafts and page renders; the final deck lives in docs/submission/
 .pitch-build/
+# Office lock files while a deck is open
+~$*
 .DS_Store
 Thumbs.db
 
