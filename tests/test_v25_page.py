@@ -6,6 +6,7 @@ import html
 import re
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from savvycart.http import V2_BANNER, _half_kilos, _v2_catalog, app
@@ -14,6 +15,14 @@ from test_v21_page import _submit
 from test_v24_page import _last, _text
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(autouse=True)
+def _fresh_explanation_budget():
+    """These tests run many scripted explanations; leave the process-wide per-minute cap as later tests expect it."""
+    app.state.model_rate_limiter = None
+    yield
+    app.state.model_rate_limiter = None
 
 
 def _bills(page: str) -> dict[str, str]:
@@ -172,10 +181,21 @@ def test_refused_then_completed_retries_and_other_tool_errors_are_disclosed_accu
     # Another tool's error is never paired with a plan_day call.
     assert notices_for([{"name": "load_offers", "args": lambda c: {}}, {"name": "plan_day", "args": other_day}],
                        [{"name": "load_offers", "response": {"error": "offers unavailable"}}, {"name": "plan_day", "response": done}]) == ["re-planned"]
-    # Two different refused baskets are two attempts; two completed re-plans are each disclosed, as before.
-    basket = lambda qty: (lambda c: dict(c, lines=[dict(l, qty=qty) if l["sku_id"] == "carrot" else l for l in c["lines"]]))
+    # A retry listing the same cards in another order is the same request.
+    cards = lambda order: (lambda c: {k: v for k, v in dict(c, banks=order).items() if k != "usual_store" or order[0] == "Commercial Bank"})
+    assert notices_for([{"name": "plan_day", "args": cards(["Nations Trust Bank", "Commercial Bank"])},
+                        {"name": "plan_day", "args": cards(["Commercial Bank", "Nations Trust Bank"])}],
+                       [{"name": "plan_day", "response": error}, {"name": "plan_day", "response": done}]) == ["re-planned"]
+    # A refused basket change is not hidden by a different basket change that completed.
+    added = lambda c: dict(c, lines=c["lines"] + [{"sku_id": "papaya", "qty": 2}])
+    left_out = lambda c: dict(c, lines=[l for l in c["lines"] if l["sku_id"] != "tomatoes"])
+    assert notices_for([{"name": "plan_day", "args": added}, {"name": "plan_day", "args": left_out}],
+                       [{"name": "plan_day", "response": error}, {"name": "plan_day", "response": done}]) == ["re-planned", "tried"]
+    # Refused retries that would read identically (reordered lines, other baskets) are one sentence, not a repeated one.
+    basket = lambda qty: (lambda c: dict(c, lines=[dict(l, qty=qty) if l["sku_id"] == "carrot" else l for l in reversed(c["lines"])]))
     assert notices_for([{"name": "plan_day", "args": basket(3)}, {"name": "plan_day", "args": basket(4)}],
-                       [{"name": "plan_day", "response": error}, {"name": "plan_day", "response": error}]) == ["tried", "tried"]
+                       [{"name": "plan_day", "response": error}, {"name": "plan_day", "response": error}]) == ["tried"]
+    # Two completed re-plans are each disclosed, as before.
     assert notices_for([{"name": "plan_day", "args": other_day}, {"name": "plan_day", "args": other_day}],
                        [{"name": "plan_day", "response": done}, {"name": "plan_day", "response": done}]) == ["re-planned", "re-planned"]
 
