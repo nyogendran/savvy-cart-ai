@@ -23,6 +23,7 @@ CATEGORY_WORDS = {
 NETWORKS = ("mastercard", "visa", "american express", "amex", "unionpay")
 MONTH_NAMES = ("january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december")
 MONTHS = {name: i for i, name in enumerate(MONTH_NAMES, 1)} | {name[:3]: i for i, name in enumerate(MONTH_NAMES, 1)} | {"sept": 9}
+UNSTATED = {"not stated", "unknown", "null", "none", "n/a", "na", "unnamed bank", "-"}
 NO_CATALOG_ITEMS = "__nothing_in_this_catalog__"  # internal: nothing in this catalog counts; a model cannot send it by accident
 
 # Gemini reads the offer into this shape; code decides what every field means.
@@ -246,18 +247,24 @@ def validate_rule(raw: Any, catalog: dict[str, Any], source: str, today: date | 
         notes.append("No end date could be read.")
     elif inferred:
         notes.append(f"End date read as {valid_to}.")
+    bank_text = _text(raw.get("bank"), 60)
+    if bank_text.lower().replace("_", " ") in UNSTATED:
+        bank_text = ""
     for term in only:
         categories = covered_categories([term], catalog)[0]
         if len(categories) > 1:
             notes.append(f"“{term}” was read as {' and '.join(categories)} items; untick what does not apply.")
-    # Only a bare network name (with card words) is a network; "NDB Mastercard" names an issuer.
-    bare = " ".join(w for w in re.findall(r"[a-z]+", _text(raw.get("bank"), 60).lower()) if w not in ("card", "cards", "credit", "debit"))
-    network = {"mastercard": "Mastercard", "visa": "Visa", "american express": "American Express", "amex": "American Express",
-               "unionpay": "UnionPay"}.get(bare)
+    # Only a bare network name (with card words) is a network; "NDB Mastercard" names an issuer. With no bank stated, the card
+    # products text ("Mastercard Credit Cards") is what names the network.
+    def bare(value: Any) -> str:
+        return " ".join(w for w in re.findall(r"[a-z]+", _text(value, 120).lower()) if w not in ("card", "cards", "credit", "debit"))
+    names = {"mastercard": "Mastercard", "visa": "Visa", "american express": "American Express", "amex": "American Express",
+             "unionpay": "UnionPay"}
+    network = names.get(bare(bank_text)) or (None if bank_text else names.get(bare(raw.get("card_products"))))
     if network:
         notes.append(f"{network} is a card network, not a bank: the offer is for any {network} card of the kind named. Check which of your cards it is.")
     rule = {
-        "bank": _text(raw.get("bank"), 60) or "Unnamed bank",
+        "bank": bank_text or "Unnamed bank",
         "card_products": _text(raw.get("card_products"), 120),
         "headline": _text(raw.get("headline"), 200),
         "store_id": store,

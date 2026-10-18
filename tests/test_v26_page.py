@@ -93,6 +93,8 @@ def test_offer_end_dates_networks_and_unstated_terms():
     assert offercheck.read_end_date("till 31st October", today) == ("2026-10-31", True)
     assert offercheck.read_end_date("Marked 5 days", today) == (None, False)
     assert offercheck.read_end_date("29 Feb", today) == ("2028-02-29", True)
+    unstated, unstated_notes = offercheck.validate_rule({**SMS, "bank": "not_stated"}, _v2_catalog(), "t", today)
+    assert unstated["bank"] == "Unnamed bank" and any("Mastercard is a card network" in n for n in unstated_notes)  # live Gemini's shape
     for issuer in ("NDB Mastercard", "DFCC Visa", "Advisa Credit"):
         assert not any("card network" in n for n in offercheck.validate_rule({**SMS, "bank": issuer}, _v2_catalog(), "t", today)[1]), issuer
     multi = offercheck.validate_rule({**SMS, "applies_only_to": ["Vegetable oil"]}, _v2_catalog(), "t", today)
