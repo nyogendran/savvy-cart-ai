@@ -224,6 +224,18 @@ def test_card_differences_list_both_sides_sorted():
                  "banks": ["Nations Trust Bank", "Commercial Bank", "HNB"], "lines": []}
     assert _replan_differences({"banks": ["HNB", "Commercial Bank"]}, confirmed) == [
         "cards Commercial Bank, HNB instead of Commercial Bank, HNB, Nations Trust Bank"]
+    basket = dict(confirmed, lines=[{"sku_id": "carrot", "qty": 2}])
+    # Rows are summed before rounding, as the planner does: a split of the same basket is no change, a tiny addition is.
+    assert _replan_differences({"lines": [{"sku_id": "carrot", "qty": 0.0005}] * 4 + [{"sku_id": "carrot", "qty": 1.998}]}, basket) == []
+    assert _replan_differences({"lines": [{"sku_id": "carrot", "qty": 2}] + [{"sku_id": "carrot", "qty": 0.0004}] * 3}, basket) == [
+        "a different basket"]
+    # Quantities whose 3-decimal form equals their repr (1.998, 1.034) are numbers too.
+    assert _replan_differences({"lines": [{"sku_id": "carrot", "qty": 1.034}]}, dict(confirmed, lines=[{"sku_id": "carrot", "qty": 1.034}])) == []
+    assert _replan_differences({"trip_cost_lkr": 250.5}, dict(confirmed, trip_cost_lkr="250.5")) == []
+    # Malformed rows are never silently dropped.
+    for lines in ([{"sku_id": "carrot", "qty": 2}, {"sku_id": "carrot", "qty": "bad"}], [{"sku_id": "carrot", "qty": 2}, "junk"],
+                  {"sku_id": "carrot", "qty": 2, "extra": True} | {"qty": None}, "carrot"):
+        assert _replan_differences({"lines": lines}, basket) == ["a different basket"], lines
 
 
 def test_bill_marks_fictional_rows_when_sources_are_mixed():

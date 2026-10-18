@@ -1044,22 +1044,32 @@ def _qty_key(value: Any) -> str:
         return repr(value)
 
 
+def _number(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
 def _scalar_key(value: Any) -> str:
     """2, 2.0 and "2" are the same request; a day or store name stays text."""
-    return _qty_key(value) if not isinstance(value, bool) and _qty_key(value) != repr(value) else str(value)
+    number = _number(value)
+    return f"{number:.3f}" if number is not None else str(value)
 
 
 def _lines_key(lines: Any) -> list[tuple[str, str]]:
-    """Rows for the same item are one line, as the planner merges them."""
+    """Rows for the same item are one line, summed before rounding as the planner merges them."""
     totals: dict[str, float] = {}
     odd = []
     for line in lines if isinstance(lines, list) else [lines]:
-        qty = _qty_key(line.get("qty")) if isinstance(line, dict) else None
-        if qty is None or qty == repr(line.get("qty")):
+        qty = _number(line.get("qty")) if isinstance(line, dict) else None
+        if qty is None:
             odd.append(("", repr(line)))
         else:
             sku = str(line.get("sku_id"))
-            totals[sku] = totals.get(sku, 0.0) + float(qty)
+            totals[sku] = totals.get(sku, 0.0) + qty
     return sorted([(sku, f"{qty:.3f}") for sku, qty in totals.items()] + odd)
 
 
