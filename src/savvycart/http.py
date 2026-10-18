@@ -659,6 +659,16 @@ def _reason_text(item: dict[str, Any]) -> str:
     return text
 
 
+def _timing_text(item: dict[str, Any]) -> str:
+    if _is_stale(item):
+        return f"Last bought {_short_date(item['last_bought'])}"
+    left = item["days_left"]
+    if left == 0:
+        return "Due today"
+    days = f"{abs(left)} day{'s' if abs(left) != 1 else ''}"
+    return f"Due in {days}" if left > 0 else f"Overdue by {days}"
+
+
 def _qty_text(qty: Any) -> str:
     return f"{float(qty):g}"
 
@@ -667,7 +677,13 @@ def _render_pantry(items: list[dict[str, Any]], state: dict[str, Any], note: str
     def row(item: dict[str, Any]) -> str:
         sku = _e(item["sku_id"])
         status = item["display_status"]
-        reason = "You added this item." if status == "added" else _reason_text(item)
+        if status == "added":
+            reason = '<span class="reason">You added this item.</span>'
+        elif item["status"] == "unknown":
+            reason = f'<span class="reason">{_e(item["reason"])}</span>'
+        else:
+            reason = (f'<details class="reason"><summary>{_e(_timing_text(item))}</summary>'
+                      f"<p>{_e(_reason_text(item))}</p></details>")
         divisible = item.get("divisible")
         step, mn = ("any", "0.001") if divisible else ("1", "1")
         unit = "kg" if divisible else "pack" if "pack" in item["name"].lower() else ""
@@ -678,7 +694,7 @@ def _render_pantry(items: list[dict[str, Any]], state: dict[str, Any], note: str
             f'<label class="name" for="sku_{sku}">{_e(item["name"])} <span class="status {_e(status)}">{_e(STATUS_TEXT[status])}</span></label>'
             f'<span class="qty"><label class="sr-only" for="qty_{sku}">Quantity of {_e(item["name"])}{" in kg" if divisible else ""}</label>'
             f'<input type="number" id="qty_{sku}" name="qty_{sku}" min="{mn}" max="{MAX_QTY}" step="{step}" value="{_qty_text(item["qty"])}">{unit_html}</span>'
-            f'<span class="reason">{_e(reason)}</span>'
+            f"{reason}"
             "</div>"
         )
 
@@ -700,7 +716,8 @@ def _render_pantry(items: list[dict[str, Any]], state: dict[str, Any], note: str
     return (
         '<section class="step" id="pantry" aria-labelledby="pantry-h">'
         '<h2 id="pantry-h">1. Pantry: what is running low</h2>'
-        '<p class="lead">Estimated from purchase history: the usual gap between buys, and the last purchase date. No guessing model.</p>'
+        '<p class="lead"><strong>Check what you need for your next shop.</strong> '
+        "Estimated from purchase history: the usual gap between buys, and the last purchase date. No guessing model.</p>"
         f"{note or ''}"
         '<div class="grid two">'
         '<div class="field"><label for="today">Pretend today is (demo control; the history ends 17 Oct 2026)</label>'
@@ -785,11 +802,11 @@ def _render_bill(bill: dict[str, Any]) -> str:
     return (
         f'<article class="bill" data-store="{_e(bill["store_id"])}">'
         f'<header><h3>{_e(STORE_NAMES[bill["store_id"]])}</h3>{card}</header>'
-        '<table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Shelf</th><th class="num">Promotion</th></tr></thead>'
+        '<div class="scroll"><table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Shelf</th><th class="num">Promotion</th></tr></thead>'
         f"<tbody>{rows}</tbody><tfoot>"
         f'<tr><td colspan="3">Card discount</td><td class="num">{_money(bill["card_discount_lkr"])}</td></tr>'
         f'<tr><td colspan="3">Bill total</td><td class="num">{_money(bill["bill_lkr"])}</td></tr>'
-        f"</tfoot></table>{terms}</article>"
+        f"</tfoot></table></div>{terms}</article>"
     )
 
 
@@ -924,8 +941,9 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
     return (
         '<section class="step" id="plan" aria-labelledby="plan-h">'
         f'<h2 id="plan-h">3. Plan for {_e(weekday)} {_e(plan["day"]["date"])}{_e(title_note)}</h2>'
-        f'<p class="lead">{len(plan["stores"])} store{"s" if len(plan["stores"]) != 1 else ""}{allowed}, chosen by an exact optimizer '
-        f'(OR-Tools CP-SAT, status {_e(plan["solver_status"])}). Store promotions apply first, then at most one card offer per bill.</p>'
+        f'<p class="recommendation" id="plan-recommendation">{_e(_recommendation(plan))}</p>'
+        f'<p class="lead">{len(plan["stores"])} store{"s" if len(plan["stores"]) != 1 else ""}{allowed}. '
+        "Store promotions apply first, then at most one card offer per bill.</p>"
         '<div class="summary">'
         f'<div class="metric highlight"><div class="value">{_money(plan["effective_cost_lkr"])}</div><div class="label">Plan total{_e(extra)}</div></div>'
         f'<div class="metric"><div class="value">{_money(plan.get("saving_vs_usual_lkr"))}</div>'
@@ -941,10 +959,24 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
         f"{misses}{ideas}{unpriced}{sweep_html}"
         '<div class="callout"><div><strong>These bank terms are assumptions.</strong> Paste a real offer and check what it pays on this basket.</div>'
         '<button type="submit" name="action" value="offer">Check a card offer</button></div>'
-        f'<p class="source">Engine steps: pantry (purchase history), catalog and offers, planner (OR-Tools CP-SAT). Trip cost {_money(plan["trip_cost_lkr"])} per extra store.</p>'
+        '<details class="how"><summary>How this was calculated</summary>'
+        f'<p class="source">Stores chosen by an exact optimizer (OR-Tools CP-SAT, status {_e(plan["solver_status"])}). '
+        "Engine steps: pantry (purchase history), catalog and offers, planner (OR-Tools CP-SAT). "
+        f'Trip cost {_money(plan["trip_cost_lkr"])} per extra store.</p></details>'
         f'{_nav("wallet", [("approve", "Approve plan", False), ("explain", "Next: explain this plan", True)])}'
         "</section>"
     )
+
+
+def _recommendation(plan: dict[str, Any]) -> str:
+    bills = plan["stores"]
+    if not bills:
+        return "No store can price this basket."
+    names = [STORE_NAMES[b["store_id"]] for b in bills]
+    where = names[0] if len(names) == 1 else f'{", ".join(names[:-1])} and {names[-1]}'
+    cards = [f'Pay with {b["card"]["bank"]} {b["card"]["product"]} at {STORE_NAMES[b["store_id"]]}.' for b in bills if b["card"]]
+    shop = f'Shop on {plan["day"]["weekday"].title()} {_short_date(plan["day"]["date"])} at {where}.'
+    return " ".join([shop] + (cards or ["No card offer applies to this basket."]))
 
 
 def _engine_summary(plan: dict[str, Any]) -> str:
@@ -1059,13 +1091,11 @@ def _render_why(explanation: dict[str, Any], plan: dict[str, Any], question: str
     ) or "<li>No tool calls.</li>"
     if len(explanation["calls"]) > 20:
         calls += f'<li>{len(explanation["calls"]) - 20} more tool calls not shown.</li>'
-    if explanation["replans"]:
-        replan = "".join(f'<p class="notice">The agent re-planned with different inputs: {_e("; ".join(d))}. Its comparison is not the plan above.</p>'
-                         for d in explanation["replans"])
-    elif explanation["calls"]:
-        replan = '<p class="ok-note">The agent did not change your inputs.</p>'
-    else:
-        replan = ""
+    replan = "".join(f'<p class="notice">The agent re-planned with different inputs: {_e("; ".join(d))}. Its comparison is not the plan above.</p>'
+                     for d in explanation["replans"])
+    unchanged = '<p class="ok-note">The agent did not change your inputs.</p>' if explanation["calls"] and not replan else ""
+    count = len(explanation["calls"])
+    count_text = "no agent tool calls" if not count else "1 agent tool call" if count == 1 else f"{count} agent tool calls"
     return (
         '<section class="step" id="why" aria-labelledby="why-h">'
         '<h2 id="why-h">4. Why this plan</h2>'
@@ -1075,7 +1105,8 @@ def _render_why(explanation: dict[str, Any], plan: dict[str, Any], question: str
         f'<p class="source" id="explanation-source">{_e(explanation["source"])}</p>'
         f'<p id="explanation-text">{_e(explanation["text"])}</p>'
         f"{replan}"
-        f'<h3>Agent tools called</h3><ul class="tools" id="agent-tools">{calls}</ul>'
+        f'<details class="how"><summary>How this was calculated: {count_text}</summary>'
+        f'{unchanged}<ul class="tools" id="agent-tools">{calls}</ul></details>'
         f'{_nav("plan", [("approve", "Next: approve", True)])}'
         "</section>"
     )
@@ -1131,6 +1162,38 @@ def _hidden_state(state: dict[str, Any], items: list[dict[str, Any]], step: int)
     return "".join(f'<input type="hidden" name="{_e(k)}" value="{_e(v)}">' for k, v in fields)
 
 
+AVATAR_SVG = (
+    '<svg viewBox="0 0 56 56" aria-hidden="true" focusable="false">'
+    '<defs><clipPath id="avatar-clip"><circle cx="28" cy="28" r="28"/></clipPath></defs>'
+    '<circle cx="28" cy="28" r="28" fill="#e3f1ec"/>'
+    '<g clip-path="url(#avatar-clip)">'
+    '<path d="M9 58c0-13 8-20 19-20s19 7 19 20z" fill="#0b6e4f"/>'
+    '<rect x="24.5" y="31" width="7" height="8" rx="3" fill="#8d5a3b"/>'
+    '<circle cx="28" cy="24" r="10" fill="#8d5a3b"/>'
+    '<path d="M18 23c0-7 4.5-10.5 10-10.5S38 16 38 23c-2.5-3.5-6-5-10-5s-7.5 1.5-10 5z" fill="#1d1d1b"/>'
+    '<circle cx="24.4" cy="25" r="1.2" fill="#1d1d1b"/><circle cx="31.6" cy="25" r="1.2" fill="#1d1d1b"/>'
+    '<path d="M24.6 28.6q3.4 2.8 6.8 0" fill="none" stroke="#1d1d1b" stroke-width="1.3" stroke-linecap="round"/>'
+    "</g>"
+    '<path d="M39.5 38.5v-2a3 3 0 0 1 6 0v2" fill="none" stroke="#0b6e4f" stroke-width="1.6"/>'
+    '<rect x="36.5" y="38.5" width="12" height="11" rx="2" fill="#9fd3bf" stroke="#0b6e4f" stroke-width="1.4"/>'
+    "</svg>"
+)
+
+
+def _card_count(banks: list[str]) -> str:
+    return "no cards" if not banks else "1 card" if len(banks) == 1 else f"{len(banks)} cards"
+
+
+def _render_profile(state: dict[str, Any], compact: bool) -> str:
+    facts = (f'{_money(state["budget"])} budget · {_card_count(state["banks"])} · '
+             f'Usually shops at {_e(STORE_NAMES[state["usual_store"]])}')
+    return (
+        f'<aside class="profile{" compact" if compact else ""}" aria-label="Demo household">{AVATAR_SVG}'
+        "<div><p class=\"who\"><strong>Karuppan's household · Colombo</strong> <span class=\"tag\">Fictional demo profile</span></p>"
+        f'<p class="facts">{facts}</p></div></aside>'
+    )
+
+
 def _layout(current: int, inner: str, state: dict[str, Any], items: list[dict[str, Any]], message: str | None,
             hidden_step: int | None = None) -> str:
     alert = f'<p class="notice" role="status">{_e(message)}</p>' if message else ""
@@ -1140,11 +1203,13 @@ def _layout(current: int, inner: str, state: dict[str, Any], items: list[dict[st
         "<title>Savvy Cart AI</title>"
         '<link rel="stylesheet" href="/static/app.css"></head><body>'
         '<a class="skip-link" href="#main">Skip to the current step</a>'
-        f'<div class="banner" id="banner"><div class="wrap">{_e(V2_BANNER)}</div></div>'
+        '<div class="banner" id="banner"><div class="wrap"><strong>Sample data, not live; savings are simulated.</strong>'
+        f'<details><summary>What is real in this demo?</summary><p>{_e(V2_BANNER)}</p></details></div></div>'
         '<header class="site"><div class="wrap"><h1>Savvy Cart AI</h1>'
         "<p class=\"tagline\">Karuppan's next shop: when to buy, where, and with which card.</p></div></header>"
         '<main id="main"><div class="wrap">'
         '<form method="post" action="/ui" enctype="multipart/form-data">'
+        f"{_render_profile(state, compact=current != 0 or hidden_step == OFFER_STEP)}"
         f"{_step_nav(current)}{alert}"
         f'<input type="hidden" name="receipt_json" value="{_e(json.dumps(state["added"]))}">'
         f"{_hidden_state(state, items, current if hidden_step is None else hidden_step)}"
@@ -1331,7 +1396,7 @@ def _render_offer_result(rule: dict[str, Any], check: dict[str, Any], held: tupl
         f'<div class="claim"><div class="label">The headline says</div><div class="quote">&ldquo;{_e(headline)}&rdquo;</div>'
         f'<div class="value struck">{_money(check["headline_lkr"])}</div>'
         f'<div class="label">{rule["rate_bps"] / 100:g}% of your {_money(check["shelf_total_lkr"])} basket at {_e(STORE_NAMES[check["store_id"]])}</div></div>'
-        f'<div class="truth"><div class="label">The terms pay you</div><div class="value">{_money(check["paid_lkr"])}</div>'
+        f'<div class="truth{" zero" if check["paid_lkr"] == 0 else ""}"><div class="label">The terms pay you</div><div class="value">{_money(check["paid_lkr"])}</div>'
         f'<div class="label">on {_e(check["weekday"].title())} {_e(check["day"])}, computed by the engine</div></div>'
         "</div>"
         f'<p class="verdict">{_e(_verdict(rule, check))}</p>'
@@ -1341,11 +1406,12 @@ def _render_offer_result(rule: dict[str, Any], check: dict[str, Any], held: tupl
         f'<li><span>Maximum discount</span><strong>{_e(cap)}</strong></li>'
         f'<li><span>Combines with store promotions</span><strong>{"yes" if rule["stacks_with_promotions"] else "no"}</strong></li>'
         "</ul>"
-        '<table class="lines"><thead><tr><th>Item</th><th class="num">Price</th><th class="num">Counts</th><th>Why</th></tr></thead>'
-        f"<tbody>{rows}</tbody></table>"
+        '<div class="scroll"><table class="lines"><thead><tr><th>Item</th><th class="num">Price</th><th class="num">Counts</th><th>Why</th></tr></thead>'
+        f"<tbody>{rows}</tbody></table></div>"
         f"{_also_excluded(rule, check)}"
         '<p class="source">Store promotions in this demo are fictional shapes; the offer terms are as read and confirmed above.</p>'
         f'<p class="ok-note">{held_text}</p>'
+        '<div class="actions"><button type="submit" name="action" value="plan" class="primary">Back to my shopping plan</button></div>'
         "</div>"
     )
 
@@ -1446,7 +1512,7 @@ async def _offer_view(request: Request, action: str, form: dict[str, list[str]],
         + (f'<ul class="notes">{note_html}</ul>' if note_html else "")
         + result
         + _render_rule_form(rule)
-        + _nav("wallet", [("plan", "Next: plan my shopping", True)])
+        + _nav("wallet", [("plan", "Back to my shopping plan", True)])
         + "</section>"
     )
 
