@@ -11,7 +11,8 @@ from urllib.parse import urlencode
 
 from fastapi.testclient import TestClient
 
-from savvycart.http import app, drop_swapped_roles
+from savvycart.guardrails import drop_swapped_roles
+from savvycart.http import app
 from savvycart.receipts import MemoryStorage
 
 from test_v21_page import _fields, _sections, _submit
@@ -44,7 +45,7 @@ def test_sample_offer_shows_headline_against_terms_without_a_model():
     assert "The headline says “10% off on Total Bill every Saturday” LKR 594" in text
     assert "The terms pay you LKR 0" in text and "LKR 2,468 short of the LKR 8,000 minimum" in text
     assert "also exclude Full cream milk powder 400 g, Red dhal 1 kg" in text
-    assert "captured 2026-10-17" in text and "seylan.lk" in page
+    assert "captured 2026-10-18" in text and "seylan.lk" in page
     assert "Reading an offer needs Gemini, which is not configured here." in _text(unavailable)
     assert _sections(back) == ["wallet"]  # wallet choices survived the side trip
 
@@ -100,6 +101,16 @@ def test_gemini_catalog_match_adds_lines_from_any_store_with_fractional_quantiti
     assert "Added 2 lines from your receipt photo" in page
     assert "<li>Full cream UHT milk 1 L x 2</li>" in page and "<li>Carrot x 0.375</li>" in page
     assert "MYSTERY ITEM" in page  # low confidence stays out
+
+
+def test_whole_unit_items_are_not_shown_in_fractions():
+    with TestClient(app) as http:
+        home = http.get("/").text
+    bun = re.search(r'name="qty_tea_bun"[^>]*', home).group(0)
+    assert 'step="1"' in bun and 'min="1"' in bun and re.search(r'value="\d+"', bun)  # whole packs only
+    carrot = re.search(r'name="qty_carrot"[^>]*', home).group(0)
+    assert 'step="any"' in carrot  # sold by weight, fractions allowed
+    assert ">kg</span>" in home  # the kg unit hint is shown
 
 
 def test_swapped_total_and_saving_sentences_are_dropped():

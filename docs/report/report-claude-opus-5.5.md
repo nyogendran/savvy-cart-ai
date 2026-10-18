@@ -4,7 +4,7 @@
 > Scope: business problem, product strategy, architecture, every file under `src/`, fixtures, tests, deploy docs, ADLC records, and the two earlier reports in this folder.
 > Labels: **Verified** = I ran it or read it in the code. **Estimate** = my judgement, not a judge outcome.
 >
-> **Update, later on 18 Oct:** §11 adds the strategy for making Gemini necessary and giving the problem a "wow" moment. §12 records what was then built (SC-023, v2.2), how it was validated, the revised score estimate, and the database question. Sections 1–10 describe revision `1d1b73b`, before those changes.
+> **Update, later on 18 Oct:** §11 adds the strategy for making Gemini necessary and giving the problem a "wow" moment. §12 records what was then built (SC-023, v2.2), how it was validated, the revised score estimate, and the database question. §13 records a second pass: an agent `check_card_offer` tool, the guardrails moved into ADK callbacks, and the fractional-pack fix. Sections 1–10 describe revision `1d1b73b`, before those changes.
 
 ---
 
@@ -292,7 +292,7 @@ Do not add more agents, RAG, BigQuery, or Firestore for the sake of the diagram.
 This one feature:
 
 - makes Gemini necessary;
-- replaces assumed bank terms with real, captured ones (Seylan Bank's published Keells terms, captured 17 Oct 2026);
+- replaces assumed bank terms with real, captured ones (Seylan Bank's published Keells terms; recorded 17 Oct, page re-checked 18 Oct 2026);
 - restores the project's original idea, that a headline percent does not cover staples;
 - gives the video a 15-second moment judges will remember.
 
@@ -360,3 +360,34 @@ The remaining gap to a likely top-5 result is evidence, not features: live Gemin
 | Receipt images, if a household opts in to keep them | Cloud Storage with a lifecycle delete rule |
 
 The code is ready for that step: offers already come through one loader (`_v2_offers`) and the mock partner endpoints. A Firestore-backed offer store would replace that loader without touching the engine.
+
+---
+
+## 13. Second pass on 18 Oct: agent offer tool, ADK-callback guardrails, whole-pack quantities
+
+This pass answers three asks: give the agent its own offer-check tool, move the grounding guardrails into ADK's own callbacks so the depth is visible in the framework, and stop the pantry showing a pack of buns as a fraction.
+
+### 13.1 Changes
+
+| Area | Change | Files |
+| --- | --- | --- |
+| **`check_card_offer` agent tool** | A sixth agent tool. The shopper can now ask the agent "is this Saturday offer worth it on my basket?"; the agent extracts the terms it heard into arguments, and the tool validates them and runs the same deterministic reality check, returning engine numbers only (headline suggests vs terms pay, eligible, minimum met, gap, cap). This connects the wow feature to the conversation. | `agent.py`, `offercheck.py` |
+| **Guardrails as ADK callbacks** | The grounding logic moved into a shared `guardrails.py` and is now wired into the agent as `before_tool_callback`, `after_tool_callback`, and `after_model_callback`. The before-tool callback refuses any `plan_day` or `check_card_offer` outside the shopper's 7-day window and any `get_pantry` for a different day. The after-tool callback accumulates the engine numbers a result produced. The after-model callback strips ungrounded numbers and role-swapped sentences before the text leaves the model. The Why-step post-filter still runs as an outer net, so the fallback and test paths stay protected. | `guardrails.py` (new), `agent.py`, `http.py` |
+| **Whole-pack quantities** | The catalog already marks each item's `unit` (`kg` or `each`). The pantry now rounds the usual quantity of whole-unit items (a 2-pack of buns, a 10-pack of eggs) to an integer, so a median of 2 and 3 packs no longer shows as 2.5. Produce sold by weight keeps its fraction (carrot 0.5 kg). The pantry inputs step by 1 for packs and by any amount for weight, and show a `kg` or `pack` hint. | `pantry.py`, `http.py`, `static/app.css` |
+
+**On "should we consider that in the pantry view?" — yes.** The pantry view is exactly the right place: the fix is in `pantry.py` (so the agent sees whole packs too) and in the view's input constraints (so a shopper cannot type half a pack). The signal (`unit`) was already in the catalog, so no fixture change was needed.
+
+### 13.2 Why this is the right agent depth (not multi-agent)
+
+The Google Ask-the-Expert session called ADK depth "recommended depth, not a separate scoring gate" and warned against a "diagram of seven boxes." This pass adds depth judges can see — a real tool loop, framework-native callbacks enforcing guardrails, a window the model cannot escape — without a second agent that would invite "why isn't this one agent?" The money is still computed by deterministic code; the callbacks make the grounding visible inside ADK rather than only in the web layer.
+
+### 13.3 Validation (Verified)
+
+- **85 tests pass** (was 78): a new `tests/test_guardrails.py` (6 tests) covers the window enforcement, the number accumulation, the after-model stripping of a real `LlmResponse`, and that the agent is built with all three callbacks; `tests/test_offer_check.py` adds a `check_card_offer` tool test; `tests/test_v22_page.py` adds the whole-pack assertion.
+- **Direct checks:** `before_tool_guard` refuses a `plan_day`/`check_card_offer` dated outside the window and a `get_pantry` for the wrong day; `after_tool_guard` admits the engine total and drops echoed `qty`; `after_model_guard` removes an invented "99999" and a swapped "save 4609" while leaving clean text untouched.
+- **Container:** rebuilt and smoke-tested; the app boots and the sample offer, plan, and whole-pack bun quantity all render correctly.
+- **Still not verified: live Gemini.** The callbacks only run on the real ADK path, which needs a configured model. The fake-model tests cover the logic; a live run after deploy is still required.
+
+### 13.4 Two layers, stated honestly for the video or deck
+
+> Guardrails run in two places: inside the agent, as ADK callbacks that keep the model within the planning window and strip any number the engine did not produce; and again on the way to the page, which also covers the no-model fallback. The model never sets a price, a discount, or a date.

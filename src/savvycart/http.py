@@ -19,7 +19,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from savvycart.explain import drop_unallowed_number_tokens, ensure_discount_sentence, explain_plan, numbers_in_plan
+from savvycart.explain import ensure_discount_sentence, explain_plan, numbers_in_plan
 from savvycart.gemini import ModelResponseError, UnsupportedImage
 from savvycart.optimizer import optimize
 from savvycart.receipts import (
@@ -361,10 +361,12 @@ import difflib
 import re as _re
 from datetime import date as _date
 from datetime import timedelta as _timedelta
+from math import ceil as _ceil
 
 from fastapi.staticfiles import StaticFiles
 
 from savvycart import offercheck
+from savvycart.guardrails import clean_text, grounding_view, result_grounds, session_state
 from savvycart.pantry import pantry as compute_pantry
 from savvycart.partners import router as partners_router
 from itertools import combinations
@@ -402,13 +404,6 @@ AGENT_TIMEOUT_SECONDS = 60
 MAX_QUESTION = 300
 SAMPLE_QUESTIONS = ("Would one store be enough if I drop the extra trip?", "What if I only use my Commercial Bank card?",
                     "Is Sunday cheaper than the day you picked?")
-# explain_plan_numbers only echoes numbers from a plan the model supplies, so it cannot widen the filter.
-GROUNDING_TOOLS = ("get_pantry", "load_catalog", "load_offers", "plan_day")
-# Fields that echo or derive from model-chosen tool arguments rather than engine data.
-ECHOED_FIELDS = {
-    "plan_day": {"qty", "trip_cost_lkr", "max_stores", "unpriced", "missing"},
-    "get_pantry": {"today", "days_left", "reason"},
-}
 AGENT_QUESTION_V2 = (
     "Explain to the shopper, in a few short sentences, why this is the cheapest way to buy these groceries: "
     "which store and card for which items, and what they save against their usual store. "
@@ -595,7 +590,9 @@ def _pantry_view(state: dict[str, Any]) -> list[dict[str, Any]]:
         except ValueError:
             qty = 0
         usual = item.get("usual_qty") or 1
-        item["qty"] = qty if 0 < qty <= MAX_QTY else usual
+        chosen = qty if 0 < qty <= MAX_QTY else usual
+        # A pack, tin, or carton is a whole unit; only produce priced by weight keeps a fraction.
+        item["qty"] = round(chosen, 3) if item.get("divisible") else max(1, _ceil(chosen))
     return items
 
 
@@ -671,12 +668,16 @@ def _render_pantry(items: list[dict[str, Any]], state: dict[str, Any], note: str
         sku = _e(item["sku_id"])
         status = item["display_status"]
         reason = "You added this item." if status == "added" else _reason_text(item)
+        divisible = item.get("divisible")
+        step, mn = ("any", "0.001") if divisible else ("1", "1")
+        unit = "kg" if divisible else "pack" if "pack" in item["name"].lower() else ""
+        unit_html = f'<span class="unit" aria-hidden="true">{unit}</span>'
         return (
             '<div class="item">'
             f'<input type="checkbox" id="sku_{sku}" name="sku" value="{sku}"{" checked" if item["checked"] else ""}>'
             f'<label class="name" for="sku_{sku}">{_e(item["name"])} <span class="status {_e(status)}">{_e(STATUS_TEXT[status])}</span></label>'
-            f'<span><label class="sr-only" for="qty_{sku}">Quantity of {_e(item["name"])}</label>'
-            f'<input type="number" id="qty_{sku}" name="qty_{sku}" min="0.001" max="{MAX_QTY}" step="any" value="{_qty_text(item["qty"])}"></span>'
+            f'<span class="qty"><label class="sr-only" for="qty_{sku}">Quantity of {_e(item["name"])}{" in kg" if divisible else ""}</label>'
+            f'<input type="number" id="qty_{sku}" name="qty_{sku}" min="{mn}" max="{MAX_QTY}" step="{step}" value="{_qty_text(item["qty"])}">{unit_html}</span>'
             f'<span class="reason">{_e(reason)}</span>'
             "</div>"
         )
@@ -946,53 +947,6 @@ def _render_plan(plan: dict[str, Any], sweep: dict[str, Any] | None, state: dict
     )
 
 
-SAVING_WORDS = _re.compile(r"^(save|saves|saved|saving|savings|discount)$")
-TOTAL_WORDS = _re.compile(r"^(pay|pays|paid|paying|total|cost|costs|spend|spending|bill)$")
-# A colon stays inside its clause ("Plan total: 4609 LKR"); parentheses start a new one.
-CLAUSE_BREAK = _re.compile(r"[,;()\u2014]|\b(?:and|but|while|whereas)\b")
-ROLE_WINDOW = 5
-
-
-def _number_role(words: list[str], i: int) -> str | None:
-    """'saving' or 'total' from the nearest role word on either side, or None when absent or tied."""
-    found = []
-    for j, word in enumerate(words):
-        if j == i or abs(j - i) > ROLE_WINDOW:
-            continue
-        if SAVING_WORDS.match(word):
-            found.append((abs(j - i), "saving"))
-        elif TOTAL_WORDS.match(word):
-            found.append((abs(j - i), "total"))
-    if not found:
-        return None
-    nearest = min(d for d, _ in found)
-    roles = {role for d, role in found if d == nearest}
-    return roles.pop() if len(roles) == 1 else None
-
-
-def drop_swapped_roles(text: str, total: int, saving: int) -> str:
-    """Drop a sentence that calls the plan total a saving, or the saving a total (numbers alone cannot tell)."""
-    if total == saving:
-        return text
-    kept = []
-    for sentence in _re.split(r"(?<=[.!?])\s+", text):
-        swapped = False
-        for clause in CLAUSE_BREAK.split(sentence):
-            words = [_re.sub(r"[^\w]", "", w).lower() for w in (clause or "").split()]
-            for i, word in enumerate(words):
-                role = _number_role(words, i) if word in (str(total), str(saving)) else None
-                if (word == str(total) and role == "saving") or (word == str(saving) and role == "total"):
-                    swapped = True
-        if not swapped:
-            kept.append(sentence)
-    return " ".join(kept).strip()
-
-
-def _normalize_numbers(text: str) -> str:
-    text = _re.sub(r"(?<=\d),(?=\d{3}\b)", "", text)
-    return _re.sub(r"(?<=\d)\.00\b", "", text)
-
-
 def _engine_summary(plan: dict[str, Any]) -> str:
     parts = []
     for bill in plan["stores"]:
@@ -1035,16 +989,6 @@ def _replan_differences(call_args: dict[str, Any], confirmed: dict[str, Any]) ->
     return diffs
 
 
-def _grounding_view(name: str, response: Any) -> Any:
-    """An engine tool result without the fields that echo model-chosen arguments."""
-    drop = ECHOED_FIELDS.get(name, set())
-    if isinstance(response, dict):
-        return {k: _grounding_view(name, v) for k, v in response.items() if k not in drop}
-    if isinstance(response, list):
-        return [_grounding_view(name, v) for v in response]
-    return response
-
-
 async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, Any], lines: list[dict[str, Any]]) -> dict[str, Any]:
     confirmed = _confirmed(plan, state, lines)
     runner = getattr(request.app.state, "agent_runner", None)
@@ -1059,7 +1003,9 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
         return {**fallback, "source": "Model not configured: engine explanation."}
     if not model_rate_limiter(request.app).allow():
         return {**fallback, "source": "Too many explanations this minute. Showing the engine explanation."}
-    context = {"confirmed": confirmed, "engine_plan": plan}
+    window_start = state["today"].isoformat()
+    window_end = (state["today"] + _timedelta(days=7)).isoformat()
+    context = {"confirmed": confirmed, "engine_plan": plan, "window": {"start": window_start, "end": window_end}}
     try:
         question = f"The shopper asks: {state['question']}" if state["question"] else AGENT_QUESTION_V2
         answer = await asyncio.wait_for(runner(question, context), timeout=AGENT_TIMEOUT_SECONDS)
@@ -1067,24 +1013,13 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
         logger.warning("agent call failed: %s: %.200s", type(exc).__name__, exc)
         return {**fallback, "source": "The agent call failed. Showing the engine explanation."}
     calls = [c for c in answer.get("calls", []) if isinstance(c, dict)]
+    # The same rules as the agent's own callbacks, applied again on the way to the page.
+    guard_state = session_state(context, window_start, window_end, state["question"])
     allowed = numbers_in_plan(context)
-    window_start = state["today"].isoformat()
-    window_end = (state["today"] + _timedelta(days=7)).isoformat()
     for result in answer.get("results", []):
-        if not isinstance(result, dict):
-            continue
-        name, response = result.get("name"), result.get("response")
-        if name not in GROUNDING_TOOLS or not isinstance(response, dict) or "error" in response:
-            continue
-        planned = response.get("day")
-        planned_date = str(planned.get("date", "")) if isinstance(planned, dict) else ""
-        if name == "plan_day" and not window_start <= planned_date <= window_end:
-            continue
-        if name == "get_pantry" and response.get("today") != window_start:
-            continue
-        allowed |= numbers_in_plan(_grounding_view(name, response))
-    text = drop_unallowed_number_tokens(_normalize_numbers(str(answer.get("text", ""))), allowed)
-    text = drop_swapped_roles(text, plan["effective_cost_lkr"], plan.get("saving_vs_usual_lkr", 0))
+        if isinstance(result, dict) and result_grounds(result.get("name"), result.get("response"), guard_state):
+            allowed |= numbers_in_plan(grounding_view(result["name"], result["response"]))
+    text = clean_text(str(answer.get("text", "")), allowed, plan["effective_cost_lkr"], plan.get("saving_vs_usual_lkr", 0))
     saving = str(plan.get("saving_vs_usual_lkr", 0))
     if saving not in text:
         text = f"{text} Engine total {plan['effective_cost_lkr']} LKR, saving {saving} LKR against your usual store.".strip()

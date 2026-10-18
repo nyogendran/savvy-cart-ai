@@ -91,3 +91,25 @@ def test_existing_offers_price_exactly_as_before():
     lines = [{"sku_id": "flora_500g", "qty": 3}, {"sku_id": "bread_450g", "qty": 4}]
     plan = plan_day(CATALOG, OFFERS, lines, SATURDAY.isoformat(), ["Commercial Bank"], 1, 250, "keells")
     assert plan["stores"][0]["card"] is None  # promoted bill under the LKR 4,000 minimum (SC-021 finding)
+
+
+def test_check_card_offer_agent_tool_grounds_in_the_engine_and_refuses_bad_input():
+    from savvycart.agent import check_card_offer
+
+    small = check_card_offer("Seylan Bank", "keells", 10, ["Rice", "Milk Powder", "Dhal"], ["saturday"],
+                             [{"sku_id": "milk_powder_400g", "qty": 2}, {"sku_id": "cheese_250g", "qty": 1}], "2026-10-24",
+                             min_bill_lkr=8000, max_discount_lkr=1000)
+    assert small["terms_pay_lkr"] == 0 and not small["min_met"]  # cheese is the only eligible line, under the minimum
+    assert small["eligible_lkr"] == 1400 and small["headline_suggests_lkr"] == 400  # 10% of the whole 4,000 shelf bill
+    assert small["terms_used"] == {"percent_off": 10, "min_bill_lkr": 8000, "max_discount_lkr": 1000}
+    big = check_card_offer("Seylan Bank", "keells", 10, ["Rice"], ["saturday"], [{"sku_id": "cheese_250g", "qty": 4}], "2026-10-24",
+                           min_bill_lkr=4000, max_discount_lkr=1000)
+    assert big["min_met"] and big["terms_pay_lkr"] == min(big["eligible_lkr"] // 10, 1000)
+    # A term the shopper did not state is left out and flagged, never read as zero.
+    unstated = check_card_offer("X", "keells", 10, [], ["saturday"], [{"sku_id": "cheese_250g", "qty": 4}], "2026-10-24")
+    assert unstated["terms_pay_lkr"] == unstated["eligible_lkr"] // 10 and any("No minimum" in n for n in unstated["notes"])
+    # An offer is only priced on a day it is valid.
+    assert "not valid on wednesday" in check_card_offer("X", "keells", 10, [], ["saturday"], [{"sku_id": "cheese_250g", "qty": 1}],
+                                                         "2026-10-28")["error"]
+    assert check_card_offer("X", "keells", None, [], ["saturday"], [{"sku_id": "cheese_250g", "qty": 1}], "2026-10-24")["error"]
+    assert check_card_offer("X", "keells", 10, [], ["saturday"], [{"sku_id": "nope", "qty": 1}], "2026-10-24")["error"]

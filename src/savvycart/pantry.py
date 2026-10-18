@@ -36,16 +36,21 @@ def pantry(
     today: date,
 ) -> list[dict[str, Any]]:
     """One entry per catalog SKU, ordered by days left (unknown last)."""
-    names = {sku["id"]: sku["name"] for sku in catalog["skus"]}
+    skus = {sku["id"]: sku for sku in catalog["skus"]}
+    names = {sku_id: sku["name"] for sku_id, sku in skus.items()}
     bought = purchases_by_sku([b for b in bills if b["date"] <= today.isoformat()], history_map)
     items = []
     for sku_id, name in names.items():
+        # Packaged goods (eggs, milk, a 2-pack of buns) are bought in whole units; only produce sold by weight is divisible.
+        divisible = skus[sku_id].get("unit") == "kg"
         dates = sorted(bought.get(sku_id, {}))
         if len(dates) < 2:
             items.append(
                 {
                     "sku_id": sku_id,
                     "name": name,
+                    "unit": skus[sku_id].get("unit", "each"),
+                    "divisible": divisible,
                     "purchase_dates": len(dates),
                     "status": "unknown",
                     "reason": f"Bought on {len(dates)} day{'s' if len(dates) != 1 else ''}; not enough history to estimate.",
@@ -54,7 +59,8 @@ def pantry(
             continue
         gaps = [(b - a).days for a, b in zip(dates, dates[1:])]
         cadence = _round_half_up(statistics.median(gaps))
-        usual_qty = round(statistics.median(bought[sku_id][d] for d in dates), 3)
+        median_qty = statistics.median(bought[sku_id][d] for d in dates)
+        usual_qty = round(median_qty, 3) if divisible else max(1, _round_half_up(median_qty))
         last = dates[-1]
         next_due = last + timedelta(days=cadence)
         days_left = (next_due - today).days
@@ -68,6 +74,8 @@ def pantry(
             {
                 "sku_id": sku_id,
                 "name": name,
+                "unit": skus[sku_id].get("unit", "each"),
+                "divisible": divisible,
                 "purchase_dates": len(dates),
                 "cadence_days": cadence,
                 "usual_qty": usual_qty,
