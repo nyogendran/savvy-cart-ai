@@ -716,7 +716,8 @@ def _render_pantry(items: list[dict[str, Any]], state: dict[str, Any], note: str
         '<label class="sr-only" for="add_qty">Quantity to add</label>'
         f'<input type="number" id="add_qty" name="add_qty" min="0.5" max="{MAX_QTY}" step="0.5" value="1">'
         '<button type="submit" name="action" value="add">Add</button></div>'
-        '<p class="source">Only items in the catalog can be added, because only they have prices.</p></div>'
+        '<p class="source">Only items in the catalog can be added, because only they have prices. '
+        "Packs are whole numbers, so a half pack is rounded up; loose produce is in half kilos.</p></div>"
     ) if later else ""
     return (
         '<section class="step" id="pantry" aria-labelledby="pantry-h">'
@@ -1096,13 +1097,15 @@ async def _explain_v2(request: Request, plan: dict[str, Any], state: dict[str, A
     saving = str(plan.get("saving_vs_usual_lkr", 0))
     if saving not in text:
         text = f"{text} Engine total {plan['effective_cost_lkr']} LKR, saving {saving} LKR against your usual store.".strip()
-    replans = []
-    for call in calls:
-        if call.get("name") == "plan_day":
-            diffs = _replan_differences(call.get("args") or {}, confirmed)
-            if diffs:
-                replans.append(diffs)
-    return {"text": text, "calls": calls, "replans": replans,
+    # Calls and responses arrive in event order; a refused or failed plan_day re-planned nothing.
+    plan_responses = [r.get("response") for r in answer.get("results", []) if isinstance(r, dict) and r.get("name") == "plan_day"]
+    replans, refused = [], []
+    for index, call in enumerate(c for c in calls if c.get("name") == "plan_day"):
+        response = plan_responses[index] if index < len(plan_responses) else None
+        diffs = _replan_differences(call.get("args") or {}, confirmed)
+        if diffs:
+            (refused if isinstance(response, dict) and "error" in response else replans).append(diffs)
+    return {"text": text, "calls": calls, "replans": replans, "refused": refused,
             "source": "Answer from the ADK agent (Gemini). Numbers are checked against the engine plan and the agent's own tool results."}
 
 
@@ -1134,6 +1137,8 @@ def _render_why(explanation: dict[str, Any], plan: dict[str, Any], question: str
         calls += f'<li>{len(explanation["calls"]) - 20} more tool calls not shown.</li>'
     replan = "".join(f'<p class="notice">The agent re-planned with different inputs: {_e("; ".join(d))}. Its comparison is not the plan above.</p>'
                      for d in explanation["replans"])
+    replan += "".join(f'<p class="notice">The agent tried to re-plan with different inputs ({_e("; ".join(d))}); '
+                      "the call was refused, so nothing was re-planned.</p>" for d in explanation.get("refused", []))
     unchanged = '<p class="ok-note">The agent did not change your inputs.</p>' if explanation["calls"] and not replan else ""
     count = len(explanation["calls"])
     count_text = "no agent tool calls" if not count else "1 agent tool call" if count == 1 else f"{count} agent tool calls"

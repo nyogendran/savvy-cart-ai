@@ -1,6 +1,6 @@
 # SC-030 — v2.5: UI polish (pantry spacing, quantity steps, bill tables, demo wording)
 
-**Status:** APPROVED (revision 2) · **Ticket:** SC-030 (spec) · build ticket SC-031 · absorbs SC-029 (README wording)
+**Status:** APPROVED (revision 3) · **Ticket:** SC-030 (spec) · build ticket SC-031 · absorbs SC-029 (README wording)
 
 Builds on the approved SC-027 spec (revision 7). Every SC-027, SC-025, and SC-023 rule stays unless it is listed under **Supersedes**. Prototype deadline 18 Oct 2026.
 
@@ -25,11 +25,12 @@ Builds on the approved SC-027 spec (revision 7). Every SC-027, SC-025, and SC-02
 | The date control label "Pretend today is (demo control; the history ends 17 Oct 2026)" | The label is "Planning date (17 to 31 Oct 2026)"; why the range exists moves into the banner's "What is real in this demo?" block |
 | `tests/test_v21_page.py` asserts the old date label and the added papaya's `min="0.001" ... step="any"`; `tests/test_v22_page.py` asserts `step="any"` for carrot and "saving 1331 LKR" | Those four assertions change to the v2.5 rules above; every other assertion in those files is unchanged |
 | Revision 2 (human-approved on 18 Oct 2026): frozen tests that assert figures computed on the default basket | Re-baselined numbers only, no logic change: `tests/test_guardrails.py` (the live default total and saving 4,609 / 1,331 become 4,604 / 1,328 in the scripted agent answer and its expected text), `tests/test_v22_page.py` (sample offer headline LKR 594 becomes 593 and the shortfall LKR 2,468 becomes 2,475; pasted offer "not LKR 594" becomes 593 and "not LKR 1,188" becomes 1,186), and `tests/test_v2_page.py` (the scripted re-plan's Banana ambul quantity 1.034 becomes 1, to match the shopper's basket) |
+| Revision 3 (human-approved on 18 Oct 2026): SC-019/SC-023 disclose every agent `plan_day` call with different inputs as "The agent re-planned with different inputs", even when the call was refused or failed; `tests/test_v2_page.py::test_malformed_agent_tool_calls_do_not_break_the_page` asserts that wording; `tests/test_v22_page.py` line 149 checks "You save 4609" | A refused or failed `plan_day` call (its response has `error`) is disclosed as "The agent tried to re-plan with different inputs ({differences}); the call was refused, so nothing was re-planned.", visible outside `details.how`; successful re-plans keep the existing notice. The malformed-call assertion changes to the new wording, and line 149 checks "You save 4604" |
 
 ## In scope
 
 1. **Pantry spacing.** `.item details.reason summary { min-height: 28px; padding: 0; }`; the summary sits directly under the item name (no extra row gap). Other summaries are unchanged.
-2. **Add-item row.** `#add_qty` is right-aligned with tabular figures and the same width as row quantity inputs (5em); it uses `min="0.5" step="0.5"`. The Add button stays at the end of the row.
+2. **Add-item row.** `#add_qty` is right-aligned with tabular figures and the same width as row quantity inputs (5em); it uses `min="0.5" step="0.5"`. The Add button stays at the end of the row. The note under it adds "Packs are whole numbers, so a half pack is rounded up; loose produce is in half kilos."
 3. **Quantity steps.** In `_pantry_view` (`src/savvycart/http.py`), items with `divisible` true get `max(0.5, round_half_up(qty / 0.5) * 0.5)` for both the suggestion and a typed amount; whole-unit items are unchanged. Row inputs for weighed items render `min="0.5" step="0.5"`, and the value always satisfies that step. `pantry.py` and the engine are not changed.
 4. **Bill tables** (`_render_bill`):
    - Columns: Item, Qty, Unit price (LKR), Shelf (LKR), Promotion (LKR). Qty shows "{n} kg" for weighed items and "{n}" otherwise. Unit price is the catalog price for that store (per kg or per unit). Row amounts are whole rupees with thousands separators and no "LKR"; a row with no promotion shows "-".
@@ -37,6 +38,7 @@ Builds on the approved SC-027 spec (revision 7). Every SC-027, SC-025, and SC-02
    - One `p.source` line per bill: "Prices from Keells receipts." when every line's `price_source` is `receipt`, "Fictional demo prices." when every line is `fictional`, otherwise "Prices from receipts except those marked * (fictional)." with a `*` after each fictional row's name.
    - "(fictional demo offer)" qualifiers, the "Offer: fictional demo shape." line, and published-offer terms are unchanged.
    - No ".00" decimals anywhere: the engine computes whole rupees.
+   - Numeric headers may wrap; tables have `table-layout: fixed`, a 36% item column, and `min-width: 600px` so no header or cell overflows its column (tables scroll inside the card on narrow screens).
    - Bills render one per row at full width (the bills container is no longer `grid two`), because five columns are cramped in a half-width card.
 5. **Demo wording.**
    - Date label: "Planning date (17 to 31 Oct 2026)". The select and its Update button are unchanged.
@@ -68,6 +70,7 @@ Builds on the approved SC-027 spec (revision 7). Every SC-027, SC-025, and SC-02
 | --- | --- |
 | G1 | Half-kilo steps match how loose produce is sold; the 0.5 kg minimum applies to every weighed item, including receipt-added amounts (the receipt note keeps the receipt quantity). |
 | G7 | No deck or video-script files outside the repo state the old figures yet. |
+| G8 | Browsers block submitting an off-step weight (for example 0.74 kg) with a native validation message; server-side snapping covers non-browser clients and the agent. Accepted. |
 | G2 | 28 px pantry-row summaries meet WCAG 2.2 target size (24 px minimum); the main controls keep 44 px. |
 | G3 | Unit price comes from the catalog (`prices[store].amount_lkr`), which is what the engine multiplies by quantity. |
 | G4 | Whole rupees, no decimals, because the engine computes and rounds in whole rupees. |

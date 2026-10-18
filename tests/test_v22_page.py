@@ -146,7 +146,7 @@ def test_shopper_question_reaches_the_agent_and_answers_stay_grounded():
     assert asked == ["The shopper asks: Is Sunday cheaper than the day you picked?", "The shopper asks: What if I only use my HNB card?"]
     for page in (chip, typed):
         answer = _text(re.search(r'<p id="explanation-text">(.*?)</p>', page, re.S).group(1))
-        assert "You save 4609" not in answer and "99999" not in answer
+        assert "You save 4604" not in answer and "99999" not in answer
         assert "saving 1328 LKR" in answer
     assert "You asked: Is Sunday cheaper than the day you picked?" in _text(chip)
 

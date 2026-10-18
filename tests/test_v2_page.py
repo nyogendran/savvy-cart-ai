@@ -248,7 +248,8 @@ def test_malformed_agent_tool_calls_do_not_break_the_page():
             page = _post(http, "explain", _defaults(http.get("/").text))
     finally:
         app.state.agent_runner = None
-    assert "The agent re-planned with different inputs" in page and "a different basket" in page
+    assert "The agent tried to re-plan with different inputs" in page and "a different basket" in page
+    assert "the call was refused, so nothing was re-planned." in page and "The agent re-planned with different inputs" not in page
 
 
 def test_engine_explanation_without_model_and_logged_fallback(caplog):

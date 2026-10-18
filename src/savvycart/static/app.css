@@ -234,5 +234,6 @@ input[type="checkbox"], input[type="radio"] { width: 22px; height: 22px; }
 #add_qty { width: 5em; text-align: right; font-variant-numeric: tabular-nums; }
 .bills { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .bill td.num { font-variant-numeric: tabular-nums; }
-.bill table { table-layout: fixed; min-width: 520px; }
+.bill table { table-layout: fixed; min-width: 600px; }
 .bill thead th:first-child { width: 36%; }
+.bill thead th.num { white-space: normal; }

@@ -39,10 +39,13 @@ def test_add_item_quantity_matches_the_row_quantities():
 
 
 def test_weighed_items_snap_to_half_kilos():
-    assert [_half_kilos(kg) for kg in (0.2, 0.74, 0.75, 1.034, 1.26, 1.5)] == [0.5, 0.5, 1.0, 1.0, 1.5, 1.5]
+    halves = (0.2, 0.25, 0.74, 0.75, 1.034, 1.25, 1.26, 1.5, 2.75)
+    assert [_half_kilos(kg) for kg in halves] == [0.5, 0.5, 0.5, 1.0, 1.0, 1.5, 1.5, 1.5, 3.0]  # ties round up, not to even
     with TestClient(app) as http:
         home = http.get("/").text
         planned = {kg: _submit(http, home, "plan", [("qty_carrot", kg)]) for kg in ("0.2", "0.74", "0.75", "1.26")}
+        buns = _submit(http, home, "pantry", [("qty_tea_bun", "2.5")])
+    assert re.search(r'id="qty_tea_bun" [^>]*step="1" value="3"', buns)  # a typed half pack is rounded up to a whole pack
     weighed = re.findall(r'<label class="sr-only" for="qty_(\w+)">Quantity of [^<]* in kg</label><input type="number"[^>]*>', home)
     assert weighed and "banana_ambul" in weighed
     for sku in weighed:
@@ -78,9 +81,10 @@ def test_bill_tables_show_unit_prices_and_one_price_source_line():
         assert header == ["Item", "Qty", "Unit price (LKR)", "Shelf (LKR)", "Promotion (LKR)"]
         body = re.search(r"<tbody>(.*?)</tbody>", block, re.S).group(1)
         assert "LKR" not in body and "(receipt price)" not in body and "(fictional price)" not in body and "*" not in body
-        for name, qty, unit_price, shelf, promo in re.findall(
-                r'<tr><td>([^<]+)</td><td class="num">([^<]+)</td><td class="num">([^<]+)</td>'
-                r'<td class="num">([^<]+)</td><td class="num">([^<]+)</td></tr>', body):
+        rows = re.findall(r'<tr><td>([^<]+)</td><td class="num">([^<]+)</td><td class="num">([^<]+)</td>'
+                          r'<td class="num">([^<]+)</td><td class="num">([^<]+)</td></tr>', body)
+        assert rows and len(rows) == body.count("<tr>")  # every row is checked, none skipped by a markup change
+        for name, qty, unit_price, shelf, promo in rows:
             sku = names[html.unescape(name)]
             assert qty.endswith(" kg") == (sku.get("unit") == "kg"), (name, qty)
             assert int(unit_price.replace(",", "")) == sku["prices"][store]["amount_lkr"], name
@@ -91,6 +95,28 @@ def test_bill_tables_show_unit_prices_and_one_price_source_line():
     assert bills["keells"].count('<p class="source">Prices from Keells receipts.</p>') == 1
     assert bills["cargills"].count('<p class="source">Fictional demo prices.</p>') == 1
     assert ".00" not in re.sub(r"<[^>]+>", " ", "".join(bills.values()))
+
+
+def test_a_refused_replan_is_disclosed_as_refused():
+    # The agent's pantry tool still reports 3-decimal medians; a plan_day call copying them is refused by the
+    # guardrail, so the page says the attempt was refused rather than that a re-plan happened.
+    async def copies_pantry_quantities(question, context):
+        lines = [dict(line, qty=1.034 if line["sku_id"] == "banana_ambul" else line["qty"]) for line in context["confirmed"]["lines"]]
+        return {"text": "Plan total 4604 LKR.", "calls": [{"name": "plan_day", "args": dict(context["confirmed"], lines=lines)}],
+                "results": [{"name": "plan_day", "response": {"error": "Use the shopper's basket: you may leave items out, but not add items or change quantities."}}]}
+
+    app.state.agent_runner = copies_pantry_quantities
+    try:
+        with TestClient(app) as http:
+            why = _submit(http, http.get("/").text, "explain")
+    finally:
+        app.state.agent_runner = None
+    assert "The agent re-planned with different inputs" not in why and "How this was calculated: 1 agent tool call" in why
+    notice = ('<p class="notice">The agent tried to re-plan with different inputs (a different basket); '
+              "the call was refused, so nothing was re-planned.</p>")
+    assert why.count(notice) == 1 and why.index(notice) < why.index('<details class="how">')  # visible, not collapsed
+    assert "The agent did not change your inputs." not in why
+    assert _last(".bill thead th.num", "white-space") == "normal"  # long numeric headers wrap instead of overlapping
 
 
 def test_bill_marks_fictional_rows_when_sources_are_mixed():
